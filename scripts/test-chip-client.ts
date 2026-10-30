@@ -4,14 +4,29 @@
  * Usage:
  *   bun scripts/test-chip-client.ts [deviceId] [serverUrl] [masterSecret]
  */
-import { createDeviceClient } from "@solvex-dergana/api/services/device-client";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createDeviceClient } from "../packages/api/src/services/device-client";
+
+function getMasterSecret(): string {
+  if (process.argv[4]) return process.argv[4];
+  if (process.env.MASTER_DEVICE_SECRET) return process.env.MASTER_DEVICE_SECRET;
+  try {
+    const envPath = resolve(process.cwd(), "apps/server/.env");
+    if (existsSync(envPath)) {
+      const content = readFileSync(envPath, "utf-8");
+      const match = content.match(/^MASTER_DEVICE_SECRET=(.+)$/m);
+      if (match && match[1]) {
+        return match[1].trim().replace(/^["']|["']$/g, "");
+      }
+    }
+  } catch {}
+  return "svx-device-master-secret-for-testing-32!";
+}
 
 const deviceId = process.argv[2] || "SVX-CHIP-001";
 const baseUrl = process.argv[3] || process.env.SERVER_URL || "http://localhost:3000";
-const masterSecret =
-  process.argv[4] ||
-  process.env.MASTER_DEVICE_SECRET ||
-  "svx-device-master-secret-for-testing-32!";
+const masterSecret = getMasterSecret();
 
 console.log(`[SVX Test Chip] Initialising test client for device "${deviceId}" against ${baseUrl}`);
 
