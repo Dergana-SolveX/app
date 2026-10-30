@@ -24,6 +24,7 @@
     "better-auth": "catalog:"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.13",
     "@solvex-dergana/config": "workspace:*",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "1.0.0-rc.5",

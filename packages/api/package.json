@@ -14,7 +14,9 @@
     "@solvex-dergana/db": "workspace:*",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@solvex-dergana/shared": "workspace:*",
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
     "@solvex-dergana/config": "workspace:*",
