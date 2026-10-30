@@ -1,10 +1,12 @@
 import type { Database } from "@solvex-dergana/db";
-import { medicalProfiles, rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
+import { medicalProfiles, rawAlerts, smsLog, vehicles } from "@solvex-dergana/db/schema/index";
 import {
   decodeSvx,
+  deriveDeviceKey,
   GEOHASH8_ACCURACY_M,
   geohashDecode,
   trustedEventTime,
+  verifySvx,
 } from "@solvex-dergana/shared";
 import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
@@ -36,7 +38,7 @@ export type IngestResult =
   /** Not an SVX alert: kept on record, no incident, no reply. */
   | { kind: "ignored"; reason: "not_svx" };
 
-export type IngestDeps = { db: Database; events: EventBus };
+export type IngestDeps = { db: Database; events: EventBus; masterDeviceSecret?: string };
 
 const sha = (algorithm: "sha1" | "sha256", text: string) =>
   createHash(algorithm).update(text).digest("hex");
@@ -54,7 +56,7 @@ function sourceOf(layer: number | null, peakG: number | null) {
 }
 
 /** SMS in: stores the alert, opens an incident and returns the acknowledgement. */
-export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Promise<IngestResult> {
+export async function ingestSms({ db, events, masterDeviceSecret }: IngestDeps, sms: InboundSms): Promise<IngestResult> {
   const receivedAt = sms.receivedAt ?? new Date();
   const senderHash = sha("sha256", sms.from);
   const decoded = decodeSvx(sms.body);
@@ -85,6 +87,31 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       ? await db.select({ id: medicalProfiles.id }).from(medicalProfiles).where(eq(medicalProfiles.shortCode, alert.profileCode))
       : [];
 
+    let vehicleId: string | null = null;
+    let authenticated: boolean | null = null;
+
+    if (alert.layer === 1) {
+      // Chip SMS: authenticated by sender MSISDN = vehicles.sim_msisdn AND the H field (PRD FR-S3-13)
+      const [vehicle] = await db
+        .select({
+          id: vehicles.id,
+          deviceId: vehicles.deviceId,
+          ownerProfileId: vehicles.ownerProfileId,
+        })
+        .from(vehicles)
+        .where(eq(vehicles.simMsisdn, sms.from));
+
+      if (vehicle && masterDeviceSecret) {
+        const key = await deriveDeviceKey(masterDeviceSecret, vehicle.deviceId);
+        const valid = await verifySvx(sms.body, key);
+        authenticated = valid;
+        vehicleId = vehicle.id;
+      } else {
+        authenticated = false;
+        vehicleId = vehicle?.id ?? null;
+      }
+    }
+
     // Where and when it happened. A late SMS keeps its true time, a wrong device clock is ignored.
     const cell = alert.geohash ? geohashDecode(alert.geohash) : null;
     const position = cell ? { lat: cell.lat, lng: cell.lng, accuracyM: GEOHASH8_ACCURACY_M } : null;
@@ -93,9 +120,16 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       receivedAt,
     );
 
+    const [matchedVehicle] = vehicleId
+      ? await db.select({ ownerProfileId: vehicles.ownerProfileId }).from(vehicles).where(eq(vehicles.id, vehicleId))
+      : [];
+    const finalProfileId = profile?.id ?? matchedVehicle?.ownerProfileId ?? null;
+
     // The stored alert, the same for a recognised SVX message and for plain text.
     const alertRow = {
-      profileId: profile?.id ?? null,
+      profileId: finalProfileId,
+      vehicleId,
+      authenticated,
       source: sourceOf(alert.layer, alert.peakG),
       channel: "sms" as const,
       receivedAt,

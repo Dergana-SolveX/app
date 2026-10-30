@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 import { createContext } from "./context";
+import { createDeviceApp } from "./device-routes";
 import { createInternalSmsApp } from "./internal-sms";
 import { ENV } from "./env.server";
 import { auth, db, events, smsTransport } from "./services";
@@ -25,7 +26,26 @@ app.use(
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
 
 // SMS gateways (emulator, Android relay, USB modem) hand SMS to the server here, with the shared secret.
-app.route("/", createInternalSmsApp({ secret: ENV.GATEWAY_SHARED_SECRET, db, transport: smsTransport, events }));
+app.route(
+  "/",
+  createInternalSmsApp({
+    secret: ENV.GATEWAY_SHARED_SECRET,
+    db,
+    transport: smsTransport,
+    events,
+    masterDeviceSecret: ENV.MASTER_DEVICE_SECRET,
+  }),
+);
+
+// Device REST endpoints (heartbeat, events) for B2B IoT crash chips
+app.route(
+  "/",
+  createDeviceApp({
+    masterDeviceSecret: ENV.MASTER_DEVICE_SECRET,
+    db,
+    events,
+  }),
+);
 
 app.use(
   "/trpc/*",

@@ -1,5 +1,6 @@
 import { createTestDb } from "@solvex-dergana/db/testing";
-import { encodeSvx, type SvxAlert } from "@solvex-dergana/shared";
+import { deriveDeviceKey, deviceKeyCheck, encodeSvx, type SvxAlert } from "@solvex-dergana/shared";
+import { vehicles } from "@solvex-dergana/db/schema/index";
 import { describe, expect, it } from "vitest";
 
 import { createEventBus } from "./events";
@@ -249,5 +250,104 @@ describe("incidents carry the honesty flag (NFR-P5)", () => {
     const byId = new Map((await listIncidents(db)).map((i) => [i.id, i]));
     expect(byId.get(emulated.incidentId)?.emulated).toBe(true);
     expect(byId.get(real.incidentId)?.emulated).toBe(false);
+  });
+});
+
+describe("chip SMS authentication (FR-S3-13)", () => {
+  const MASTER_SECRET = "svx-test-master-device-secret-32-chars!";
+  const CHIP_DEVICE_ID = "SVX-CHIP-001";
+  const CHIP_SIM = "+213550123456";
+
+  const chipAlert: SvxAlert = {
+    layer: 1,
+    geohash: "sn2j5x7k",
+    eventMinutes: EVENT_MINUTES,
+    peakG: 6.5,
+    rollover: false,
+    fire: false,
+    victims: null,
+    conscious: null,
+    trapped: null,
+    bleeding: null,
+    profileCode: null,
+    deltaVKmh: 35,
+    cell: null,
+  };
+
+  it("authenticates a genuine chip SMS by sender SIM and H field, preserving full confidence", async () => {
+    const db = await createTestDb();
+    const events = createEventBus();
+    const key = await deriveDeviceKey(MASTER_SECRET, CHIP_DEVICE_ID);
+    const secretHash = await deviceKeyCheck(key);
+
+    const [vehicle] = await db
+      .insert(vehicles)
+      .values({
+        deviceId: CHIP_DEVICE_ID,
+        deviceSecretHash: secretHash,
+        simMsisdn: CHIP_SIM,
+      })
+      .returning();
+
+    const body = await encodeSvx(chipAlert, { deviceKey: key });
+    expect(body).toContain("#H:");
+
+    const result = await ingestSms(
+      { db, events, masterDeviceSecret: MASTER_SECRET },
+      { from: CHIP_SIM, body, receivedAt: RECEIVED_AT, emulated: true },
+    );
+    if (result.kind !== "alert") throw new Error("expected an alert");
+
+    const detail = await getIncident(db, result.incidentId);
+    expect(detail?.alerts[0]).toMatchObject({
+      source: "iot",
+      authenticated: true,
+      vehicleId: vehicle!.id,
+    });
+    expect(Number(detail?.confidenceScore)).toBe(0.6);
+  });
+
+  it("ingests an unauthenticated chip SMS with authenticated=false and lower confidence (FR-S3-13)", async () => {
+    const db = await createTestDb();
+    const events = createEventBus();
+    const key = await deriveDeviceKey(MASTER_SECRET, CHIP_DEVICE_ID);
+    const secretHash = await deviceKeyCheck(key);
+
+    await db.insert(vehicles).values({
+      deviceId: CHIP_DEVICE_ID,
+      deviceSecretHash: secretHash,
+      simMsisdn: CHIP_SIM,
+    });
+
+    // Case A: SIM does not match registered vehicle
+    const genuineBody = await encodeSvx(chipAlert, { deviceKey: key });
+    const resultUnregisteredSim = await ingestSms(
+      { db, events, masterDeviceSecret: MASTER_SECRET },
+      { from: "+213999999999", body: genuineBody, receivedAt: RECEIVED_AT, emulated: true },
+    );
+    if (resultUnregisteredSim.kind !== "alert") throw new Error("expected an alert");
+
+    const detailSimMismatch = await getIncident(db, resultUnregisteredSim.incidentId);
+    expect(detailSimMismatch?.alerts[0]).toMatchObject({
+      source: "iot",
+      authenticated: false,
+    });
+    expect(Number(detailSimMismatch?.confidenceScore)).toBe(0.3);
+
+    // Case B: SIM matches, but signature H is wrong / unsigned (different crash location so not merged)
+    const chipAlertFar: SvxAlert = { ...chipAlert, geohash: "snd2brmy" };
+    const unsignedBody = encodeSvx(chipAlertFar);
+    const resultBadSig = await ingestSms(
+      { db, events, masterDeviceSecret: MASTER_SECRET },
+      { from: CHIP_SIM, body: unsignedBody, receivedAt: RECEIVED_AT, emulated: true },
+    );
+    if (resultBadSig.kind !== "alert") throw new Error("expected an alert");
+
+    const detailBadSig = await getIncident(db, resultBadSig.incidentId);
+    expect(detailBadSig?.alerts[0]).toMatchObject({
+      source: "iot",
+      authenticated: false,
+    });
+    expect(Number(detailBadSig?.confidenceScore)).toBe(0.3);
   });
 });

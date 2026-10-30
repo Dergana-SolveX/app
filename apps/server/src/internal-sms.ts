@@ -33,11 +33,13 @@ export function createInternalSmsApp({
   db,
   transport,
   events,
+  masterDeviceSecret,
 }: {
   secret: string;
   db: Database;
   transport: SmsTransport;
   events: EventBus;
+  masterDeviceSecret?: string;
 }) {
   // A blank or guessable secret would make the endpoint effectively public.
   if (secret.length < MIN_SECRET_LENGTH) {
@@ -52,7 +54,7 @@ export function createInternalSmsApp({
     const parsed = inboundSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: "invalid_body" }, 400);
 
-    const result = await receiveSms({ db, events, transport }, parsed.data);
+    const result = await receiveSms({ db, events, transport, masterDeviceSecret }, parsed.data);
     const texts =
       result.kind === "alert" ? [result.ack] : result.kind === "menu" ? result.replies : [];
     const replies = texts.map((body) => ({ to: parsed.data.from, body }));
