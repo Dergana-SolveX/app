@@ -22,7 +22,7 @@ function IncidentPicker({ onPick }: { onPick: (incidentId: string) => void }) {
     <section aria-labelledby="pick-title" className="p-4 md:p-6">
       <h2 id="pick-title" className="text-base font-bold">Choisir l'incident</h2>
       <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
-        La mission n'est pas encore envoyée à l'ambulance par le dispatch : en attendant, choisissez ici l'incident sur lequel vous intervenez.
+        Sans mission reçue du dispatch, choisissez ici l'incident sur lequel vous intervenez.
       </p>
       {incidents.isPending && <Skeleton className="h-20 w-full max-w-xl" />}
       {incidents.isError && <p role="alert" className="text-sm text-destructive">Impossible de charger les incidents : {incidents.error.message}</p>}
@@ -216,8 +216,15 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
   );
 }
 
-export default function BilanWorkspace({ unitId }: { unitId: string }) {
-  const [incidentId, setIncidentId] = useState<string | null>(null);
+export default function BilanWorkspace({
+  unitId,
+  initialIncidentId = null,
+}: {
+  unitId: string;
+  /** The incident of the mission the medic just opened, so the picker is skipped. */
+  initialIncidentId?: string | null;
+}) {
+  const [incidentId, setIncidentId] = useState<string | null>(initialIncidentId);
   if (!incidentId) return <IncidentPicker onPick={setIncidentId} />;
   return <VictimWorkspace incidentId={incidentId} unitId={unitId} onBack={() => setIncidentId(null)} />;
 }

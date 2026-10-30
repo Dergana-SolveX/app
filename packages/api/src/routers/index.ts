@@ -1,11 +1,13 @@
 import { protectedProcedure, publicProcedure, router } from "../index";
 import { assessmentsRouter } from "./assessments";
+import { dispatchRouter } from "./dispatch";
 import { gsmRouter } from "./gsm";
 import { handoversRouter } from "./handovers";
 import { incidentsRouter } from "./incidents";
 
 export const appRouter = router({
   assessments: assessmentsRouter,
+  dispatch: dispatchRouter,
   gsm: gsmRouter,
   handovers: handoversRouter,
   incidents: incidentsRouter,

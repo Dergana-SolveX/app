@@ -9,20 +9,15 @@ import { useSubscription } from "@trpc/tanstack-react-query";
 import { GitMergeIcon, InboxIcon, MapPinIcon, UsersIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import DispatchForm from "@/components/dispatch-form";
 import EvaluationCard from "@/components/evaluation-card";
 import LiveStatus from "@/components/live-status";
+import { placeLabel } from "@/lib/place";
 import { incidentRef, timeAgo } from "@/lib/time";
 import { trpc } from "@/utils/trpc";
 
 /** A new incident stays highlighted for this long. */
 const FRESH_MS = 15_000;
-
-/** Where the incident is, as precisely as the alerts say: a geohash, else a road kilometre point, else a commune. */
-function placeLabel(incident: { geohash8: string | null; roadRef: string | null; pkMarker: string | null; commune: string | null }) {
-  if (incident.geohash8) return incident.geohash8;
-  if (incident.roadRef && incident.pkMarker) return `${incident.roadRef} ${incident.pkMarker}`;
-  return incident.commune ?? "position inconnue";
-}
 
 /** How much to trust the incident, as a bar and as a number (never the bar alone). */
 function ConfidenceMeter({ score }: { score: number }) {
@@ -72,6 +67,7 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
         onData: () => {
           queryClient.invalidateQueries({ queryKey: trpc.incidents.list.queryKey() });
           queryClient.invalidateQueries({ queryKey: trpc.incidents.byId.pathKey() });
+          queryClient.invalidateQueries({ queryKey: trpc.dispatch.recommendation.pathKey() });
         },
       },
     ),
@@ -191,8 +187,9 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                   Évaluation
                 </Button>
                 {selectedId === incident.id && (
-                  <div id={`evaluation-${incident.id}`} className="basis-full">
+                  <div id={`evaluation-${incident.id}`} className="basis-full space-y-4">
                     <EvaluationCard incidentId={incident.id} />
+                    <DispatchForm key={incident.id} incidentId={incident.id} />
                   </div>
                 )}
               </li>
