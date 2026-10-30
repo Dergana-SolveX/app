@@ -34,6 +34,23 @@ describe("WitnessPhoneFrame (Seam 3)", () => {
           { headers: { "content-type": "application/json" } },
         );
       }
+      if (url.includes("profiles.register")) {
+        return new Response(
+          JSON.stringify([
+            {
+              result: {
+                data: {
+                  id: "prof-uuid-1",
+                  shortCode: "K7Q2M9XA",
+                  fullName: "Amina Benali",
+                  consentAt: new Date().toISOString(),
+                },
+              },
+            },
+          ]),
+          { headers: { "content-type": "application/json" } },
+        );
+      }
       return new Response("{}", { status: 404 });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -216,5 +233,64 @@ describe("WitnessPhoneFrame (Seam 3)", () => {
       expect(body[0].lat).toBe(36.75);
     });
   });
-});
 
+  it("registers optional medical profile with Law 18-07 consent, displays short_code, and attaches it to alerts (Issue 24 - Seam 3)", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WitnessPhoneFrame initialCoords={{ lat: 36.725, lng: 3.183, accuracyM: 10 }} />
+      </QueryClientProvider>,
+    );
+
+    // Click "Profil" button to open modal
+    const profileBtn = screen.getByTestId("open-profile-modal-btn");
+    expect(profileBtn).toBeTruthy();
+    await userEvent.click(profileBtn);
+
+    // Modal is open
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByText(/Optionnel — Aucun compte requis/i)).toBeTruthy();
+    expect(screen.getByText(/Consentement Loi 18-07/i)).toBeTruthy();
+
+    // Fill form
+    const nameInput = screen.getByPlaceholderText(/Ex\. Amina Benali/i);
+    const phoneInput = screen.getByPlaceholderText(/Ex\. 0555 12 34 56/i);
+    const chronicInput = screen.getByPlaceholderText(/Ex\. diabète, asthme, hypertension/i);
+    const consentCheckbox = screen.getByRole("checkbox");
+
+    await userEvent.type(nameInput, "Amina Benali");
+    await userEvent.type(phoneInput, "0555 12 34 56");
+    await userEvent.type(chronicInput, "diabète, asthme");
+    await userEvent.click(consentCheckbox);
+
+    // Submit registration
+    const submitBtn = screen.getByRole("button", { name: /Obtenir mon UID/i });
+    await userEvent.click(submitBtn);
+
+    // Short code display should show generated code
+    await waitFor(() => {
+      const codeDisplay = screen.getByTestId("profile-short-code-display");
+      expect(codeDisplay.textContent).toBe("K7Q2M9XA");
+    });
+
+    // Close modal
+    const closeBtn = screen.getByRole("button", { name: /Terminer/i });
+    await userEvent.click(closeBtn);
+
+    // Header button now shows UID: K7Q2M9XA
+    expect(screen.getByText(/UID: K7Q2M9XA/i)).toBeTruthy();
+
+    // Now submit a witness report
+    await userEvent.click(screen.getByRole("button", { name: /1 victime/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Oui \(Conscient\)/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Aucun danger apparent/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Envoyer l'alerte maintenant/i }));
+
+    // Verify submission payload contains profileCode: "K7Q2M9XA"
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c: any) => c[0].includes("alerts.submitOnline"));
+      expect(call).toBeDefined();
+      const body = JSON.parse(call[1].body);
+      expect(body[0].profileCode).toBe("K7Q2M9XA");
+    });
+  });
+});

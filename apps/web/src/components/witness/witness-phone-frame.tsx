@@ -12,7 +12,9 @@ import {
   Radio,
   Clock,
   Sparkles,
+  Heart,
 } from "lucide-react";
+import { MedicalProfileModal } from "./medical-profile-modal";
 import {
   createWitnessFlowState,
   flowReducer,
@@ -39,6 +41,32 @@ export default function WitnessPhoneFrame({
     undefined,
     () => createWitnessFlowState(),
   );
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileCode, setProfileCode] = useState<string | null>(() => {
+    if (typeof window !== "undefined" && window.localStorage) {
+      return window.localStorage.getItem("solvex_medical_profile_code");
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (profileCode) {
+      dispatch({ type: "SET_PROFILE_CODE", profileCode });
+    }
+  }, [profileCode]);
+
+  const handleProfileSaved = (code: string | null) => {
+    setProfileCode(code);
+    dispatch({ type: "SET_PROFILE_CODE", profileCode: code });
+    if (typeof window !== "undefined" && window.localStorage) {
+      if (code) {
+        window.localStorage.setItem("solvex_medical_profile_code", code);
+      } else {
+        window.localStorage.removeItem("solvex_medical_profile_code");
+      }
+    }
+  };
 
   const t = WITNESS_TEXT[state.lang];
   const isRtl = state.lang === "ar";
@@ -101,6 +129,7 @@ export default function WitnessPhoneFrame({
       const payload = {
         idempotencyKey: `auto-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         source: "app_auto" as const,
+        profileCode: profileCode ?? undefined,
         victims: 1,
         conscious: null,
         fire: false,
@@ -290,6 +319,21 @@ export default function WitnessPhoneFrame({
               </div>
             </div>
 
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                data-testid="open-profile-modal-btn"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
+                  profileCode
+                    ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-300"
+                    : "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
+                }`}
+              >
+                <Heart className="size-3 text-red-500 fill-red-500/20" />
+                <span>{profileCode ? `UID: ${profileCode}` : "Profil"}</span>
+              </button>
+
             {/* Bilingual Language Switcher */}
             <div className="flex items-center rounded-full bg-slate-800 p-0.5 text-xs font-bold border border-slate-700">
               <button
@@ -314,6 +358,7 @@ export default function WitnessPhoneFrame({
               >
                 عربي
               </button>
+            </div>
             </div>
           </div>
 
@@ -911,6 +956,12 @@ export default function WitnessPhoneFrame({
                 )}
               </div>
             )}
+            <MedicalProfileModal
+              isOpen={isProfileModalOpen}
+              onClose={() => setIsProfileModalOpen(false)}
+              currentShortCode={profileCode}
+              onProfileSaved={handleProfileSaved}
+            />
           </div>
         </div>
       </div>

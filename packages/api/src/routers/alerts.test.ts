@@ -1,4 +1,4 @@
-import { masterIncidents, rawAlerts } from "@solvex-dergana/db/schema/index";
+import { masterIncidents, medicalProfiles, rawAlerts } from "@solvex-dergana/db/schema/index";
 import { createTestDb } from "@solvex-dergana/db/testing";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
@@ -237,5 +237,60 @@ describe("alertsRouter.submitOnline (Seam 1)", () => {
     expect(alert).toBeDefined();
     expect(alert!.source).toBe("app_auto");
   });
-});
 
+  it("links medical profile to the incident when submitted with profileCode (Issue 24 - Seam 2)", async () => {
+    const db = await createTestDb();
+    testDatabases.push(db);
+    const bus = createEventBus();
+    const caller = makeCaller(db, bus);
+
+    // Seed medical profile
+    const [profile] = await db
+      .insert(medicalProfiles)
+      .values({
+        shortCode: "PROFIL01",
+        fullName: "Yasmine Larbi",
+        birthDate: "1995-07-12",
+        sex: "female",
+        bloodType: "A-",
+        chronicConditions: ["asthme"],
+        medications: [{ name: "Ventoline", class: "other" }],
+        emergencyContact: "0550998877",
+        consentAt: new Date(),
+      })
+      .returning();
+
+    const idempotencyKey = "witness-with-profile-code-01";
+    const res = await caller.alerts.submitOnline({
+      idempotencyKey,
+      profileCode: "PROFIL01",
+      victims: 1,
+      conscious: 1,
+      fire: false,
+      trapped: false,
+      bleeding: true,
+      lat: 36.76,
+      lng: 3.12,
+      accuracyM: 5,
+    });
+
+    expect(res.alertId).toBeDefined();
+    expect(res.incidentId).toBeDefined();
+
+    // Verify raw_alert has profileId
+    const [alert] = await db
+      .select()
+      .from(rawAlerts)
+      .where(eq(rawAlerts.id, res.alertId));
+    expect(alert).toBeDefined();
+    expect(alert!.profileId).toBe(profile!.id);
+
+    // Verify master_incident has linkedProfileIds
+    const [incident] = await db
+      .select()
+      .from(masterIncidents)
+      .where(eq(masterIncidents.id, res.incidentId));
+    expect(incident).toBeDefined();
+    expect(incident!.linkedProfileIds).toContain(profile!.id);
+  });
+});
