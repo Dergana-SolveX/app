@@ -9,7 +9,7 @@ describe("DeviceClient (unit tests)", () => {
 
   it("signs heartbeat request with X-SVX-Signature and X-SVX-Timestamp", async () => {
     let capturedUrl = "";
-    let capturedHeaders: HeadersInit | undefined;
+    let capturedHeaders: Record<string, string> | undefined;
     let capturedBody = "";
 
     const deviceKey = await deriveDeviceKey(MASTER_SECRET, DEVICE_ID);
@@ -20,7 +20,7 @@ describe("DeviceClient (unit tests)", () => {
       baseUrl: "http://api.svx.local",
       fetch: async (url, init) => {
         capturedUrl = url.toString();
-        capturedHeaders = init?.headers;
+        capturedHeaders = init?.headers as Record<string, string>;
         capturedBody = init?.body as string;
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
@@ -37,13 +37,13 @@ describe("DeviceClient (unit tests)", () => {
     expect(res.ok).toBe(true);
     expect(capturedUrl).toBe("http://api.svx.local/devices/SVX-CHIP-001/heartbeat");
 
-    const headers = capturedHeaders as Record<string, string>;
+    const headers = capturedHeaders!;
     expect(headers["Content-Type"]).toBe("application/json");
     expect(headers["X-SVX-Signature"]).toBeDefined();
     expect(headers["X-SVX-Timestamp"]).toBeDefined();
 
     // Verify signature was created with device key over the exact body
-    const valid = await verifyDevicePayload(deviceKey, capturedBody, headers["X-SVX-Signature"]);
+    const valid = await verifyDevicePayload(deviceKey, capturedBody, headers["X-SVX-Signature"]!);
     expect(valid).toBe(true);
 
     const parsedBody = JSON.parse(capturedBody);

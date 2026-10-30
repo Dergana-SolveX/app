@@ -16,9 +16,23 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: ENV.CORS_ORIGIN,
+    origin: (origin) => {
+      if (!origin) return ENV.CORS_ORIGIN;
+      if (
+        origin === ENV.CORS_ORIGIN ||
+        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+      ) {
+        return origin;
+      }
+      return ENV.CORS_ORIGIN;
+    },
     allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-SVX-Signature",
+      "X-SVX-Timestamp",
+    ],
     credentials: true,
   }),
 );
