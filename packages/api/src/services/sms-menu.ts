@@ -40,6 +40,16 @@ const isKeyword = (body: string) => START_KEYWORDS.has(body.trim().toLowerCase()
 /** Arabic phones type ٠-٩; read them as 0-9. */
 const asciiDigits = (text: string) => text.replace(/[٠-٩]/g, (digit) => `${digit.charCodeAt(0) - 0x0660}`);
 
+/**
+ * The caller types HOW MANY are conscious; the alert (and triage) speak the SVX protocol: 0 = nobody, 1 = everybody,
+ * 2 = not everybody / unknown. "2 of 3" must never read as "everybody is conscious".
+ */
+function protocolConscious(victims: number | undefined, conscious: number | undefined): 0 | 1 | 2 | null {
+  if (victims === undefined || conscious === undefined) return null;
+  if (conscious === 0) return 0;
+  return conscious >= victims ? 1 : 2;
+}
+
 /** A conversation left unanswered this long is forgotten: a late "3" is then just an SMS, not an answer. */
 const SESSION_TTL_MS = 15 * 60_000;
 
@@ -137,7 +147,7 @@ export async function handleMenuSms(deps: SmsFlowDeps, sms: InboundSms): Promise
         lng: place.lng,
         accuracyM: place.uncertaintyM,
         victims: answers.victims ?? null,
-        conscious: answers.conscious ?? null,
+        conscious: protocolConscious(answers.victims, answers.conscious),
         fire: answers.fire ?? null,
         trapped: answers.trapped ?? null,
         rawPayload: sms.body,
