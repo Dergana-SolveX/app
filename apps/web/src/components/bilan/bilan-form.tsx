@@ -2,13 +2,12 @@ import { assessVictim, type VittelLevel, type VittelState } from "@solvex-dergan
 import { Button } from "@solvex-dergana/ui/components/button";
 import { Input } from "@solvex-dergana/ui/components/input";
 import { Label } from "@solvex-dergana/ui/components/label";
-import { cn } from "@solvex-dergana/ui/lib/utils";
 import { LoaderCircleIcon, SaveIcon } from "lucide-react";
 import { useId } from "react";
 
 import { GcsPicker, NumberStepper, ToggleChip } from "./controls";
 import type { Draft, Sex } from "./draft";
-import { withAnswer } from "./draft";
+import { gcsTotal, withAnswer } from "./draft";
 import { ShockIndexBadge } from "./shock-index-badge";
 import { VittelBanner, VittelPanel } from "./vittel-panel";
 
@@ -86,7 +85,7 @@ export function BilanForm({
 
       <Section title="Victime">
         <div className="flex flex-col gap-4">
-          <div role="radiogroup" aria-label="Profil de la victime" className="flex flex-wrap gap-2">
+          <div role="group" aria-label="Profil de la victime" className="flex flex-wrap gap-2">
             <ToggleChip label="Inconnu" pressed={draft.profileId === null} onPressedChange={() => set({ profileId: null })} />
             {profiles.map((p) => (
               <ToggleChip
@@ -113,6 +112,7 @@ export function BilanForm({
                 <Label htmlFor={ageId} className="mb-1.5 block text-sm font-semibold">Âge estimé (ans)</Label>
                 <Input
                   id={ageId}
+                  className="h-12"
                   inputMode="numeric"
                   placeholder="—"
                   value={draft.estAge ?? ""}
@@ -122,7 +122,7 @@ export function BilanForm({
                   }}
                 />
               </div>
-              <div role="radiogroup" aria-label="Sexe" className="flex flex-wrap gap-2">
+              <div role="group" aria-label="Sexe" className="flex flex-wrap gap-2">
                 {(["unknown", "male", "female"] as const).map((sex) => (
                   <ToggleChip key={sex} label={SEX_LABELS[sex]} pressed={draft.sex === sex} onPressedChange={() => set({ sex })} />
                 ))}
@@ -145,13 +145,18 @@ export function BilanForm({
             eye={draft.gcsParts.eye}
             verbal={draft.gcsParts.verbal}
             motor={draft.gcsParts.motor}
-            onChange={(parts) =>
-              set({
-                gcsParts: parts,
-                gcs: parts.eye !== null && parts.verbal !== null && parts.motor !== null ? parts.eye + parts.verbal + parts.motor : draft.gcs,
-              })
-            }
+            onChange={(parts) => set({ gcsParts: parts, gcs: gcsTotal(parts) })}
           />
+          {(draft.gcs !== null || draft.gcsParts.eye !== null || draft.gcsParts.verbal !== null || draft.gcsParts.motor !== null) && (
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-2 h-12"
+              onClick={() => set({ gcs: null, gcsParts: { eye: null, verbal: null, motor: null } })}
+            >
+              Effacer le Glasgow
+            </Button>
+          )}
           {draft.gcs !== null && draft.gcsParts.eye === null && (
             <p className="mt-1.5 text-xs text-muted-foreground">Glasgow enregistré : {draft.gcs} / 15 (le détail E/V/M n'est pas conservé).</p>
           )}
@@ -179,7 +184,7 @@ export function BilanForm({
         </div>
       </Section>
 
-      <div className={cn("sticky bottom-0 -mx-1 bg-background/95 px-1 py-3 backdrop-blur-sm")}>
+      <div className="sticky bottom-0 -mx-1 bg-background/95 px-1 py-3 backdrop-blur-sm">
         <Button type="button" size="lg" className="w-full sm:w-auto" onClick={onSave} disabled={saving}>
           {saving ? <LoaderCircleIcon className="animate-spin" aria-hidden="true" /> : <SaveIcon aria-hidden="true" />}
           {saving ? "Enregistrement…" : "Enregistrer le bilan"}

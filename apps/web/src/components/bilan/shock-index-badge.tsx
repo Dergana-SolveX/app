@@ -8,23 +8,25 @@ const FLAGS = {
   critical: { word: "Critique", tone: "border-sev-red/40 bg-sev-red-soft text-sev-red", Icon: CircleAlertIcon },
 } as const;
 
-/** Live Shock Index (heart rate / systolic pressure). Announced politely each time it changes. */
+/** Live Shock Index (heart rate / systolic pressure). The announcing region stays mounted; only its content changes. */
 export function ShockIndexBadge({ result }: { result: ShockIndex | null }) {
-  if (!result) {
-    return (
-      <div
-        role="status"
-        className="flex items-center gap-2 rounded-lg border border-sev-unknown/40 bg-sev-unknown-soft px-3 py-2 text-sev-unknown"
-      >
-        <CircleHelpIcon className="size-5 shrink-0" aria-hidden="true" />
-        <p className="text-sm font-semibold">Indice de choc : saisir la FC et la PAS</p>
-      </div>
-    );
-  }
+  return <div role="status">{result ? <Reading result={result} /> : <Missing />}</div>;
+}
+
+function Missing() {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-sev-unknown/40 bg-sev-unknown-soft px-3 py-2 text-sev-unknown">
+      <CircleHelpIcon className="size-5 shrink-0" aria-hidden="true" />
+      <p className="text-sm font-semibold">Indice de choc : saisir la FC et la PAS</p>
+    </div>
+  );
+}
+
+function Reading({ result }: { result: ShockIndex }) {
   const { word, tone, Icon } = FLAGS[result.flag];
   const shown = result.value === null ? "—" : result.value.toFixed(2).replace(".", ",");
   return (
-    <div role="status" className={cn("rounded-lg border px-3 py-2", tone)}>
+    <div className={cn("rounded-lg border px-3 py-2", tone)}>
       <div className="flex items-center gap-2">
         <Icon className="size-5 shrink-0" aria-hidden="true" />
         <p className="text-sm font-semibold">

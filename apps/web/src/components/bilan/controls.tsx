@@ -65,7 +65,7 @@ export function NumberStepper({
   );
 }
 
-/** One of several choices, as a row of large buttons (a radio group). */
+/** One of several choices, as a row of large buttons; the chosen one is pressed. */
 function ChoiceRow({
   legend,
   options,
@@ -78,15 +78,14 @@ function ChoiceRow({
   onChange: (value: number) => void;
 }) {
   return (
-    <div role="radiogroup" aria-label={legend} className="flex flex-col gap-1.5">
+    <div role="group" aria-label={legend} className="flex flex-col gap-1.5">
       <span className="text-sm font-semibold">{legend}</span>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <button
             key={option.value}
             type="button"
-            role="radio"
-            aria-checked={value === option.value}
+            aria-pressed={value === option.value}
             onClick={() => onChange(option.value)}
             className={cn(
               "inline-flex min-h-12 min-w-12 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-semibold transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",

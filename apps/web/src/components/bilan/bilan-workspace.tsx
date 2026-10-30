@@ -58,6 +58,8 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
   const mission = useQuery(trpc.assessments.mission.queryOptions({ incidentId }));
   const [drafts, setDrafts] = useState<Record<number, Draft>>({ 1: emptyDraft() });
   const [active, setActive] = useState(1);
+  // Taken once: the age a profile gives must not change under the medic between renders.
+  const [now] = useState(() => new Date());
 
   // Saved victims come back as drafts once, when the mission first loads.
   const loaded = mission.data?.incident.id;
@@ -127,13 +129,12 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
         <SeverityBadge severity={mission.data.incident.recSeverity} />
       </div>
 
-      <div role="tablist" aria-label="Victimes" className="mb-4 flex flex-wrap gap-2">
+      <div role="group" aria-label="Victimes" className="mb-4 flex flex-wrap gap-2">
         {victims.map((n) => (
           <button
             key={n}
             type="button"
-            role="tab"
-            aria-selected={n === active}
+            aria-current={n === active ? "true" : undefined}
             onClick={() => setActive(n)}
             className={cn(
               "inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-md border px-4 text-sm font-bold transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
@@ -159,7 +160,7 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
           sensors={mission.data.incident.vittelPrefill}
           onSave={submit}
           saving={save.isPending}
-          now={new Date()}
+          now={now}
         />
       </div>
     </section>

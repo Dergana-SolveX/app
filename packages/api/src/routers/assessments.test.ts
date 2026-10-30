@@ -43,6 +43,7 @@ async function setup(role: AppUserContext["role"] = "medic", unit: "mine" | "non
       consentAt: new Date("2026-01-01T00:00:00Z"),
     })
     .returning();
+  await db.update(masterIncidents).set({ linkedProfileIds: [profile!.id] }).where(eq(masterIncidents.id, incident!.id));
   const appUser: AppUserContext = { id: "u1", role, unitId: unit === "mine" ? mine!.id : null, hospitalId: null };
   const caller = t.createCallerFactory(assessmentsRouter)({
     db,
@@ -174,6 +175,17 @@ describe("assessments.save: who may save", () => {
     await expect(caller.save({ incidentId: incident.id })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
+  it("is refused a profile that is not linked to this incident", async () => {
+    const { db, caller, incident } = await setup();
+    const [stranger] = await db
+      .insert(medicalProfiles)
+      .values({ shortCode: "ZZ99ZZ99", fullName: "Autre Personne", birthDate: "1990-01-01", sex: "female", consentAt: new Date() })
+      .returning();
+    await expect(caller.save({ incidentId: incident.id, profileId: stranger!.id })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
   it("is refused to a medic asking to save for another ambulance", async () => {
     const { caller, incident, otherUnit } = await setup();
     await expect(caller.save({ incidentId: incident.id, unitId: otherUnit.id })).rejects.toMatchObject({
@@ -227,6 +239,11 @@ describe("assessments.openIncidents and assessments.mission: what the bilan scre
     expect(mission.profiles[0]).not.toHaveProperty("shortCode");
     expect(mission.assessments).toHaveLength(1);
     expect(mission.assessments[0]!.unitId).toBe(unit.id);
+  });
+
+  it("shows a medic with no ambulance nothing, instead of every ambulance's victims", async () => {
+    const { caller, incident } = await setup("medic", "none");
+    await expect(caller.mission({ incidentId: incident.id })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("says so when the incident does not exist, and is closed to a hospital login", async () => {

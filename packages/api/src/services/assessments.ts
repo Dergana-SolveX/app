@@ -69,6 +69,10 @@ export async function saveAssessment(
     if (input.profileId) {
       [profile] = await tx.select().from(medicalProfiles).where(eq(medicalProfiles.id, input.profileId));
       if (!profile) throw new TRPCError({ code: "NOT_FOUND", message: "Profile not found" });
+      // Medical data is only for the people this incident was linked to, not any profile a client names.
+      if (!incident.linkedProfileIds.includes(profile.id)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "This profile is not linked to the incident" });
+      }
     }
 
     const { age, state, vittel, shockIndex: index } = assessVictim({
@@ -152,7 +156,7 @@ export async function getMission(db: Database, appUser: AppUserContext, incident
   const profiles = incident.linkedProfileIds.length
     ? await db.select().from(medicalProfiles).where(inArray(medicalProfiles.id, incident.linkedProfileIds))
     : [];
-  const unitId = appUser.role === "admin" ? null : appUser.unitId;
+  const unitId = unitFor(appUser, undefined);
   const assessments = await db
     .select()
     .from(medicAssessments)

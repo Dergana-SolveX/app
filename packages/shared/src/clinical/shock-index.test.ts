@@ -8,15 +8,17 @@ describe("shockIndex: heart rate / systolic pressure", () => {
     expect(shockIndex(90, 100)).toMatchObject({ value: 0.9, flag: "normal" });
   });
 
-  it("is elevated above 0.9, even when rounding to two decimals would show 0.90", () => {
+  it("is elevated above 0.9 as shown: the flag follows the two decimals the medic reads", () => {
     expect(shockIndex(91, 100)).toMatchObject({ value: 0.91, flag: "elevated" });
-    expect(shockIndex(901, 1000)).toMatchObject({ value: 0.9, flag: "elevated" });
+    expect(shockIndex(914, 1000)).toMatchObject({ value: 0.91, flag: "elevated" });
+    expect(shockIndex(113, 125)).toMatchObject({ value: 0.9, flag: "normal" }); // 0.904 reads 0.90
   });
 
   it("is critical from 1.3 upwards, and elevated just below", () => {
     expect(shockIndex(129, 100)).toMatchObject({ value: 1.29, flag: "elevated" });
     expect(shockIndex(130, 100)).toMatchObject({ value: 1.3, flag: "critical" });
     expect(shockIndex(150, 90)).toMatchObject({ value: 1.67, flag: "critical" });
+    expect(shockIndex(1296, 1000)).toMatchObject({ value: 1.3, flag: "critical" }); // 1.296 reads 1.30
   });
 
   it("treats a pressure that cannot be taken (0) as critical with the reason, and no number", () => {
@@ -29,6 +31,10 @@ describe("shockIndex: heart rate / systolic pressure", () => {
     expect(shockIndex(undefined, undefined)).toBeNull();
     expect(shockIndex(Number.NaN, 120)).toBeNull();
     expect(shockIndex(null, 0)).toBeNull();
+  });
+
+  it("does not call a heart rate of 0 normal: no pulse is not a reassuring index", () => {
+    expect(shockIndex(0, 120)).toBeNull();
   });
 
   it("gives no answer for impossible values", () => {

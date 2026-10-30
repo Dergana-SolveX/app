@@ -21,13 +21,16 @@ const UNDERESTIMATES = "peut sous-estimer le choc";
 
 const present = (n: number | null | undefined): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0;
 
+/** A pulse of 0 is no measure to build an index on: it must not read as a reassuring 0.00. */
+const hasPulse = (n: number) => n > 0;
+
 /** Shock Index (PRD FR-S2-14). Null when the heart rate or the pressure is missing: never 0. */
 export function shockIndex(
   hr: number | null | undefined,
   sbp: number | null | undefined,
   context: ShockContext = {},
 ): ShockIndex | null {
-  if (!present(hr) || !present(sbp)) return null;
+  if (!present(hr) || !present(sbp) || !hasPulse(hr)) return null;
   const { elevatedAbove, criticalFrom, childUnderYears, elderlyOverYears } = THRESHOLDS.shockIndex;
   const { ageYears, betaBlocker, antihypertensive, pregnant } = context;
 
@@ -40,7 +43,8 @@ export function shockIndex(
 
   if (sbp === 0) return { value: null, flag: "critical", caveats: [...new Set(caveats)] };
 
-  const exact = hr / sbp;
-  const flag: ShockFlag = exact >= criticalFrom ? "critical" : exact > elevatedAbove ? "elevated" : "normal";
-  return { value: Math.round(exact * 100) / 100, flag, caveats: [...new Set(caveats)] };
+  // The flag follows the two decimals shown, so what the medic reads never contradicts the colour and word.
+  const value = Math.round((hr / sbp) * 100) / 100;
+  const flag: ShockFlag = value >= criticalFrom ? "critical" : value > elevatedAbove ? "elevated" : "normal";
+  return { value, flag, caveats: [...new Set(caveats)] };
 }

@@ -21,6 +21,10 @@ export type Draft = {
   treatments: string[];
 };
 
+/** The Glasgow total once the three answers are in; nothing while one is missing. */
+export const gcsTotal = (parts: Draft["gcsParts"]): number | null =>
+  parts.eye !== null && parts.verbal !== null && parts.motor !== null ? parts.eye + parts.verbal + parts.motor : null;
+
 export const emptyDraft = (): Draft => ({
   profileId: null,
   estAge: null,

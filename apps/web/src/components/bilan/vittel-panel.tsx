@@ -122,11 +122,11 @@ export function VittelPanel({
                       {tag && (
                         <span className="text-xs font-semibold text-muted-foreground">{tag}</span>
                       )}
-                      {tag && tag.includes("confirmer") && item && typeof item.value === "boolean" && (
+                      {item && item.source !== "medic" && level !== "l5" && typeof item.value === "boolean" && (
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
+                          className="h-12"
                           onClick={() => onAnswer(level, definition.id, item.value as boolean)}
                         >
                           Confirmer
