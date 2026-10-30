@@ -29,13 +29,13 @@ function DrawerLayout() {
       <Drawer.Screen
         name="index"
         options={{
-          headerTitle: "Home",
+          headerTitle: "Alerte Témoin (3-Tap)",
           drawerLabel: ({ color, focused }) => (
-            <Text style={{ color: focused ? color : themeColorForeground }}>Home</Text>
+            <Text style={{ color: focused ? color : themeColorForeground }}>Alerte Témoin</Text>
           ),
           drawerIcon: ({ size, color, focused }) => (
             <Ionicons
-              name="home-outline"
+              name="shield-checkmark"
               size={size}
               style={{ color: focused ? color : themeColorForeground }}
             />

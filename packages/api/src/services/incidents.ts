@@ -1,9 +1,17 @@
 import { TRPCError } from "@trpc/server";
 import type { Database } from "@solvex-dergana/db";
-import { dispatches, incidentEvents, masterIncidents, rawAlerts, zones } from "@solvex-dergana/db/schema/index";
+import {
+  ambulanceUnits,
+  dispatches,
+  hospitalsMatrix,
+  incidentEvents,
+  masterIncidents,
+  medicalProfiles,
+  rawAlerts,
+  zones,
+} from "@solvex-dergana/db/schema/index";
 import { routeAuthority } from "@solvex-dergana/shared";
-import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, sql } from "drizzle-orm";
 
 import type { AppUserContext } from "../context";
 import type { EventBus } from "./events";
@@ -114,7 +122,18 @@ export async function getEvaluation(db: Database, id: string) {
       }
     : null;
 
-  return { ...incident, reasons, escalation, authorityReason, authorityNotification };
+  const alerts = await db
+    .select()
+    .from(rawAlerts)
+    .where(eq(rawAlerts.incidentId, id))
+    .orderBy(asc(rawAlerts.receivedAt));
+  const journal = await db
+    .select()
+    .from(incidentEvents)
+    .where(eq(incidentEvents.incidentId, id))
+    .orderBy(asc(incidentEvents.at));
+
+  return { ...incident, alerts, journal, reasons, escalation, authorityReason, authorityNotification };
 }
 
 /** Notifies the relevant authority (Police / Gendarmerie) by SMS and logs it (FR-S5-05). */
@@ -227,11 +246,11 @@ export async function getIncidentProfiles(
       shortCode: p.shortCode,
       bloodType: p.bloodType,
       allergies: p.allergies,
-      anticoagulant: p.medications.some((m) => m.class === "anticoagulant"),
+      anticoagulant: p.medications.some((m: any) => m.class === "anticoagulant"),
       unreliableShockIndex: p.medications.some(
-        (m) => m.class === "beta_blocker",
+        (m: any) => m.class === "beta_blocker",
       ),
-      insulin: p.medications.some((m) => m.class === "insulin"),
+      insulin: p.medications.some((m: any) => m.class === "insulin"),
     }));
   });
 }
