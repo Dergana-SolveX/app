@@ -1,10 +1,24 @@
 import type { Database } from "@solvex-dergana/db";
-import { masterIncidents, medicalProfiles, medicAssessments } from "@solvex-dergana/db/schema/index";
-import { ageYears, assessVictim, VITTEL_ITEMS, type VittelState } from "@solvex-dergana/shared";
+import {
+  hospitalsMatrix,
+  masterIncidents,
+  medicalProfiles,
+  medicAssessments,
+  zones,
+} from "@solvex-dergana/db/schema/index";
+import {
+  ageYears,
+  assessVictim,
+  hospitalFromRow,
+  recommendForBilan,
+  VITTEL_ITEMS,
+  type VittelState,
+} from "@solvex-dergana/shared";
 import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 
 import type { AppUserContext } from "../context";
+import { algiersRoadGraph } from "./road-graph";
 
 export type AssessmentInput = {
   incidentId: string;
@@ -23,6 +37,9 @@ export type AssessmentInput = {
   rr?: number;
   suspectedInjuries: string[];
   treatments: string[];
+  /** The hospital the medic picked. Another one than the recommended needs `overrideReason`. */
+  chosenHospitalId?: string;
+  overrideReason?: string;
 };
 
 /** The ambulance this save is for: a medic's own; the admin (demo operator) names one. */
@@ -55,6 +72,9 @@ export async function saveAssessment(
   now = new Date(),
 ) {
   const unitId = unitFor(appUser, input.unitId);
+  // Reference data does not change with this save: read it before taking the lock on the incident.
+  const hospitalRows = await db.select().from(hospitalsMatrix);
+  const zonePolygons = (await db.select({ polygon: zones.polygon }).from(zones)).map((z) => z.polygon);
 
   return db.transaction(async (tx) => {
     // Locks the incident, so two saves of the same victim cannot both insert.
@@ -86,6 +106,44 @@ export async function saveAssessment(
       medic: medicEntries(input.vittel),
     });
 
+    // Rank the hospitals from the scene, as the tablet does, and keep the result next to the decision.
+    const recommendation =
+      incident.lat !== null && incident.lng !== null && hospitalRows.length > 0
+        ? recommendForBilan({
+            bilan: {
+              gcs: input.gcs ?? null,
+              sbp: input.sbp ?? null,
+              shockIndex: index?.value ?? null,
+              ageYears: age,
+              pregnant: (profile?.pregnancyStatus ?? "none") !== "none",
+              injuries: input.suspectedInjuries,
+              vittel: state,
+            },
+            hospitals: hospitalRows.map(hospitalFromRow),
+            origin: [incident.lat, incident.lng],
+            graph: algiersRoadGraph(),
+            zones: zonePolygons,
+            severity: incident.recSeverity,
+          })
+        : null;
+
+    let chosen: NonNullable<typeof recommendation>["ranking"][number] | undefined;
+    if (input.chosenHospitalId) {
+      if (!hospitalRows.some((h) => h.id === input.chosenHospitalId)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Hospital not found" });
+      }
+      chosen = recommendation?.ranking.find((m) => m.hospitalId === input.chosenHospitalId);
+    }
+    // Any choice other than the recommended one needs a reason, including when nothing could be recommended.
+    const overriding = Boolean(
+      input.chosenHospitalId && recommendation && input.chosenHospitalId !== recommendation.recommended?.hospitalId,
+    );
+    const reason = input.overrideReason?.trim();
+    if (overriding && !reason) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Un motif est obligatoire pour choisir un autre hôpital que le recommandé" });
+    }
+    const eta = chosen ?? recommendation?.recommended ?? null;
+
     const values = {
       incidentId: input.incidentId,
       unitId,
@@ -104,6 +162,15 @@ export async function saveAssessment(
       suspectedInjuries: input.suspectedInjuries,
       treatments: input.treatments,
       assessedAt: now,
+      recHospitalId: recommendation?.recommended?.hospitalId ?? null,
+      recRanking: recommendation
+        ? recommendation.ranking.map(({ hospitalId, etaMin, etaSource, matched, missing, diverting, score, scoreBreakdown, flags }) => ({
+            hospitalId, etaMin, etaSource, matched, missing, diverting, score, scoreBreakdown, flags,
+          }))
+        : null,
+      chosenHospitalId: input.chosenHospitalId ?? null,
+      overrideReason: overriding ? reason! : null,
+      etaMinutes: eta?.etaMin ?? null,
     };
 
     const [existing] = await tx
@@ -124,7 +191,7 @@ export async function saveAssessment(
       const [created] = await tx.insert(medicAssessments).values(values).returning({ id: medicAssessments.id });
       assessmentId = created!.id;
     }
-    return { assessmentId, shockIndex: index, vittel, vittelState: state };
+    return { assessmentId, shockIndex: index, vittel, vittelState: state, recommendation };
   });
 }
 
@@ -192,4 +259,11 @@ export async function getMission(db: Database, appUser: AppUserContext, incident
     })),
     assessments,
   };
+}
+
+/** What the tablet needs to rank hospitals by itself: every hospital, in a stable order, and the city zones. */
+export async function orientationData(db: Database) {
+  const hospitals = await db.select().from(hospitalsMatrix).orderBy(asc(hospitalsMatrix.name));
+  const zoneRows = await db.select({ polygon: zones.polygon }).from(zones);
+  return { hospitals, zones: zoneRows.map((z) => z.polygon) };
 }

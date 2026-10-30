@@ -19,6 +19,9 @@ export type Draft = {
   medic: Partial<VittelState>;
   injuries: string[];
   treatments: string[];
+  /** The hospital the medic retained, and why when it is not the recommended one. */
+  chosenHospitalId: string | null;
+  overrideReason: string;
 };
 
 /** The Glasgow total once the three answers are in; nothing while one is missing. */
@@ -39,6 +42,8 @@ export const emptyDraft = (): Draft => ({
   medic: {},
   injuries: [],
   treatments: [],
+  chosenHospitalId: null,
+  overrideReason: "",
 });
 
 /** A copy of the medic's answers with one item set, or removed when `value` is null. */
@@ -68,6 +73,8 @@ type SavedRow = {
   vittel: Partial<VittelState> | null;
   suspectedInjuries: string[];
   treatments: string[];
+  chosenHospitalId: string | null;
+  overrideReason: string | null;
 };
 
 /** Rebuilds a draft from a saved bilan, keeping only what the medic answered (no sensor, profile or level 1). */
@@ -94,5 +101,7 @@ export function draftFromSaved(row: SavedRow): Draft {
     medic,
     injuries: row.suspectedInjuries,
     treatments: row.treatments,
+    chosenHospitalId: row.chosenHospitalId,
+    overrideReason: row.overrideReason ?? "",
   };
 }

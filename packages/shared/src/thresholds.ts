@@ -44,8 +44,10 @@ export const THRESHOLDS = {
   shockIndex: { elevatedAbove: 0.9, criticalFrom: 1.3, childUnderYears: 12, elderlyOverYears: 65 },
   /** Vittel numeric cut-offs (PRD FR-S2-13): each one is positive when the measure is beyond it. */
   vittel: { gcsBelow: 13, sbpBelow: 90, spo2Below: 90, fallAboveM: 6, fluidsAboveMl: 1000, ageAbove: 65 },
+  /** Hospital needs (PRD FR-S2-26): Glasgow at or below `gcsAtMost` asks for neurosurgery; under `pediatricUnderYears` a paediatric unit is preferred. */
+  needs: { gcsAtMost: 13, pediatricUnderYears: 15 },
   /** An event time further than this from the time of receipt is not trusted (clock skew). */
   eventTime: { maxSkewHours: 24 },
-  /** Hospital ranking penalties, in minutes added to the travel time (tunable). */
-  matcher: { missingCapabilityPenaltyMin: 30, divertPenaltyMin: 60 },
+  /** Hospital ranking penalties, in minutes added to the travel time (tunable). Over `stabiliseFirstEtaMin` to the best hospital, a victim in shock is stabilised first (PRD FR-S2-28). */
+  matcher: { missingCapabilityPenaltyMin: 30, divertPenaltyMin: 60, stabiliseFirstEtaMin: 45 },
 } as const;

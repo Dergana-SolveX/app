@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { roleProcedure, router } from "../index";
-import { getMission, listOpenIncidents, saveAssessment } from "../services/assessments";
+import { getMission, orientationData, listOpenIncidents, saveAssessment } from "../services/assessments";
 
 const medicAccess = roleProcedure("medic", "admin");
 
@@ -24,6 +24,9 @@ const tag = z.string().min(1).max(60);
 export const assessmentsRouter = router({
   /** Incidents still in progress. A stop-gap until missions are dispatched to a unit (#7). */
   openIncidents: medicAccess.query(({ ctx }) => listOpenIncidents(ctx.db)),
+
+  /** Every hospital with its capabilities and status, plus the city zones: what the tablet ranks with, and caches for offline use. */
+  orientationData: medicAccess.query(({ ctx }) => orientationData(ctx.db)),
 
   /** One incident for the bilan screen: sensor prefill, linked profiles, this ambulance's recorded victims. */
   mission: medicAccess
@@ -49,6 +52,8 @@ export const assessmentsRouter = router({
         rr: z.number().int().min(0).max(80).optional(),
         suspectedInjuries: z.array(tag).max(40).default([]),
         treatments: z.array(tag).max(40).default([]),
+        chosenHospitalId: z.uuid().optional(),
+        overrideReason: z.string().max(300).optional(),
       }),
     )
     .mutation(({ ctx, input }) => saveAssessment(ctx.db, ctx.appUser, input)),

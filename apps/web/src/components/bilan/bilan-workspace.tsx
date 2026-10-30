@@ -7,6 +7,8 @@ import { ArrowLeftIcon, InboxIcon, PlusIcon, UserRoundIcon } from "lucide-react"
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { useOrientationData } from "@/lib/orientation-cache";
+import { useRoadGraph } from "@/lib/road-graph";
 import { incidentRef, timeAgo } from "@/lib/time";
 import { trpc } from "@/utils/trpc";
 
@@ -60,6 +62,8 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
   const [active, setActive] = useState(1);
   // Taken once: the age a profile gives must not change under the medic between renders.
   const [now] = useState(() => new Date());
+  const orientationData = useOrientationData(unitId);
+  const graph = useRoadGraph();
 
   // Saved victims come back as drafts once, when the mission first loads.
   const loaded = mission.data?.incident.id;
@@ -116,6 +120,8 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
       rr: draft.rr ?? undefined,
       suspectedInjuries: draft.injuries,
       treatments: draft.treatments,
+      chosenHospitalId: draft.chosenHospitalId ?? undefined,
+      overrideReason: draft.overrideReason.trim() || undefined,
     });
 
   return (
@@ -161,6 +167,10 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
           onSave={submit}
           saving={save.isPending}
           now={now}
+          scene={mission.data.incident.lat !== null && mission.data.incident.lng !== null ? [mission.data.incident.lat, mission.data.incident.lng] : null}
+          severity={mission.data.incident.recSeverity}
+          orientationData={orientationData}
+          graph={graph}
         />
       </div>
     </section>

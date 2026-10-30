@@ -1,13 +1,24 @@
-import { assessVictim, type VittelLevel, type VittelState } from "@solvex-dergana/shared";
+import {
+  assessVictim,
+  hospitalFromRow,
+  INJURY_TAGS,
+  recommendForBilan,
+  type LatLng,
+  type RoadGraph,
+  type Severity,
+  type VittelLevel,
+  type VittelState,
+} from "@solvex-dergana/shared";
 import { Button } from "@solvex-dergana/ui/components/button";
 import { Input } from "@solvex-dergana/ui/components/input";
 import { Label } from "@solvex-dergana/ui/components/label";
 import { LoaderCircleIcon, SaveIcon } from "lucide-react";
-import { useId } from "react";
+import { useId, useMemo } from "react";
 
 import { GcsPicker, NumberStepper, ToggleChip } from "./controls";
 import type { Draft, Sex } from "./draft";
 import { gcsTotal, withAnswer } from "./draft";
+import { OrientationPanel } from "./orientation-panel";
 import { ShockIndexBadge } from "./shock-index-badge";
 import { VittelBanner, VittelPanel } from "./vittel-panel";
 
@@ -24,7 +35,7 @@ export type MissionProfile = {
 };
 
 // Lists the team owns and can change (PRD §7.7 note): the words a medic ticks, saved as plain text.
-const INJURIES = ["Tête", "Rachis cervical", "Thorax", "Abdomen", "Bassin", "Membre supérieur", "Membre inférieur", "Hémorragie externe", "Brûlure"];
+const INJURIES = Object.keys(INJURY_TAGS);
 const TREATMENTS = ["Oxygène", "Voie veineuse", "Remplissage", "Collier cervical", "Garrot", "Pansement compressif", "Immobilisation", "Analgésie"];
 
 const SEX_LABELS: Record<Sex, string> = { unknown: "Inconnu", male: "Homme", female: "Femme" };
@@ -51,6 +62,10 @@ export function BilanForm({
   onSave,
   saving,
   now,
+  scene,
+  severity,
+  orientationData,
+  graph,
 }: {
   draft: Draft;
   onChange: (draft: Draft) => void;
@@ -60,6 +75,16 @@ export function BilanForm({
   onSave: () => void;
   saving: boolean;
   now: Date;
+  /** Where the victims are: the incident position, null while unknown. */
+  scene: LatLng | null;
+  severity: Severity;
+  orientationData: {
+    data: { hospitals: Parameters<typeof hospitalFromRow>[0][]; zones: Parameters<typeof recommendForBilan>[0]["zones"][number][] } | undefined;
+    savedAt: number | null;
+    fromCache: boolean;
+    loading: boolean;
+  };
+  graph: RoadGraph | null | "error";
 }) {
   const ageId = useId();
   const profile = profiles.find((p) => p.id === draft.profileId) ?? null;
@@ -72,6 +97,36 @@ export function BilanForm({
     medic: draft.medic,
   });
   const set = (patch: Partial<Draft>) => onChange({ ...draft, ...patch });
+
+  // Hospital ranking, computed here with no network from the cached list and the bundled road graph.
+  const hospitals = useMemo(() => orientationData.data?.hospitals.map(hospitalFromRow) ?? [], [orientationData.data]);
+  const orientation = useMemo(() => {
+    if (!scene || !graph || graph === "error" || hospitals.length === 0) return null;
+    return recommendForBilan({
+      bilan: {
+        gcs: draft.gcs,
+        sbp: draft.sbp,
+        shockIndex: assessment.shockIndex?.value ?? null,
+        ageYears: assessment.age,
+        pregnant: (profile?.pregnancyStatus ?? "none") !== "none",
+        injuries: draft.injuries,
+        vittel: assessment.state,
+      },
+      hospitals,
+      origin: scene,
+      graph,
+      zones: orientationData.data?.zones ?? [],
+      severity,
+    });
+    // `assessment.state` is rebuilt on each render, so it cannot be a dependency: its inputs are.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene, graph, hospitals, orientationData.data?.zones, severity, draft.gcs, draft.sbp, draft.injuries, draft.medic, draft.estAge, draft.profileId, draft.hr, draft.spo2, sensors, now, assessment.shockIndex?.value, assessment.age, profile?.pregnancyStatus]);
+  const recommendedId = orientation?.recommended?.hospitalId ?? null;
+  // Any choice other than the recommended one needs a reason, also when nothing could be recommended.
+  const missingReason =
+    draft.chosenHospitalId !== null &&
+    draft.chosenHospitalId !== recommendedId &&
+    draft.overrideReason.trim() === "";
   const answer = (level: VittelLevel, id: string, value: boolean | number | null) =>
     set({ medic: withAnswer(draft.medic, level, id, value) });
 
@@ -184,8 +239,39 @@ export function BilanForm({
         </div>
       </Section>
 
+      <Section title="Orientation hospitalière">
+        {!scene ? (
+          <p className="text-sm text-muted-foreground">La position de l'incident n'est pas connue : le classement des hôpitaux n'est pas possible.</p>
+        ) : orientation ? (
+          <OrientationPanel
+            orientation={orientation}
+            hospitals={hospitals}
+            scene={scene}
+            graph={graph}
+            chosenId={draft.chosenHospitalId}
+            overrideReason={draft.overrideReason}
+            onChoose={(hospitalId) => set({ chosenHospitalId: hospitalId, overrideReason: hospitalId === recommendedId ? "" : draft.overrideReason })}
+            onReason={(overrideReason) => set({ overrideReason })}
+            cache={orientationData.fromCache && orientationData.savedAt ? { savedAt: orientationData.savedAt } : null}
+          />
+        ) : (
+          <p role="status" className="text-sm text-muted-foreground">
+            {graph === "error"
+              ? "Le réseau routier n'a pas pu être chargé."
+              : orientationData.loading || graph === null
+                ? "Chargement des hôpitaux et du réseau routier…"
+                : "Aucune liste d'hôpitaux disponible : connectez la tablette une première fois pour la mémoriser."}
+          </p>
+        )}
+      </Section>
+
       <div className="sticky bottom-0 -mx-1 bg-background/95 px-1 py-3 backdrop-blur-sm">
-        <Button type="button" size="lg" className="w-full sm:w-auto" onClick={onSave} disabled={saving}>
+        {missingReason && (
+          <p role="alert" className="mb-2 text-sm font-semibold text-destructive">
+            Indiquez le motif pour enregistrer un autre hôpital que le recommandé.
+          </p>
+        )}
+        <Button type="button" size="lg" className="w-full sm:w-auto" onClick={onSave} disabled={saving || missingReason}>
           {saving ? <LoaderCircleIcon className="animate-spin" aria-hidden="true" /> : <SaveIcon aria-hidden="true" />}
           {saving ? "Enregistrement…" : "Enregistrer le bilan"}
         </Button>
