@@ -94,7 +94,12 @@ export async function splitIncident(
       });
     const [created] = await tx
       .insert(masterIncidents)
-      .values(summarize(moved))
+      .values({
+        ...summarize(moved),
+        commune: source.commune,
+        roadRef: source.roadRef,
+        pkMarker: source.pkMarker,
+      })
       .returning();
     await tx
       .update(rawAlerts)
