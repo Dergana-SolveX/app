@@ -2,7 +2,7 @@ import { cellTowers } from "@solvex-dergana/db/schema/index";
 import { createTestDb } from "@solvex-dergana/db/testing";
 import { describe, expect, it } from "vitest";
 
-import { findNearestTower, resolveCell } from "./cells";
+import { findNearestTower, listSurveyTowers, recordCellSurvey, resolveCell } from "./cells";
 
 // Made-up tower ids (test data) at real places.
 const towers = [
@@ -47,5 +47,65 @@ describe("findNearestTower", () => {
   it("returns null when no tower is within reach", async () => {
     const db = await setup();
     expect(await findNearestTower(db, 36.7381, 3.28, 2_000)).toBeNull(); // Rouiba: nearest tower is about 9 km away
+  });
+});
+
+describe("recordCellSurvey and listSurveyTowers (FR-S4-08)", () => {
+  it("inserts a new survey pair with source='survey'", async () => {
+    const db = await setup();
+
+    const result = await recordCellSurvey(db, {
+      mcc: 603,
+      mnc: 1,
+      lac: 500,
+      cid: 1234,
+      lat: 36.75,
+      lng: 3.05,
+      rangeM: 650,
+      signalDbm: -72,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.tower.source).toBe("survey");
+
+    // Can be resolved directly
+    const resolved = await resolveCell(db, { mcc: 603, mnc: 1, lac: 500, cid: 1234 });
+    expect(resolved).toEqual({ lat: 36.75, lng: 3.05, rangeM: 650 });
+  });
+
+  it("upserts existing cell tower with updated coordinates from survey", async () => {
+    const db = await setup();
+
+    // Tower was originally at 36.7197, 3.1347 with rangeM 900 and source 'opencellid'
+    await recordCellSurvey(db, {
+      mcc: 603,
+      mnc: 1,
+      lac: 100,
+      cid: 2,
+      lat: 36.7201,
+      lng: 3.1352,
+      rangeM: 700,
+    });
+
+    const updated = await resolveCell(db, { mcc: 603, mnc: 1, lac: 100, cid: 2 });
+    expect(updated).toEqual({ lat: 36.7201, lng: 3.1352, rangeM: 700 });
+  });
+
+  it("lists surveyed towers filtered by source='survey'", async () => {
+    const db = await setup();
+
+    // Already 1 survey tower in test fixtures (mcc: 603, mnc: 2, lac: 7, cid: 1)
+    await recordCellSurvey(db, {
+      mcc: 603,
+      mnc: 3,
+      lac: 44,
+      cid: 99,
+      lat: 36.7,
+      lng: 3.1,
+    });
+
+    const surveyed = await listSurveyTowers(db);
+    expect(surveyed.length).toBe(2);
+    expect(surveyed.every((t) => t.source === "survey")).toBe(true);
   });
 });

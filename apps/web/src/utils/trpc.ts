@@ -32,7 +32,13 @@ export const queryClient = new QueryClient({
   }),
 });
 
-const serverUrl = `${getServerUrl(ENV.VITE_SERVER_URL)}/trpc`;
+let configuredServerUrl = "";
+try {
+  configuredServerUrl = ENV?.VITE_SERVER_URL ?? "";
+} catch {
+  configuredServerUrl = "";
+}
+const serverUrl = `${getServerUrl(configuredServerUrl)}/trpc`;
 
 export const trpcClient = createTRPCClient<AppRouter>({
   links: [

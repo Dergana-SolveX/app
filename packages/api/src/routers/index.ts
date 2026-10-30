@@ -1,6 +1,7 @@
 import { protectedProcedure, publicProcedure, router } from "../index";
 import { alertsRouter } from "./alerts";
 import { assessmentsRouter } from "./assessments";
+import { cellsRouter } from "./cells";
 import { chipRouter } from "./chip";
 import { dispatchRouter } from "./dispatch";
 import { gsmRouter } from "./gsm";
@@ -12,6 +13,7 @@ import { statsRouter } from "./stats";
 export const appRouter = router({
   alerts: alertsRouter,
   assessments: assessmentsRouter,
+  cells: cellsRouter,
   chip: chipRouter,
   dispatch: dispatchRouter,
   gsm: gsmRouter,

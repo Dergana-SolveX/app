@@ -43,6 +43,22 @@ function DrawerLayout() {
         }}
       />
       <Drawer.Screen
+        name="survey"
+        options={{
+          headerTitle: "Relevé Réseau (Survey)",
+          drawerLabel: ({ color, focused }) => (
+            <Text style={{ color: focused ? color : themeColorForeground }}>Relevé Réseau (Survey)</Text>
+          ),
+          drawerIcon: ({ size, color, focused }) => (
+            <Ionicons
+              name="radio"
+              size={size}
+              style={{ color: focused ? color : themeColorForeground }}
+            />
+          ),
+        }}
+      />
+      <Drawer.Screen
         name="(tabs)"
         options={{
           headerTitle: "Tabs",

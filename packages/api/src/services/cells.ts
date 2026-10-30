@@ -1,6 +1,6 @@
 import type { Database } from "@solvex-dergana/db";
 import { cellTowers } from "@solvex-dergana/db/schema/index";
-import { boundingBox, nearestTower } from "@solvex-dergana/shared";
+import { boundingBox, nearestTower, validateCellSurvey, type CellSurveyInput } from "@solvex-dergana/shared";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 
 /** Never scan more than this around a point, whatever the caller asks for. */
@@ -41,4 +41,46 @@ export async function findNearestTower(db: Database, lat: number, lng: number, m
     .limit(CANDIDATES);
   const found = nearestTower(candidates, lat, lng, maxM);
   return found ? { ...found.tower, distanceM: found.distanceM } : null;
+}
+
+/**
+ * Records a cell survey (Cell-ID, GPS) pair into `cell_towers` with `source = 'survey'` (PRD FR-S4-08).
+ * If the tower already exists, its coordinates are updated with the latest survey location.
+ */
+export async function recordCellSurvey(db: Database, input: CellSurveyInput) {
+  const validated = validateCellSurvey(input);
+  await db
+    .insert(cellTowers)
+    .values({
+      mcc: validated.mcc,
+      mnc: validated.mnc,
+      lac: validated.lac,
+      cid: validated.cid,
+      lat: validated.lat,
+      lng: validated.lng,
+      rangeM: validated.rangeM,
+      source: "survey",
+    })
+    .onConflictDoUpdate({
+      target: [cellTowers.mcc, cellTowers.mnc, cellTowers.lac, cellTowers.cid],
+      set: {
+        lat: validated.lat,
+        lng: validated.lng,
+        rangeM: validated.rangeM,
+        source: "survey",
+      },
+    });
+
+  return { ok: true as const, tower: validated };
+}
+
+/**
+ * Returns surveyed towers with `source = 'survey'`.
+ */
+export async function listSurveyTowers(db: Database, limit = 50) {
+  return db
+    .select()
+    .from(cellTowers)
+    .where(eq(cellTowers.source, "survey"))
+    .limit(limit);
 }
