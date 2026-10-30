@@ -6,13 +6,14 @@ import { cn } from "@solvex-dergana/ui/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { GitMergeIcon, InboxIcon, MapPinIcon, UsersIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowUpIcon, GitMergeIcon, InboxIcon, MapPinIcon, UsersIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import DispatchForm from "@/components/dispatch-form";
 import EvaluationCard from "@/components/evaluation-card";
 import LiveStatus from "@/components/live-status";
 import { placeLabel } from "@/lib/place";
+import { useRedAlert } from "@/lib/red-alert";
 import { incidentRef, timeAgo } from "@/lib/time";
 import { trpc } from "@/utils/trpc";
 
@@ -74,6 +75,13 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
   );
 
   const open = (incidents.data ?? []).filter((i) => i.status !== "closed" && i.status !== "false_alarm");
+  const openSummaries = useMemo(
+    () => open.map((i) => ({ id: i.id, recSeverity: i.recSeverity })),
+    [open],
+  );
+
+  // FR-S5-07: Sound + tab title flash on new RED incident
+  useRedAlert(openSummaries, incidents.isSuccess);
 
   return (
     <section aria-labelledby="queue-title" className="p-4 md:p-6">
@@ -164,6 +172,15 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                   </span>
                 )}
                 <ConfidenceMeter score={Number(incident.confidenceScore)} />
+                {incident.hasEscalation && (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-md border border-sev-red/40 bg-sev-red-soft px-2 py-0.5 text-xs font-bold text-sev-red animate-pulse motion-reduce:animate-none"
+                    title="Nouvelles informations reçues après dispatch : suggestion d'escalade."
+                  >
+                    <ArrowUpIcon className="size-3.5" aria-hidden="true" />
+                    Nouvelles informations
+                  </span>
+                )}
                 {incident.tentative && (
                   <span
                     className="inline-flex items-center gap-1.5 rounded-md border border-sev-yellow/40 bg-sev-yellow-soft px-2 py-0.5 text-xs font-bold text-sev-yellow"
