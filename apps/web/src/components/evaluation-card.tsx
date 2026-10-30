@@ -159,7 +159,7 @@ export default function EvaluationCard({ incidentId }: { incidentId: string }) {
                     ) : (
                       <>
                         <SendIcon className="size-3.5" aria-hidden="true" />
-                        Notifier ({view.authority.phones.split("/")[0]?.trim()})
+                        Notifier ({view.authority.primaryPhone})
                       </>
                     )}
                   </Button>

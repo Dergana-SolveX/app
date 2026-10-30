@@ -8,6 +8,26 @@ import type { AppUserContext } from "../context";
 import type { EventBus } from "./events";
 import type { SmsTransport } from "../sms/transport";
 
+/** Resolves the target authority, contact phone and reason for an incident from urban zones (FR-S2-19, FR-S5-05). */
+export async function resolveAuthorityForIncident(
+  db: Database,
+  incident: Pick<typeof masterIncidents.$inferSelect, "lat" | "lng" | "roadRef" | "recAuthority">,
+) {
+  const urbanZones = await db.select().from(zones);
+  const authRoute = routeAuthority(incident.lat, incident.lng, urbanZones, incident.roadRef);
+  const authority = incident.recAuthority ?? authRoute?.authority ?? "gendarmerie_nationale";
+  const phone = authRoute?.phones[0] ?? (authority === "surete_nationale" ? "17" : "1055");
+  const reason =
+    authRoute?.reason ??
+    (incident.recAuthority === "surete_nationale"
+      ? "Périmètre urbain"
+      : incident.recAuthority === "gendarmerie_nationale"
+        ? "Hors périmètre urbain"
+        : null);
+
+  return { authority, phone, reason };
+}
+
 /** All incidents, most recently updated first. This is the snapshot the dispatcher queue starts from. */
 export async function listIncidents(db: Database) {
   return db
@@ -65,16 +85,10 @@ export async function getEvaluation(db: Database, id: string) {
     : null;
 
   // Authority rationale
-  const urbanZones = await db.select().from(zones);
-  const authRoute = routeAuthority(incident.lat, incident.lng, urbanZones, incident.roadRef);
+  const resolvedAuth = await resolveAuthorityForIncident(db, incident);
   const authorityReason =
     (latest?.payload as Record<string, unknown> | undefined)?.authorityReason as string | undefined ??
-    authRoute?.reason ??
-    (incident.recAuthority === "surete_nationale"
-      ? "Périmètre urbain"
-      : incident.recAuthority === "gendarmerie_nationale"
-        ? "Hors périmètre urbain"
-        : null);
+    resolvedAuth.reason;
 
   // Authority notification history
   const [notified] = await db
@@ -107,10 +121,7 @@ export async function notifyAuthority(
     throw new TRPCError({ code: "NOT_FOUND", message: "Incident not found" });
   }
 
-  const urbanZones = await db.select().from(zones);
-  const authRoute = routeAuthority(incident.lat, incident.lng, urbanZones, incident.roadRef);
-  const targetAuthority = incident.recAuthority ?? authRoute?.authority ?? "gendarmerie_nationale";
-  const phone = authRoute?.phones[0] ?? (targetAuthority === "surete_nationale" ? "17" : "1055");
+  const { authority: targetAuthority, phone } = await resolveAuthorityForIncident(db, incident);
 
   // Summary SMS text (FR-S5-05)
   const ref = incident.id.slice(0, 8).toUpperCase();

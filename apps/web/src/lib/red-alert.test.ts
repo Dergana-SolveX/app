@@ -7,11 +7,19 @@ import {
 } from "./red-alert";
 
 describe("detectNewRedIncident (FR-S5-07)", () => {
-  it("returns null when incident list is initial / empty", () => {
-    expect(detectNewRedIncident([], [])).toBeNull();
+  it("suppresses alert on initial hydration when not initialized", () => {
+    expect(detectNewRedIncident([], [], false)).toBeNull();
+    expect(detectNewRedIncident([], [{ id: "inc-1", recSeverity: "red" }], false)).toBeNull();
   });
 
-  it("detects a brand new RED incident", () => {
+  it("detects a first RED incident arriving when previous queue was empty (after initialization)", () => {
+    const prev: IncidentSummary[] = [];
+    const curr: IncidentSummary[] = [{ id: "inc-1", recSeverity: "red" }];
+    const detected = detectNewRedIncident(prev, curr, true);
+    expect(detected).toEqual({ id: "inc-1", recSeverity: "red" });
+  });
+
+  it("detects a brand new RED incident among existing ones", () => {
     const prev: IncidentSummary[] = [
       { id: "inc-1", recSeverity: "yellow" },
     ];
@@ -19,7 +27,7 @@ describe("detectNewRedIncident (FR-S5-07)", () => {
       { id: "inc-1", recSeverity: "yellow" },
       { id: "inc-2", recSeverity: "red" },
     ];
-    const detected = detectNewRedIncident(prev, curr);
+    const detected = detectNewRedIncident(prev, curr, true);
     expect(detected).toEqual({ id: "inc-2", recSeverity: "red" });
   });
 
@@ -30,7 +38,7 @@ describe("detectNewRedIncident (FR-S5-07)", () => {
     const curr: IncidentSummary[] = [
       { id: "inc-1", recSeverity: "red" },
     ];
-    const detected = detectNewRedIncident(prev, curr);
+    const detected = detectNewRedIncident(prev, curr, true);
     expect(detected).toEqual({ id: "inc-1", recSeverity: "red" });
   });
 
@@ -42,7 +50,7 @@ describe("detectNewRedIncident (FR-S5-07)", () => {
       { id: "inc-1", recSeverity: "green" },
       { id: "inc-2", recSeverity: "yellow" },
     ];
-    expect(detectNewRedIncident(prev, curr)).toBeNull();
+    expect(detectNewRedIncident(prev, curr, true)).toBeNull();
   });
 
   it("does not re-trigger for existing known red incidents", () => {
@@ -52,7 +60,7 @@ describe("detectNewRedIncident (FR-S5-07)", () => {
     const curr: IncidentSummary[] = [
       { id: "inc-1", recSeverity: "red" },
     ];
-    expect(detectNewRedIncident(prev, curr)).toBeNull();
+    expect(detectNewRedIncident(prev, curr, true)).toBeNull();
   });
 });
 

@@ -20,8 +20,8 @@ const UNIT_NAMES: Record<string, string> = {
 };
 
 const AUTHORITIES = {
-  surete_nationale: { name: "Sûreté Nationale", phones: "17 / 1548" },
-  gendarmerie_nationale: { name: "Gendarmerie Nationale", phones: "1055" },
+  surete_nationale: { name: "Sûreté Nationale", phones: "17 / 1548", primaryPhone: "17" },
+  gendarmerie_nationale: { name: "Gendarmerie Nationale", phones: "1055", primaryPhone: "1055" },
 } as const;
 
 /** One sentence per severity, so the card never depends on colour to be understood. UNKNOWN is never "fine". */

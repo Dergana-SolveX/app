@@ -7,19 +7,24 @@ export type IncidentSummary = {
 
 /**
  * Detects if a new incident has arrived with RED severity, or an existing one escalated to RED (FR-S5-07).
+ *
+ * @param previous The previous incident list snapshot.
+ * @param current The current incident list snapshot.
+ * @param isInitialized Whether initial page hydration has completed.
  */
 export function detectNewRedIncident(
   previous: IncidentSummary[],
   current: IncidentSummary[],
+  isInitialized = true,
 ): IncidentSummary | null {
-  if (previous.length === 0) return null; // Initial snapshot does not count as a new live arrival
+  if (!isInitialized) return null; // Initial snapshot on mount does not count as a new live arrival
 
   const prevMap = new Map(previous.map((i) => [i.id, i.recSeverity]));
 
   for (const item of current) {
     if (item.recSeverity === "red") {
       const prevSev = prevMap.get(item.id);
-      // New incident that is red, or previous incident that wasn't red and is now red
+      // New incident that is red (even if previous was empty), or existing incident that escalated to red
       if (prevSev === undefined || prevSev !== "red") {
         return item;
       }
@@ -57,7 +62,7 @@ export function createTitleFlasher({
 
 /**
  * Synthesizes an emergency alert sound using Web Audio API (zero external audio asset files needed).
- * Safe against autoplay restrictions.
+ * Closes the AudioContext after playback to prevent exhausting browser AudioContext limits (FR-S5-07).
  */
 export function playRedAlertTone() {
   try {
@@ -86,6 +91,11 @@ export function playRedAlertTone() {
     osc2.start();
     osc1.stop(ctx.currentTime + 0.4);
     osc2.stop(ctx.currentTime + 0.4);
+
+    // Release audio hardware resources once tone has finished
+    setTimeout(() => {
+      ctx.close().catch(() => {});
+    }, 500);
   } catch {
     // Autoplay policy or unsupported audio environment: ignore gracefully
   }
@@ -94,13 +104,23 @@ export function playRedAlertTone() {
 /**
  * Hook to flash tab title and play audio tone whenever a new RED incident is received (FR-S5-07).
  */
-export function useRedAlert(incidents: IncidentSummary[]) {
+export function useRedAlert(incidents: IncidentSummary[], isLoaded = true) {
   const prevRef = useRef<IncidentSummary[]>([]);
+  const isInitializedRef = useRef(false);
   const flashIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cleanupListenersRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true;
+      prevRef.current = incidents;
+      return;
+    }
+
     const prev = prevRef.current;
-    const newRed = detectNewRedIncident(prev, incidents);
+    const newRed = detectNewRedIncident(prev, incidents, true);
     prevRef.current = incidents;
 
     if (newRed) {
@@ -122,6 +142,9 @@ export function useRedAlert(incidents: IncidentSummary[]) {
         if (flashIntervalRef.current) clearInterval(flashIntervalRef.current);
         flashIntervalRef.current = setInterval(() => flasher.step(), 800);
 
+        // Remove previous listeners before registering new ones
+        cleanupListenersRef.current?.();
+
         const stopFlash = () => {
           if (flashIntervalRef.current) {
             clearInterval(flashIntervalRef.current);
@@ -131,22 +154,28 @@ export function useRedAlert(incidents: IncidentSummary[]) {
           window.removeEventListener("focus", stopFlash);
           window.removeEventListener("click", stopFlash);
           window.removeEventListener("keydown", stopFlash);
+          cleanupListenersRef.current = null;
         };
+
+        cleanupListenersRef.current = stopFlash;
 
         window.addEventListener("focus", stopFlash);
         window.addEventListener("click", stopFlash);
         window.addEventListener("keydown", stopFlash);
       }
     }
-  }, [incidents]);
+  }, [incidents, isLoaded]);
 
   useEffect(() => {
     return () => {
       if (flashIntervalRef.current) {
         clearInterval(flashIntervalRef.current);
-        if (typeof document !== "undefined") {
-          document.title = "SVX Rescue";
-        }
+        flashIntervalRef.current = null;
+      }
+      cleanupListenersRef.current?.();
+      cleanupListenersRef.current = null;
+      if (typeof document !== "undefined") {
+        document.title = "SVX Rescue";
       }
     };
   }, []);
