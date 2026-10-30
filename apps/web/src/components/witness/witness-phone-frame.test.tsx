@@ -34,6 +34,24 @@ describe("WitnessPhoneFrame (Seam 3)", () => {
           { headers: { "content-type": "application/json" } },
         );
       }
+      if (url.includes("alerts.submitSms")) {
+        return new Response(
+          JSON.stringify([
+            {
+              result: {
+                data: {
+                  kind: "alert",
+                  incidentId: "inc-sms-777",
+                  ack: "SVXACK#777",
+                  duplicate: false,
+                  merged: false,
+                },
+              },
+            },
+          ]),
+          { headers: { "content-type": "application/json" } },
+        );
+      }
       return new Response("{}", { status: 404 });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -216,5 +234,59 @@ describe("WitnessPhoneFrame (Seam 3)", () => {
       expect(body[0].lat).toBe(36.75);
     });
   });
+
+  it("shows raw SMS preview with exact string and character count when 'Forcer canal SMS' is on (FR-S4-06)", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WitnessPhoneFrame initialCoords={{ lat: 36.725, lng: 3.183, accuracyM: 10 }} />
+      </QueryClientProvider>,
+    );
+
+    // Toggle "Forcer canal SMS" switch
+    const smsSwitch = screen.getByTestId("force-sms-toggle");
+    expect(smsSwitch).toBeTruthy();
+    await userEvent.click(smsSwitch);
+
+    // Verify raw SMS preview box is visible with SVX string and character count
+    const preview = screen.getByTestId("raw-sms-preview");
+    expect(preview).toBeTruthy();
+    expect(preview.textContent).toMatch(/SVX1#L:2/);
+    expect(screen.getByTestId("sms-char-counter")).toBeTruthy();
+    expect(screen.getByTestId("sms-char-counter").textContent).toMatch(/\/ 160/);
+  });
+
+  it("posts SVX string to alerts.submitSms flagged emulated: true when forced SMS is used (FR-S4-06)", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WitnessPhoneFrame initialCoords={{ lat: 36.725, lng: 3.183, accuracyM: 10 }} />
+      </QueryClientProvider>,
+    );
+
+    // Enable Forced SMS
+    await userEvent.click(screen.getByTestId("force-sms-toggle"));
+
+    // Complete 3-tap questions
+    await userEvent.click(screen.getByRole("button", { name: /2 victimes/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Oui \(Conscient\)/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Feu \/ Fumée/i }));
+
+    // Submit button should reflect SMS path
+    const submitBtn = screen.getByRole("button", { name: /Envoyer par SMS \(Émulé\)/i });
+    await userEvent.click(submitBtn);
+
+    // Verify it called alerts.submitSms with emulated: true and valid SVX body
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c: any) => c[0].includes("alerts.submitSms"));
+      expect(call).toBeDefined();
+      const body = JSON.parse(call[1].body);
+      expect(body[0].emulated).toBe(true);
+      expect(body[0].body).toMatch(/^SVX1#L:2.*#CK:[0-9A-F]{2}$/);
+    });
+
+    // Should display ack confirmation
+    expect(await screen.findByText(/Accusé de réception/i)).toBeTruthy();
+    expect(screen.getByText(/SVXACK#777/)).toBeTruthy();
+  });
 });
+
 

@@ -237,5 +237,49 @@ describe("alertsRouter.submitOnline (Seam 1)", () => {
     expect(alert).toBeDefined();
     expect(alert!.source).toBe("app_auto");
   });
+
+  it("submits emulated SVX SMS via alerts.submitSms, creates an incident with channel 'sms' and returns SVXACK (FR-S4-06)", async () => {
+    const db = await createTestDb();
+    testDatabases.push(db);
+    const bus = createEventBus();
+    const caller = makeCaller(db, bus);
+
+    // Build a valid SVX string
+    // SVX1#L:2#GH:spey52b7#T:10q3z#V:2#C:1#TR:1#CK:xx
+    const { buildWitnessSvxString } = await import("@solvex-dergana/shared");
+    const { svx } = buildWitnessSvxString({
+      victims: 2,
+      conscious: 1,
+      fire: false,
+      trapped: true,
+      bleeding: false,
+      lat: 36.75,
+      lng: 3.05,
+      timestamp: 1793361600000,
+    });
+
+    const res = await caller.alerts.submitSms({
+      from: "+213550000123",
+      body: svx,
+      emulated: true,
+    });
+
+    expect(res).toBeDefined();
+    expect(res.kind).toBe("alert");
+    if (res.kind === "alert") {
+      expect(res.ack).toMatch(/^SVXACK#[0-9A-F]+$/);
+      expect(res.incidentId).toBeDefined();
+
+      const [stored] = await db
+        .select()
+        .from(rawAlerts)
+        .where(eq(rawAlerts.incidentId, res.incidentId));
+      expect(stored).toBeDefined();
+      expect(stored!.channel).toBe("sms");
+      expect(stored!.emulated).toBe(true);
+      expect(stored!.source).toBe("app_witness");
+    }
+  });
 });
+
 
