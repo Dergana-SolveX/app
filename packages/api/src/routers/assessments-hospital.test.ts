@@ -1,5 +1,5 @@
 import { createTestDb } from "@solvex-dergana/db/testing";
-import { ambulanceUnits, hospitalsMatrix, masterIncidents, medicAssessments, zones } from "@solvex-dergana/db/schema/index";
+import { ambulanceUnits, hospitalsMatrix, incidentEvents, masterIncidents, medicAssessments, zones } from "@solvex-dergana/db/schema/index";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
@@ -172,6 +172,34 @@ describe("assessments.save: the medic's choice", () => {
     const [row] = await db.select().from(medicAssessments);
     expect(row!.chosenHospitalId).toBe(far.id);
     expect(row!.overrideReason).toBeNull();
+  });
+});
+
+describe("assessments.save: the choice is written in the incident history (PRD FR-S3-23)", () => {
+  it("records who chose which hospital, what was recommended, and the reason when it differs", async () => {
+    const { db, caller, incident, near, far } = await setup();
+    await caller.save({ incidentId: incident.id, ...SHOCK, chosenHospitalId: far.id, overrideReason: "Famille sur place" });
+    const events = await db.select().from(incidentEvents).where(eq(incidentEvents.type, "hospital.chosen"));
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ incidentId: incident.id, actorRole: "medic", actorId: "u1" });
+    expect(events[0]!.payload).toMatchObject({ chosen: far.id, recommended: near.id, overridden: true, reason: "Famille sur place" });
+  });
+
+  it("writes it once per change of mind, not on every save", async () => {
+    const { db, caller, incident, near, far } = await setup();
+    await caller.save({ incidentId: incident.id, ...SHOCK, chosenHospitalId: near.id });
+    await caller.save({ incidentId: incident.id, ...SHOCK, chosenHospitalId: near.id, treatments: ["Oxygène"] });
+    expect(await db.select().from(incidentEvents).where(eq(incidentEvents.type, "hospital.chosen"))).toHaveLength(1);
+    await caller.save({ incidentId: incident.id, ...SHOCK, chosenHospitalId: far.id, overrideReason: "Saturé" });
+    const events = await db.select().from(incidentEvents).where(eq(incidentEvents.type, "hospital.chosen"));
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => (e.payload as { overridden: boolean }).overridden).sort()).toEqual([false, true]);
+  });
+
+  it("writes nothing when no hospital was chosen", async () => {
+    const { db, caller, incident } = await setup();
+    await caller.save({ incidentId: incident.id, ...SHOCK });
+    expect(await db.select().from(incidentEvents)).toHaveLength(0);
   });
 });
 

@@ -21,19 +21,58 @@ export type DispatcherEvent =
       reasons: { fr: string; ar: string }[];
     };
 
-type Published = Exclude<DispatcherEvent, { type: "ready" | "resync" }>;
-type Stored = { id: string; seq: number; event: Published };
+/** What a hospital board hears: a handover addressed to it (PRD FR-S7-01). */
+export type HospitalEvent = { type: "handover.incoming"; handover: HandoverSummary };
+
+/** What an ambulance tablet hears: the hospital's answer to its handover (PRD FR-S6-05). */
+export type UnitEvent = {
+  type: "handover.updated";
+  handoverId: string;
+  hospitalId: string;
+  status: "pending" | "accepted" | "diverted";
+  divertSpecialty: string | null;
+  respondedAt: string | null;
+};
+
+/** A handover as the hospital board shows it. */
+export type HandoverSummary = {
+  id: string;
+  hospitalId: string;
+  incidentId: string;
+  assessmentId: string;
+  status: "pending" | "accepted" | "diverted";
+  /** The frozen AT-MIST snapshot. */
+  atmist: Record<string, unknown>;
+  /** The ambulance's estimated minutes to the hospital when it was sent. */
+  etaMin: number | null;
+  createdAt: string;
+};
+
+/** Who is listening: the dispatchers, one ambulance, or one hospital. */
+export type Channel = "dispatcher" | `unit:${string}` | `hospital:${string}`;
+
+type Marker = { type: "ready" } | { type: "resync" };
+type EventOf<C extends Channel> = C extends "dispatcher"
+  ? DispatcherEvent
+  : C extends `hospital:${string}`
+    ? HospitalEvent | Marker
+    : UnitEvent | Marker;
+type Published<C extends Channel> = Exclude<EventOf<C>, Marker>;
+type Stored = { id: string; seq: number; channel: Channel; event: unknown };
 
 export type EventBus = {
-  publish(event: Published): void;
+  /** `channel` defaults to the dispatchers. */
+  publish<C extends Channel = "dispatcher">(event: Published<C>, channel?: C): void;
   /**
-   * Events for one subscriber. Without `lastEventId`: a `ready` marker, then live events.
-   * With it: what the client missed (or `resync` if that is no longer possible), then live events.
+   * Events for one subscriber of a channel (the dispatchers by default). Without `lastEventId`: a `ready` marker,
+   * then live events. With it: what the client missed on this channel (or `resync` if that is no longer
+   * possible), then live events. Ids are shared by all channels, so an id means the same moment everywhere.
    */
-  stream(
+  stream<C extends Channel = "dispatcher">(
     lastEventId?: string,
     signal?: AbortSignal,
-  ): AsyncGenerator<{ id: string; event: DispatcherEvent }>;
+    channel?: C,
+  ): AsyncGenerator<{ id: string; event: EventOf<C> }>;
 };
 
 /**
@@ -50,17 +89,18 @@ export function createEventBus({
   const idOf = (n: number) => `${bootId}:${n}`;
 
   return {
-    publish(event) {
-      const item: Stored = { id: idOf(++seq), seq, event };
+    publish(event, channel = "dispatcher" as never) {
+      const item: Stored = { id: idOf(++seq), seq, channel, event };
       buffer.push(item);
       if (buffer.length > bufferSize) buffer.shift();
       for (const listener of listeners) listener(item);
     },
 
-    async *stream(lastEventId, signal) {
+    async *stream(lastEventId, signal, channel = "dispatcher" as never) {
       const queue: Stored[] = [];
       let wake: (() => void) | null = null;
       const listener = (item: Stored) => {
+        if (item.channel !== channel) return;
         queue.push(item);
         wake?.();
       };
@@ -69,18 +109,18 @@ export function createEventBus({
       try {
         let delivered = seq;
         if (lastEventId === undefined) {
-          yield { id: idOf(seq), event: { type: "ready" } };
+          yield { id: idOf(seq), event: { type: "ready" } } as never;
         } else {
           const [boot, n] = lastEventId.split(":");
           const last = Number(n);
           const oldestKept = buffer[0]?.seq ?? seq + 1;
           if (boot !== bootId || !Number.isInteger(last) || last > seq || last + 1 < oldestKept) {
-            yield { id: idOf(seq), event: { type: "resync" } };
+            yield { id: idOf(seq), event: { type: "resync" } } as never;
           } else {
             delivered = last;
-            for (const item of buffer.filter((b) => b.seq > last)) {
+            for (const item of buffer.filter((b) => b.seq > last && b.channel === channel)) {
               delivered = item.seq;
-              yield { id: item.id, event: item.event };
+              yield { id: item.id, event: item.event } as never;
             }
           }
         }
@@ -90,7 +130,7 @@ export function createEventBus({
           if (item) {
             if (item.seq > delivered) {
               delivered = item.seq;
-              yield { id: item.id, event: item.event };
+              yield { id: item.id, event: item.event } as never;
             }
             continue;
           }

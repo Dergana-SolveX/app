@@ -13,11 +13,12 @@ import { Button } from "@solvex-dergana/ui/components/button";
 import { Input } from "@solvex-dergana/ui/components/input";
 import { Label } from "@solvex-dergana/ui/components/label";
 import { LoaderCircleIcon, SaveIcon } from "lucide-react";
-import { useId, useMemo } from "react";
+import { useEffect, useId, useMemo } from "react";
 
 import { GcsPicker, NumberStepper, ToggleChip } from "./controls";
 import type { Draft, Sex } from "./draft";
 import { gcsTotal, withAnswer } from "./draft";
+import { EnRoutePanel, type HandoverView } from "./en-route-panel";
 import { OrientationPanel } from "./orientation-panel";
 import { ShockIndexBadge } from "./shock-index-badge";
 import { VittelBanner, VittelPanel } from "./vittel-panel";
@@ -66,6 +67,9 @@ export function BilanForm({
   severity,
   orientationData,
   graph,
+  handovers,
+  onSend,
+  sending,
 }: {
   draft: Draft;
   onChange: (draft: Draft) => void;
@@ -85,6 +89,11 @@ export function BilanForm({
     loading: boolean;
   };
   graph: RoadGraph | null | "error";
+  /** The handovers already sent for this victim, oldest first. */
+  handovers: HandoverView[];
+  /** Saves the bilan, then sends the AT-MIST to the retained hospital. */
+  onSend: () => void;
+  sending: boolean;
 }) {
   const ageId = useId();
   const profile = profiles.find((p) => p.id === draft.profileId) ?? null;
@@ -100,6 +109,8 @@ export function BilanForm({
 
   // Hospital ranking, computed here with no network from the cached list and the bundled road graph.
   const hospitals = useMemo(() => orientationData.data?.hospitals.map(hospitalFromRow) ?? [], [orientationData.data]);
+  // A hospital that diverted this victim is not offered again: the next best is preselected below.
+  const declined = useMemo(() => handovers.filter((h) => h.status === "diverted").map((h) => h.hospitalId), [handovers]);
   const orientation = useMemo(() => {
     if (!scene || !graph || graph === "error" || hospitals.length === 0) return null;
     return recommendForBilan({
@@ -117,11 +128,19 @@ export function BilanForm({
       graph,
       zones: orientationData.data?.zones ?? [],
       severity,
+      declined,
     });
     // `assessment.state` is rebuilt on each render, so it cannot be a dependency: its inputs are.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene, graph, hospitals, orientationData.data?.zones, severity, draft.gcs, draft.sbp, draft.injuries, draft.medic, draft.estAge, draft.profileId, draft.hr, draft.spo2, sensors, now, assessment.shockIndex?.value, assessment.age, profile?.pregnancyStatus]);
+  }, [scene, graph, hospitals, orientationData.data?.zones, severity, declined, draft.gcs, draft.sbp, draft.injuries, draft.medic, draft.estAge, draft.profileId, draft.hr, draft.spo2, sensors, now, assessment.shockIndex?.value, assessment.age, profile?.pregnancyStatus]);
   const recommendedId = orientation?.recommended?.hospitalId ?? null;
+
+  // When the retained hospital diverts, the next best is chosen for the medic: one tap to send again.
+  const retainedDeclined = draft.chosenHospitalId !== null && declined.includes(draft.chosenHospitalId);
+  useEffect(() => {
+    if (retainedDeclined) onChange({ ...draft, chosenHospitalId: recommendedId, overrideReason: "" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retainedDeclined, recommendedId]);
   // Any choice other than the recommended one needs a reason, also when nothing could be recommended.
   const missingReason =
     draft.chosenHospitalId !== null &&
@@ -243,7 +262,26 @@ export function BilanForm({
         {!scene ? (
           <p className="text-sm text-muted-foreground">La position de l'incident n'est pas connue : le classement des hôpitaux n'est pas possible.</p>
         ) : orientation ? (
-          <OrientationPanel
+          <div className="flex flex-col gap-4">
+            <EnRoutePanel
+              chosen={
+                draft.chosenHospitalId && !declined.includes(draft.chosenHospitalId)
+                  ? { id: draft.chosenHospitalId, name: hospitals.find((h) => h.id === draft.chosenHospitalId)?.name ?? "l'hôpital" }
+                  : null
+              }
+              handovers={handovers}
+              names={new Map(hospitals.map((h) => [h.id, h.name]))}
+              nextBest={
+                orientation.recommended
+                  ? { name: hospitals.find((h) => h.id === orientation.recommended!.hospitalId)?.name ?? "", etaMin: orientation.recommended.etaMin }
+                  : null
+              }
+              sending={sending}
+              canSend={!missingReason}
+              onSend={onSend}
+              now={now}
+            />
+            <OrientationPanel
             orientation={orientation}
             hospitals={hospitals}
             scene={scene}
@@ -254,6 +292,7 @@ export function BilanForm({
             onReason={(overrideReason) => set({ overrideReason })}
             cache={orientationData.fromCache && orientationData.savedAt ? { savedAt: orientationData.savedAt } : null}
           />
+          </div>
         ) : (
           <p role="status" className="text-sm text-muted-foreground">
             {graph === "error"

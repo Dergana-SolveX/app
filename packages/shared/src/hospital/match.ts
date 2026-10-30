@@ -21,7 +21,7 @@ export type MatchHospital = {
   stabilizationOnly: boolean;
 };
 
-export type MatchFlag = "secondary_transfer_risk" | "stabilisation_only";
+export type MatchFlag = "secondary_transfer_risk" | "stabilisation_only" | "declined";
 
 export type HospitalMatch = {
   hospitalId: string;
@@ -55,6 +55,7 @@ export type MatchResult = {
 const FULL_MATCH = 0;
 const PARTIAL_MATCH = 1;
 const NOT_RECOMMENDABLE = 2;
+const DECLINED = 3;
 
 /**
  * Ranks hospitals for a victim (PRD FR-S2-27/28). `score = ETA (min) + W_missing x missing + W_divert x diverting`.
@@ -69,9 +70,12 @@ export function matchHospitals(input: {
   zones: readonly GeoJsonPolygon[];
   severity: "red" | "yellow" | "green" | "unknown";
   inShock: boolean;
+  /** Hospitals that diverted this victim: ranked last, flagged, never recommended (PRD FR-S6-05). */
+  declined?: readonly string[];
 }): MatchResult {
   const { missingCapabilityPenaltyMin, divertPenaltyMin, stabiliseFirstEtaMin } = THRESHOLDS.matcher;
   const { needs, hospitals } = input;
+  const declined = new Set(input.declined);
   const etas = estimateEtasToMany(input.graph, input.origin, hospitals.map((h) => [h.lat, h.lng] as LatLng), input.zones);
 
   const matches = hospitals.map((hospital, i) => {
@@ -99,12 +103,16 @@ export function matchHospitals(input: {
       preferredMissing: needs.preferred.filter((need) => !has(need)),
       score: scoreBreakdown.etaMin + scoreBreakdown.missingPenaltyMin + scoreBreakdown.divertPenaltyMin,
       scoreBreakdown,
-      flags: hospital.stabilizationOnly ? ["stabilisation_only"] : [],
+      flags: [
+        ...(hospital.stabilizationOnly ? (["stabilisation_only"] as const) : []),
+        ...(declined.has(hospital.id) ? (["declined"] as const) : []),
+      ],
     };
     return { hospital, result };
   });
 
   const group = ({ hospital, result }: (typeof matches)[number]) => {
+    if (declined.has(hospital.id)) return DECLINED;
     if (hospital.stabilizationOnly && input.severity !== "green") return NOT_RECOMMENDABLE;
     return result.missing.length === 0 && result.diverting.length === 0 ? FULL_MATCH : PARTIAL_MATCH;
   };
@@ -118,7 +126,7 @@ export function matchHospitals(input: {
   if (best && best.group === PARTIAL_MATCH) recommended!.flags.push("secondary_transfer_risk");
 
   const nearestStabilisation = matches
-    .filter(({ hospital }) => hospital.stabilizationOnly)
+    .filter(({ hospital }) => hospital.stabilizationOnly && !declined.has(hospital.id))
     .map(({ result }) => result)
     .sort((a, b) => a.etaMin - b.etaMin)[0];
   const stabiliseFirst = Boolean(

@@ -1,17 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import ScreenShell from "@/components/screen-shell";
+import HospitalBoard from "@/components/hospital-board";
+import { PageHeader } from "@/components/screen-shell";
 import { requireAccess } from "@/lib/guard";
 
 export const Route = createFileRoute("/_auth/hospital/$hospitalId")({
   beforeLoad: ({ context, params }) => {
     requireAccess(context.appUser, { screen: "hospital", hospitalId: params.hospitalId });
   },
-  component: () => (
-    <ScreenShell
-      title="Tableau des arrivées"
-      description="Fiches AT-MIST entrantes : accepter ou dérouter."
-      issue="#12"
-    />
-  ),
+  component: HospitalScreen,
 });
+
+function HospitalScreen() {
+  const { hospitalId } = Route.useParams();
+  return (
+    <>
+      <PageHeader
+        title="Tableau des arrivées"
+        description="Fiches AT-MIST entrantes en direct : accepter ou dérouter en indiquant la spécialité indisponible."
+      />
+      <HospitalBoard hospitalId={hospitalId} />
+    </>
+  );
+}
