@@ -18,6 +18,7 @@
     "apps/gateway": {
       "name": "gateway",
       "dependencies": {
+        "hono": "^4.13.7",
         "serialport": "^13.0.0",
         "zod": "catalog:",
       },
@@ -25,6 +26,7 @@
         "@solvex-dergana/config": "workspace:*",
         "@types/bun": "catalog:",
         "typescript": "^6.0.3",
+        "vitest": "^4.0.0",
       },
     },
     "apps/native": {
