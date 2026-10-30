@@ -111,8 +111,9 @@ describe("clustering: alerts about the same crash merge into one incident", () =
     const chipAndWitness = await setup();
     await chipAndWitness.send({ at: 0, from: "+213550000001" });
     await chipAndWitness.send({ at: 1, layer: 1, peakG: 8.5, from: "+213550000002" });
-    // 1 - 0.4 * 0.6 = 0.76, plus the 0.1 bonus for two different layers
-    expect(Number((await listIncidents(chipAndWitness.db))[0]?.confidenceScore)).toBeCloseTo(0.86, 3);
+    // The chip SMS comes from a number that is not a registered vehicle: unauthenticated, so it counts half
+    // (PRD FR-S3-13). Witness 0.4, chip 0.6 x 0.5: 1 - 0.6 * 0.7 = 0.58, plus the 0.1 bonus for two different layers.
+    expect(Number((await listIncidents(chipAndWitness.db))[0]?.confidenceScore)).toBeCloseTo(0.68, 3);
   });
 
   it("keeps the time span of the incident and the highest victim count", async () => {

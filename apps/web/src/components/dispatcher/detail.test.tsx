@@ -103,6 +103,8 @@ it("merges into the target explicitly chosen by the dispatcher", async () => {
     commune: "Rouiba",
     emulated: false,
     tentative: false,
+    hasEscalation: false,
+    escalationTo: null,
   };
   render(
     <IncidentDetailPanel

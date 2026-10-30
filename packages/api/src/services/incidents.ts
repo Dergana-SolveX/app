@@ -1,9 +1,17 @@
-import { TRPCError } from "@trpc/server";
 import type { Database } from "@solvex-dergana/db";
-import { dispatches, incidentEvents, masterIncidents, rawAlerts, zones } from "@solvex-dergana/db/schema/index";
+import {
+  ambulanceUnits,
+  dispatches,
+  hospitalsMatrix,
+  incidentEvents,
+  masterIncidents,
+  medicalProfiles,
+  rawAlerts,
+  zones,
+} from "@solvex-dergana/db/schema/index";
 import { routeAuthority } from "@solvex-dergana/shared";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, sql } from "drizzle-orm";
 
 import type { AppUserContext } from "../context";
 import type { EventBus } from "./events";
