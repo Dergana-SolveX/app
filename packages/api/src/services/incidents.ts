@@ -1,10 +1,17 @@
 import type { Database } from "@solvex-dergana/db";
 import { masterIncidents, rawAlerts } from "@solvex-dergana/db/schema/index";
-import { asc, desc, eq, isNull } from "drizzle-orm";
+import { asc, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 
 /** All incidents, most recently updated first. This is the snapshot the dispatcher queue starts from. */
 export async function listIncidents(db: Database) {
-  return db.select().from(masterIncidents).orderBy(desc(masterIncidents.lastAlertAt));
+  return db
+    .select({
+      ...getTableColumns(masterIncidents),
+      /** True when any of its alerts came through the emulated network: the UI must badge it (NFR-P5). */
+      emulated: sql<boolean>`coalesce((select bool_or(${rawAlerts.emulated}) from ${rawAlerts} where ${rawAlerts.incidentId} = ${masterIncidents.id}), false)`,
+    })
+    .from(masterIncidents)
+    .orderBy(desc(masterIncidents.lastAlertAt));
 }
 
 /** One incident with every raw alert that belongs to it, oldest first. Null if it does not exist. */

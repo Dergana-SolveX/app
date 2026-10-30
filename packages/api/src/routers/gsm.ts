@@ -10,7 +10,8 @@ const adminOnly = roleProcedure("admin");
 export const gsmRouter = router({
   /** A phone "sends" an SMS to the SVX number. Handled exactly like an SMS from a real gateway. */
   inject: adminOnly
-    .input(z.object({ from: z.string().min(1), body: z.string() }))
+    // An SMS is at most 160 characters (concatenated messages a few times that); stay well inside that.
+    .input(z.object({ from: z.string().min(1).max(32), body: z.string().max(1000) }))
     .mutation(({ ctx, input }) =>
       receiveSms(
         { db: ctx.db, events: ctx.events, transport: ctx.smsTransport },

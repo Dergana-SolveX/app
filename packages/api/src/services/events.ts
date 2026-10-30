@@ -85,10 +85,15 @@ export function createEventBus({
             continue;
           }
           await new Promise<void>((resolve) => {
-            wake = resolve;
-            signal?.addEventListener("abort", () => resolve(), { once: true });
+            // Whichever comes first (an event or an abort), stop listening for the other.
+            const done = () => {
+              signal?.removeEventListener("abort", done);
+              wake = null;
+              resolve();
+            };
+            wake = done;
+            signal?.addEventListener("abort", done, { once: true });
           });
-          wake = null;
         }
       } finally {
         listeners.delete(listener);

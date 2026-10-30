@@ -1,4 +1,5 @@
 import { Button } from "@solvex-dergana/ui/components/button";
+import { EmulationBadge } from "@solvex-dergana/ui/components/emulation-badge";
 import { SeverityBadge } from "@solvex-dergana/ui/components/severity-badge";
 import { Skeleton } from "@solvex-dergana/ui/components/skeleton";
 import { cn } from "@solvex-dergana/ui/lib/utils";
@@ -70,7 +71,7 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
       {incidents.isError && (
         <div role="alert" className="rounded-lg border border-sev-red/40 bg-sev-red-soft p-4 text-sev-red">
           <p className="font-semibold">Impossible de charger les incidents.</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={() => incidents.refetch()}>
+          <Button variant="outline" className="mt-3" onClick={() => incidents.refetch()}>
             Réessayer
           </Button>
         </div>
@@ -130,6 +131,8 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                     {incident.estimatedVictims >= 9 ? "+" : ""} victime{incident.estimatedVictims > 1 ? "s" : ""}
                   </span>
                 )}
+                {/* Honesty rule: an incident born from the emulated GSM network must say so. */}
+                {incident.emulated && <EmulationBadge />}
                 <span className="rounded-md border px-2 py-0.5 text-xs font-semibold text-muted-foreground uppercase">
                   Ouvert
                 </span>

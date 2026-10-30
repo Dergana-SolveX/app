@@ -81,3 +81,15 @@ describe("gsm.inject (the emulated GSM network panel)", () => {
     }
   });
 });
+
+describe("gsm.inject: input limits", () => {
+  it("rejects absurdly long messages and phone numbers", async () => {
+    const { gsm } = await setup();
+    await expect(gsm.inject({ from: "+213550000001", body: "x".repeat(5000) })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    await expect(gsm.inject({ from: "9".repeat(100), body: "ok" })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+  });
+});

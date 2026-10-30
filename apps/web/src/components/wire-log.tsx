@@ -6,6 +6,14 @@ import { ArrowDownLeftIcon, ArrowUpRightIcon, CheckIcon, XIcon } from "lucide-re
 import { clockTime, incidentRef } from "@/lib/time";
 import { trpc } from "@/utils/trpc";
 
+const STATUS_LABEL = {
+  received: "Reçu",
+  queued: "En attente",
+  sent: "Envoyé",
+  delivered: "Remis",
+  failed: "Échec",
+} as const;
+
 const chip = "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-bold tracking-wide";
 
 /** Checksum verdict. A word and an icon, never color alone. */
@@ -70,6 +78,16 @@ export default function WireLog() {
                 </span>
                 <span className={cn(chip, "border-border bg-muted text-muted-foreground")}>SMS</span>
                 <span className="tabular font-mono text-muted-foreground">{m.size} o</span>
+                <span
+                  className={cn(
+                    chip,
+                    m.status === "failed"
+                      ? "border-sev-red/40 bg-sev-red-soft text-sev-red"
+                      : "border-border bg-muted text-muted-foreground",
+                  )}
+                >
+                  {STATUS_LABEL[m.status]}
+                </span>
                 {inbound && m.result && (
                   <>
                     {m.result.recognized ? (

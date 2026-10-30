@@ -14,6 +14,8 @@ const inboundSchema = z.object({
   emulated: z.boolean().default(false),
 });
 
+const MIN_SECRET_LENGTH = 16;
+
 const digest = (text: string) => createHash("sha256").update(text).digest();
 
 /** `Authorization: Bearer <secret>`, compared in constant time. */
@@ -37,6 +39,10 @@ export function createInternalSmsApp({
   transport: SmsTransport;
   events: EventBus;
 }) {
+  // A blank or guessable secret would make the endpoint effectively public.
+  if (secret.length < MIN_SECRET_LENGTH) {
+    throw new Error(`GATEWAY_SHARED_SECRET must be at least ${MIN_SECRET_LENGTH} characters`);
+  }
   const app = new Hono();
 
   app.post("/internal/sms", async (c) => {

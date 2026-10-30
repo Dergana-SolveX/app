@@ -115,3 +115,13 @@ describe("POST /internal/sms", () => {
     expect(json.replies).toEqual([]);
   });
 });
+
+describe("createInternalSmsApp: gateway secret", () => {
+  it("refuses to start with an empty or too short secret, so a blank Bearer token can never pass", async () => {
+    const db = await createTestDb();
+    const transport = createTransport("emulator", { db });
+    const events = createEventBus();
+    expect(() => createInternalSmsApp({ secret: "", db, transport, events })).toThrow(/secret/i);
+    expect(() => createInternalSmsApp({ secret: "short", db, transport, events })).toThrow(/secret/i);
+  });
+});

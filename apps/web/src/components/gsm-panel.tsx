@@ -27,8 +27,8 @@ export default function GsmPanel() {
         if (result.kind === "alert") {
           toast.success(
             result.duplicate
-              ? `Déjà reçu : incident #${result.incidentId.replace(/-/g, "").slice(0, 8).toUpperCase()} (réponse renvoyée)`
-              : `Alerte reçue : incident #${result.incidentId.replace(/-/g, "").slice(0, 8).toUpperCase()} créé`,
+              ? `Déjà reçu : incident #${incidentRef(result.incidentId)} (réponse renvoyée)`
+              : `Alerte reçue : incident #${incidentRef(result.incidentId)} créé`,
           );
         } else {
           toast.message("Texte archivé : ce n'est pas un message SVX, aucun incident créé.");

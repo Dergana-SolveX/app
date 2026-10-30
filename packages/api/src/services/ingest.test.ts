@@ -39,8 +39,8 @@ describe("ingestSms: a valid SVX alert", () => {
     );
 
     if (result.kind !== "alert") throw new Error(`expected an alert, got ${result.kind}`);
-    // The ack carries a short reference derived from the incident id.
-    expect(result.ack).toBe(`SVXACK#${result.incidentId.replace(/-/g, "").slice(0, 8).toUpperCase()}`);
+    // The ack is "SVXACK#" followed by 8 hexadecimal characters (a stable reference for the sender).
+    expect(result.ack).toMatch(/^SVXACK#[0-9A-F]{8}$/);
     expect(result.duplicate).toBe(false);
 
     const incidents = await listIncidents(db);
@@ -186,5 +186,62 @@ describe("ingestSms: text that is not an SVX alert", () => {
       recognized: false,
       parseErrors: ["not_svx"],
     });
+  });
+});
+
+describe("ingestSms: concurrency and failures (review findings)", () => {
+  it("handles two identical SMS arriving at the same moment: one incident, both acked, nothing left half-done", async () => {
+    const db = await createTestDb();
+    const body = encodeSvx(witnessAlert);
+    const sms = { from: SENDER, body, receivedAt: RECEIVED_AT, emulated: true };
+    const events = createEventBus();
+
+    const [a, b] = await Promise.all([ingestSms({ db, events }, sms), ingestSms({ db, events }, sms)]);
+    if (a.kind !== "alert" || b.kind !== "alert") throw new Error("expected alerts");
+
+    expect(a.incidentId).toBe(b.incidentId);
+    expect(a.ack).toBe(b.ack);
+    expect([a.duplicate, b.duplicate].sort()).toEqual([false, true]);
+    expect(await listIncidents(db)).toHaveLength(1);
+    // Both SMS are on the wire log with a verdict; none is stuck as "received" with no result.
+    const wire = await listWireLog(db);
+    expect(wire).toHaveLength(2);
+    expect(wire.every((w) => w.result !== null)).toBe(true);
+  });
+
+  it("marks the SMS as failed on the wire log (and rethrows) when processing breaks", async () => {
+    const db = await createTestDb();
+    const broken = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop === "transaction") return () => Promise.reject(new Error("database is down"));
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+
+    await expect(
+      ingestSms(
+        { db: broken, events: createEventBus() },
+        { from: SENDER, body: encodeSvx(witnessAlert), receivedAt: RECEIVED_AT, emulated: true },
+      ),
+    ).rejects.toThrow("database is down");
+
+    const wire = await listWireLog(db);
+    expect(wire).toHaveLength(1);
+    expect(wire[0]).toMatchObject({ direction: "in", status: "failed" });
+  });
+});
+
+describe("incidents carry the honesty flag (NFR-P5)", () => {
+  it("marks an incident as emulated when it came from the emulated GSM network, and not otherwise", async () => {
+    const db = await createTestDb();
+    const events = createEventBus();
+    const body = encodeSvx(witnessAlert);
+    const emulated = await ingestSms({ db, events }, { from: SENDER, body, receivedAt: RECEIVED_AT, emulated: true });
+    const real = await ingestSms({ db, events }, { from: "+213550000002", body, receivedAt: RECEIVED_AT, emulated: false });
+    if (emulated.kind !== "alert" || real.kind !== "alert") throw new Error("expected alerts");
+
+    const byId = new Map((await listIncidents(db)).map((i) => [i.id, i]));
+    expect(byId.get(emulated.incidentId)?.emulated).toBe(true);
+    expect(byId.get(real.incidentId)?.emulated).toBe(false);
   });
 });

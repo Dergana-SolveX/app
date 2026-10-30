@@ -2,7 +2,7 @@ import type { Database } from "@solvex-dergana/db";
 import { masterIncidents, rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
 import type { EventBus } from "./events";
 import { decodeSvx } from "@solvex-dergana/shared";
-import { eq } from "drizzle-orm";
+import { eq, TransactionRollbackError } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 export type InboundSms = {
@@ -48,7 +48,7 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
   const receivedAt = sms.receivedAt ?? new Date();
   const senderHash = sha("sha256", sms.from);
   const decoded = decodeSvx(sms.body);
-  const a = decoded.alert;
+  const alert = decoded.alert;
   const dedupeKey = sha("sha1", sms.body + senderHash);
 
   // Logged first so the SMS is on record even if something below fails (never drop a signal).
@@ -64,70 +64,109 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
     })
     .returning({ id: smsLog.id });
 
-  const [seen] = await db
-    .select({ incidentId: rawAlerts.incidentId })
-    .from(rawAlerts)
-    .where(eq(rawAlerts.dedupeKey, dedupeKey));
+  try {
+    const [seen] = await db
+      .select({ incidentId: rawAlerts.incidentId })
+      .from(rawAlerts)
+      .where(eq(rawAlerts.dedupeKey, dedupeKey));
 
-  // The stored alert, the same for a recognised SVX message and for plain text.
-  const alertRow = {
-    source: sourceOf(a.layer, a.peakG),
-    channel: "sms" as const,
-    receivedAt,
-    geohash: a.geohash,
-    gForce: a.peakG,
-    deltaVKmh: a.deltaVKmh,
-    fire: a.fire,
-    victims: a.victims,
-    conscious: a.conscious,
-    trapped: a.trapped,
-    bleeding: a.bleeding,
-    rawPayload: sms.body,
-    parseErrors: decoded.parseErrors,
-    senderMsisdnHash: senderHash,
-    dedupeKey,
-    emulated: sms.emulated,
-  };
-  const result = {
-    recognized: decoded.recognized,
-    crcValid: decoded.crcValid,
-    parseErrors: decoded.parseErrors,
-  };
+    // The stored alert, the same for a recognised SVX message and for plain text.
+    const alertRow = {
+      source: sourceOf(alert.layer, alert.peakG),
+      channel: "sms" as const,
+      receivedAt,
+      geohash: alert.geohash,
+      gForce: alert.peakG,
+      deltaVKmh: alert.deltaVKmh,
+      fire: alert.fire,
+      victims: alert.victims,
+      conscious: alert.conscious,
+      trapped: alert.trapped,
+      bleeding: alert.bleeding,
+      rawPayload: sms.body,
+      parseErrors: decoded.parseErrors,
+      senderMsisdnHash: senderHash,
+      dedupeKey,
+      emulated: sms.emulated,
+    };
+    const result = {
+      recognized: decoded.recognized,
+      crcValid: decoded.crcValid,
+      parseErrors: decoded.parseErrors,
+    };
 
-  if (!decoded.recognized) {
-    if (!seen) await db.insert(rawAlerts).values({ ...alertRow, incidentId: null });
+    if (!decoded.recognized) {
+      // `dedupe_key` is unique: if an identical SMS lands at the same moment, the second insert is a no-op.
+      const inserted = seen
+        ? []
+        : await db
+            .insert(rawAlerts)
+            .values({ ...alertRow, incidentId: null })
+            .onConflictDoNothing({ target: rawAlerts.dedupeKey })
+            .returning({ id: rawAlerts.id });
+      await db
+        .update(smsLog)
+        .set({ result: { ...result, ...(inserted.length === 0 ? { duplicate: true } : {}) } })
+        .where(eq(smsLog.id, logged!.id));
+      return { kind: "ignored", reason: "not_svx" };
+    }
+
+    // Open an incident for this alert. If an identical SMS won a race and already stored the alert,
+    // the unique key makes our insert a no-op: roll our incident back and use the winner's.
+    const created =
+      seen?.incidentId != null
+        ? null
+        : await db
+            .transaction(async (tx) => {
+              const [incident] = await tx
+                .insert(masterIncidents)
+                .values({
+                  geohash8: alert.geohash,
+                  firstAlertAt: receivedAt,
+                  lastAlertAt: receivedAt,
+                  alertCount: 1,
+                  estimatedVictims: alert.victims,
+                })
+                .returning();
+              const stored = await tx
+                .insert(rawAlerts)
+                .values({ ...alertRow, incidentId: incident!.id })
+                .onConflictDoNothing({ target: rawAlerts.dedupeKey })
+                .returning({ id: rawAlerts.id });
+              if (stored.length === 0) tx.rollback();
+              return incident!;
+            })
+            .catch((error) => {
+              if (error instanceof TransactionRollbackError) return null;
+              throw error;
+            });
+
+    const duplicate = created === null;
+    const incidentId = created
+      ? created.id
+      : (seen?.incidentId ??
+        (
+          await db
+            .select({ incidentId: rawAlerts.incidentId })
+            .from(rawAlerts)
+            .where(eq(rawAlerts.dedupeKey, dedupeKey))
+        )[0]!.incidentId!);
+
     await db
       .update(smsLog)
-      .set({ result: { ...result, ...(seen ? { duplicate: true } : {}) } })
+      .set({ incidentId, result: { ...result, ...(duplicate ? { duplicate: true } : {}) } })
       .where(eq(smsLog.id, logged!.id));
-    return { kind: "ignored", reason: "not_svx" };
+
+    if (created) events.publish({ type: "incident.created", incident: created });
+
+    return { kind: "alert", incidentId, ack: ackFor(incidentId), duplicate };
+  } catch (error) {
+    // Keep the record, mark it failed, and let the caller see the error (the gateway can retry).
+    await db
+      .update(smsLog)
+      .set({ status: "failed" })
+      .where(eq(smsLog.id, logged!.id))
+      .catch(() => undefined);
+    throw error;
   }
-
-  const duplicate = seen?.incidentId != null;
-  const created = duplicate
-    ? null
-    : await db.transaction(async (tx) => {
-        const [incident] = await tx
-          .insert(masterIncidents)
-          .values({
-            geohash8: a.geohash,
-            firstAlertAt: receivedAt,
-            lastAlertAt: receivedAt,
-            alertCount: 1,
-            estimatedVictims: a.victims,
-          })
-          .returning();
-        await tx.insert(rawAlerts).values({ ...alertRow, incidentId: incident!.id });
-        return incident!;
-      });
-  const incidentId = created ? created.id : seen!.incidentId!;
-
-  await db
-    .update(smsLog)
-    .set({ incidentId, result: { ...result, ...(duplicate ? { duplicate: true } : {}) } })
-    .where(eq(smsLog.id, logged!.id));
-
-  if (created) events.publish({ type: "incident.created", incident: created });
-
-  return { kind: "alert", incidentId, ack: ackFor(incidentId), duplicate };
 }
