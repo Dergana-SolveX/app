@@ -143,6 +143,10 @@ export default function GsmPanel() {
       </div>
 
       <div className="rounded-lg border bg-card p-5">
+        <FeaturePhone from={from} />
+      </div>
+
+      <div className="rounded-lg border bg-card p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-base font-bold">Boîte d'envoi GSM</h2>
           <EmulationBadge />

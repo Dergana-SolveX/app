@@ -106,10 +106,10 @@ export default function FeaturePhone({ from }: { from: string }) {
             onChange={(e) => setText(e.target.value)}
           />
           <div className="grid grid-cols-2 gap-2">
-            <Button type="button" variant="outline" className="bg-card" onClick={() => submit("ACCIDENT")}>
+            <Button type="button" variant="outline" className="bg-card" disabled={send.isPending} onClick={() => submit("ACCIDENT")}>
               ACCIDENT
             </Button>
-            <Button type="button" variant="outline" className="bg-card" dir="rtl" onClick={() => submit("حادث")}>
+            <Button type="button" variant="outline" className="bg-card" dir="rtl" disabled={send.isPending} onClick={() => submit("حادث")}>
               حادث
             </Button>
           </div>
