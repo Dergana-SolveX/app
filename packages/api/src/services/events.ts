@@ -9,7 +9,9 @@ export type DispatcherEvent =
   | { type: "ready" }
   /** The server cannot replay what the client missed: fetch the incident list again. */
   | { type: "resync" }
-  | { type: "incident.created"; incident: Incident };
+  | { type: "incident.created"; incident: Incident }
+  /** An alert merged into an existing incident (count, confidence or position changed). */
+  | { type: "incident.updated"; incident: Incident };
 
 type Published = Exclude<DispatcherEvent, { type: "ready" | "resync" }>;
 type Stored = { id: string; seq: number; event: Published };

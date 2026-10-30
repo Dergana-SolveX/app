@@ -81,13 +81,16 @@ export default function GsmPanel() {
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-semibold">Messages prêts à l'emploi</legend>
+            <p className="text-sm text-muted-foreground">
+              Un même message envoyé deux fois par le même numéro est un doublon. Changez le numéro pour simuler un autre témoin du même accident: il rejoint l'incident existant.
+            </p>
             <div className="grid grid-cols-2 gap-2">
               {SMS_PRESETS.map((preset) => (
                 <Button
                   key={preset.label}
                   type="button"
                   variant="outline"
-                  className="h-auto min-h-12 flex-col items-start gap-0.5 py-2 text-start"
+                  className="h-auto min-h-12 flex-col items-start gap-0.5 py-2 text-start whitespace-normal"
                   onClick={() => setBody(preset.build())}
                 >
                   <span>{preset.label}</span>

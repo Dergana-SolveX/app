@@ -4,3 +4,8 @@ export * from "./roles";
 export * from "./sms/crc8";
 export * from "./sms/protocol";
 export * from "./thresholds";
+export * from "./geo/geohash";
+export * from "./geo/distance";
+export * from "./geo/polygon";
+export * from "./cluster/merge";
+export * from "./cluster/confidence";
