@@ -4,12 +4,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./*": "./src/*.ts",
-    "./test-vectors/*": "./test-vectors/*"
+    "./test-vectors/*": "./test-vectors/*",
+    "./assets/*": "./assets/*"
   },
   "scripts": {
     "check-types": "tsc --noEmit",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "build:roads": "bun scripts/build-road-graph.ts"
   },
   "dependencies": {
     "zod": "catalog:"
