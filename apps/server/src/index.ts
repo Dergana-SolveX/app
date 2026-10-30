@@ -5,7 +5,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 import { createContext } from "./context";
-import { createDeviceApp } from "./device-routes";
+import { createDevicesApp, expireDeviceCommands } from "./devices";
 import { createInternalSmsApp } from "./internal-sms";
 import { ENV } from "./env.server";
 import { auth, db, events, smsTransport } from "./services";
@@ -54,12 +54,32 @@ app.route(
 // Device REST endpoints (heartbeat, events) for B2B IoT crash chips
 app.route(
   "/",
-  createDeviceApp({
-    masterDeviceSecret: ENV.MASTER_DEVICE_SECRET,
+  createDevicesApp({
+    masterSecret: ENV.MASTER_DEVICE_SECRET,
+    authenticate: async (request) => {
+      const session = await auth.api.getSession({ headers: request.headers });
+      if (!session) return null;
+      const appUser = await db.query.appUsers.findFirst({ where: { authUserId: session.user.id } });
+      return { id: session.user.id, role: appUser?.role ?? "" };
+    },
     db,
     events,
   }),
 );
+
+// Offline devices expire even when no heartbeat or audit request arrives.
+let sweepingCommands = false;
+setInterval(async () => {
+  if (sweepingCommands) return;
+  sweepingCommands = true;
+  try {
+    await expireDeviceCommands(db);
+  } catch (error) {
+    console.error("Device command timeout sweep failed", error);
+  } finally {
+    sweepingCommands = false;
+  }
+}, 5_000).unref();
 
 app.use(
   "/trpc/*",

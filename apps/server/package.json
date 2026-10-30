@@ -10,7 +10,8 @@
     "start": "bun run dist/index.mjs",
     "env:generate": "varlock codegen",
     "auth:generate": "varlock run -- bun x auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes",
-    "test": "vitest run"
+    "test": "vitest run",
+    "simulate:device": "bun run src/simulate-device.ts"
   },
   "dependencies": {
     "@hono/trpc-server": "^0.4.2",
@@ -22,7 +23,8 @@
     "hono": "^4.13.7",
     "varlock": "catalog:",
     "zod": "catalog:",
-    "@solvex-dergana/shared": "workspace:*"
+    "@solvex-dergana/shared": "workspace:*",
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
     "@solvex-dergana/config": "workspace:*",

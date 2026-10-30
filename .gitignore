@@ -60,3 +60,6 @@ temp
 # Python bytecode (from the UI/UX Pro Max skill scripts)
 __pycache__/
 *.pyc
+
+# Local simulated chip replay checkpoints
+.device-simulator/
