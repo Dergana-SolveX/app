@@ -1,0 +1,264 @@
+{
+  "$comment": "SVX v1 protocol reference (PRD FR-S2-04). Expected strings were computed independently of the TypeScript code (Python, CRC-8/SMBUS poly 0x07 init 0x00). A future firmware must reproduce them exactly. eventMinutes 29889180 = 2026-10-30T09:00:00Z.",
+  "valid": [
+    {
+      "name": "witness report, no sensors",
+      "alert": {
+        "layer": 2,
+        "geohash": "sn2j5x7k",
+        "eventMinutes": 29889180,
+        "peakG": null,
+        "rollover": null,
+        "fire": false,
+        "victims": 2,
+        "conscious": 1,
+        "trapped": true,
+        "bleeding": false,
+        "profileCode": "K7Q2M9XA",
+        "deltaVKmh": null,
+        "cell": null
+      },
+      "sms": "SVX1#L:2#GH:sn2j5x7k#T:hsmn0#FIRE:0#V:2#C:1#TR:1#B:0#UID:K7Q2M9XA#CK:DE"
+    },
+    {
+      "name": "chip alert with every optional field except the signature",
+      "alert": {
+        "layer": 1,
+        "geohash": "sn2j5x7k",
+        "eventMinutes": 29889180,
+        "peakG": 8.5,
+        "rollover": true,
+        "fire": true,
+        "victims": 3,
+        "conscious": 0,
+        "trapped": true,
+        "bleeding": false,
+        "profileCode": "K7Q2M9XA",
+        "deltaVKmh": 42,
+        "cell": {
+          "mcc": 603,
+          "mnc": 1,
+          "lac": 6699,
+          "cid": 3951966
+        }
+      },
+      "sms": "SVX1#L:1#GH:sn2j5x7k#T:hsmn0#G:8.5#R:1#FIRE:1#V:3#C:0#TR:1#B:0#UID:K7Q2M9XA#DV:42#CI:25B-1-1A2B-3C4D5E#CK:97"
+    }
+  ],
+  "corrupted": [
+    {
+      "name": "payload changed in transit, checksum no longer matches",
+      "sms": "SVX1#L:2#GH:sn2j5x7k#T:hsmn0#FIRE:0#V:5#C:1#TR:1#B:0#UID:K7Q2M9XA#CK:DE",
+      "expect": {
+        "recognized": true,
+        "crcValid": false,
+        "parseErrors": [
+          "bad_crc"
+        ],
+        "alert": {
+          "layer": 2,
+          "geohash": "sn2j5x7k",
+          "eventMinutes": 29889180,
+          "victims": 5,
+          "fire": false
+        }
+      }
+    },
+    {
+      "name": "unknown key from a future version is ignored",
+      "sms": "SVX1#L:2#GH:sn2j5x7k#T:hsmn0#FIRE:0#V:2#C:1#TR:1#B:0#UID:K7Q2M9XA#ZZ:1#CK:D2",
+      "expect": {
+        "recognized": true,
+        "crcValid": true,
+        "parseErrors": [],
+        "alert": {
+          "layer": 2,
+          "geohash": "sn2j5x7k",
+          "eventMinutes": 29889180,
+          "victims": 2,
+          "peakG": null,
+          "cell": null
+        }
+      }
+    },
+    {
+      "name": "not an SVX message at all",
+      "sms": "Bonjour, accident a Rouiba",
+      "expect": {
+        "recognized": false,
+        "crcValid": false,
+        "parseErrors": [
+          "not_svx"
+        ],
+        "alert": {
+          "layer": null,
+          "geohash": null,
+          "eventMinutes": null,
+          "peakG": null,
+          "fire": null,
+          "victims": null,
+          "cell": null
+        }
+      }
+    },
+    {
+      "name": "truncated before the checksum",
+      "sms": "SVX1#L:2#GH:sn2j5x7k#T:hsmn0#FIRE:0#V:2#C",
+      "expect": {
+        "recognized": true,
+        "crcValid": false,
+        "parseErrors": [
+          "missing_crc"
+        ],
+        "alert": {
+          "layer": 2,
+          "geohash": "sn2j5x7k",
+          "eventMinutes": 29889180,
+          "fire": false,
+          "victims": 2,
+          "conscious": null
+        }
+      }
+    },
+    {
+      "name": "every field present but with an invalid value",
+      "sms": "SVX1#L:9#GH:SN2J#T:!!#G:abc#V:x#C:7#UID:short#DV:-1#CI:zz#CK:7A",
+      "expect": {
+        "recognized": true,
+        "crcValid": true,
+        "parseErrors": [
+          "invalid_L",
+          "invalid_GH",
+          "invalid_T",
+          "invalid_G",
+          "invalid_V",
+          "invalid_C",
+          "invalid_UID",
+          "invalid_DV",
+          "invalid_CI"
+        ],
+        "alert": {
+          "layer": null,
+          "geohash": null,
+          "eventMinutes": null,
+          "peakG": null,
+          "victims": null,
+          "conscious": null,
+          "profileCode": null,
+          "deltaVKmh": null,
+          "cell": null
+        }
+      }
+    },
+    {
+      "name": "cut right after the magic",
+      "sms": "SVX1",
+      "expect": {
+        "recognized": true,
+        "crcValid": false,
+        "parseErrors": [
+          "missing_crc"
+        ],
+        "alert": {
+          "layer": null,
+          "geohash": null,
+          "eventMinutes": null
+        }
+      }
+    }
+  ],
+  "lengthLimits": [
+    {
+      "name": "one character too long: the serving cell (CI) is dropped first",
+      "alertIndex": 1,
+      "maxLength": 107,
+      "sms": "SVX1#L:1#GH:sn2j5x7k#T:hsmn0#G:8.5#R:1#FIRE:1#V:3#C:0#TR:1#B:0#UID:K7Q2M9XA#DV:42#CK:43"
+    },
+    {
+      "name": "still too long: delta-V (DV) goes next",
+      "alertIndex": 1,
+      "maxLength": 86,
+      "sms": "SVX1#L:1#GH:sn2j5x7k#T:hsmn0#G:8.5#R:1#FIRE:1#V:3#C:0#TR:1#B:0#UID:K7Q2M9XA#CK:9C"
+    },
+    {
+      "name": "only the essentials fit exactly",
+      "alertIndex": 1,
+      "maxLength": 49,
+      "sms": "SVX1#L:1#GH:sn2j5x7k#T:hsmn0#FIRE:1#V:3#C:0#CK:BE"
+    },
+    {
+      "name": "even the essentials do not fit: refuse instead of sending a cut message",
+      "alertIndex": 1,
+      "maxLength": 48,
+      "sms": null
+    }
+  ],
+  "deviceKeyHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "signed": [
+    {
+      "name": "chip alert signed with the device key",
+      "alertIndex": 1,
+      "maxLength": 160,
+      "sms": "SVX1#L:1#GH:sn2j5x7k#T:hsmn0#G:8.5#R:1#FIRE:1#V:3#C:0#TR:1#B:0#UID:K7Q2M9XA#DV:42#CI:25B-1-1A2B-3C4D5E#H:AJ6N67#CK:05"
+    },
+    {
+      "name": "signature (9 characters) counts toward the limit, so CI is dropped at 100",
+      "alertIndex": 1,
+      "maxLength": 100,
+      "sms": "SVX1#L:1#GH:sn2j5x7k#T:hsmn0#G:8.5#R:1#FIRE:1#V:3#C:0#TR:1#B:0#UID:K7Q2M9XA#DV:42#H:2I37CO#CK:DC"
+    }
+  ],
+  "verify": [
+    {
+      "name": "genuine signed message",
+      "sms": "SVX1#L:1#GH:sn2j5x7k#T:hsmn0#G:8.5#R:1#FIRE:1#V:3#C:0#TR:1#B:0#UID:K7Q2M9XA#DV:42#CI:25B-1-1A2B-3C4D5E#H:AJ6N67#CK:05",
+      "valid": true
+    },
+    {
+      "name": "payload changed and checksum recomputed by an attacker: signature fails",
+      "sms": "SVX1#L:1#GH:sn2j5x7k#T:hsmn0#G:8.5#R:1#FIRE:1#V:9#C:0#TR:1#B:0#UID:K7Q2M9XA#DV:42#CI:25B-1-1A2B-3C4D5E#H:AJ6N67#CK:E7",
+      "valid": false
+    },
+    {
+      "name": "signed with a different device key",
+      "sms": "SVX1#L:1#GH:sn2j5x7k#T:hsmn0#G:8.5#R:1#FIRE:1#V:3#C:0#TR:1#B:0#UID:K7Q2M9XA#DV:42#CI:25B-1-1A2B-3C4D5E#H:XNJQPK#CK:B5",
+      "valid": false
+    },
+    {
+      "name": "no signature at all",
+      "sms": "SVX1#L:1#GH:sn2j5x7k#T:hsmn0#G:8.5#R:1#FIRE:1#V:3#C:0#TR:1#B:0#UID:K7Q2M9XA#DV:42#CI:25B-1-1A2B-3C4D5E#CK:97",
+      "valid": false
+    }
+  ],
+  "thresholds": {
+    "$comment": "Values from docs/PRD.md section 7.1 (FR-S2-01) and FR-S2-27. matcher penalties are tunable placeholders chosen for the demo; every detector (phone, chip, server) must read the same numbers.",
+    "phoneTrigger": {
+      "peakG": 4,
+      "speedBeforeKmh": 25,
+      "speedBeforeWindowS": 10,
+      "speedAfterKmh": 5
+    },
+    "chipTrigger": {
+      "peakG": 6,
+      "minDurationMs": 3,
+      "requiresArmed": true
+    },
+    "vittelL2HighEnergy": {
+      "peakG": 4,
+      "deltaVKmh": 30
+    },
+    "rollover": {
+      "angleDeg": 90,
+      "minDurationS": 2
+    },
+    "cluster": {
+      "windowMin": 10,
+      "baseDistanceM": 200,
+      "uncertaintyCapM": 3000
+    },
+    "matcher": {
+      "missingCapabilityPenaltyMin": 30,
+      "divertPenaltyMin": 60
+    }
+  }
+}
