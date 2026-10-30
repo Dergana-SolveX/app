@@ -5,15 +5,14 @@ import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { Platform } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
-
-import { ENV } from "../src/env";
+import { getServerUrl } from "./server-url";
 
 export const queryClient = new QueryClient();
 
 const trpcClient = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
-      url: `${ENV.EXPO_PUBLIC_SERVER_URL}/trpc`,
+      url: `${getServerUrl()}/trpc`,
       fetch: function (url, options) {
         return fetch(url, {
           ...options,

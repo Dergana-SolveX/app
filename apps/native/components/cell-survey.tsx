@@ -71,7 +71,7 @@ export function CellSurvey() {
   const managerRef = useRef(
     createSurveyManager({
       autoDistanceM: 50,
-      onAutoLog: (point) => void syncPoint(point),
+      onAutoLog: (point: SurveyPoint) => void syncPoint(point),
     }),
   );
 
@@ -258,7 +258,7 @@ export function CellSurvey() {
           Opérateurs Démo :
         </Text>
         <View className="mb-4 flex-row gap-2">
-          {SURVEY_PRESETS_DZ.map((preset) => {
+          {SURVEY_PRESETS_DZ.map((preset: CurrentCellInfo) => {
             const op = getOperatorInfo(preset.mcc, preset.mnc);
             const isSelected = activeCell.mcc === preset.mcc && activeCell.mnc === preset.mnc && activeCell.cid === preset.cid;
             return (
@@ -417,7 +417,12 @@ export function CellSurvey() {
             Historique des Relevés ({managerState.loggedPoints.length})
           </Text>
           {managerState.loggedPoints.length > 0 && (
-            <Pressable onPress={() => managerRef.current.clearHistory() || forceUpdate()}>
+            <Pressable
+              onPress={() => {
+                managerRef.current.clearHistory();
+                forceUpdate();
+              }}
+            >
               <Text className="text-[10px] text-slate-500">Effacer</Text>
             </Pressable>
           )}
@@ -429,7 +434,7 @@ export function CellSurvey() {
           </Text>
         ) : (
           <View className="gap-2">
-            {managerState.loggedPoints.slice(0, 8).map((point) => (
+            {managerState.loggedPoints.slice(0, 8).map((point: SurveyPoint) => (
               <View
                 key={point.id}
                 className="flex-row items-center justify-between rounded-lg border border-slate-800/60 bg-slate-950 p-2"

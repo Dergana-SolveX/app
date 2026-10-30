@@ -32,11 +32,11 @@ export const queryClient = new QueryClient({
   }),
 });
 
-let configuredServerUrl = "";
+let configuredServerUrl = "http://localhost:3000";
 try {
-  configuredServerUrl = ENV?.VITE_SERVER_URL ?? "";
+  configuredServerUrl = ENV?.VITE_SERVER_URL || "http://localhost:3000";
 } catch {
-  configuredServerUrl = "";
+  configuredServerUrl = "http://localhost:3000";
 }
 const serverUrl = `${getServerUrl(configuredServerUrl)}/trpc`;
 

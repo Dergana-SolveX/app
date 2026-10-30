@@ -4,7 +4,10 @@
     "strict": true,
     "customConditions": ["react-native", "react-native-legacy-deep-imports"],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@solvex-dergana/shared": ["../../packages/shared/src/index.ts"],
+      "@solvex-dergana/shared/*": ["../../packages/shared/src/*"],
+      "@solvex-dergana/api/*": ["../../packages/api/src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
