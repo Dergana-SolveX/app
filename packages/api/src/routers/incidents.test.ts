@@ -151,3 +151,31 @@ describe("incidents access control", () => {
     expect(await caller.list()).toHaveLength(1);
   });
 });
+
+describe("incidents.byId (the evaluation card)", () => {
+  it("returns the recommendation with the reasons behind it in French and Arabic", async () => {
+    const { caller, send } = await setup();
+    const sent = await send(3); // 3 victims: RED (FR-S2-15)
+    if (sent.kind !== "alert") throw new Error("expected an alert");
+
+    const card = await caller.byId({ id: sent.incidentId });
+
+    expect(card).toMatchObject({ id: sent.incidentId, recSeverity: "red" });
+    expect(card?.reasons).toEqual([{ fr: "3 victimes ou plus", ar: "3 ضحايا أو أكثر" }]);
+    expect(card?.recUnits).toEqual([expect.objectContaining({ type: "vsav_standard", count: 1 })]);
+  });
+
+  it("returns null for an incident that does not exist", async () => {
+    const { caller } = await setup();
+    expect(await caller.byId({ id: "00000000-0000-4000-8000-00000000dead" })).toBeNull();
+  });
+
+  it("refuses medics and hospital staff", async () => {
+    for (const role of ["medic", "hospital"] as const) {
+      const { caller } = await setup({ role });
+      await expect(caller.byId({ id: "00000000-0000-4000-8000-00000000dead" })).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+    }
+  });
+});

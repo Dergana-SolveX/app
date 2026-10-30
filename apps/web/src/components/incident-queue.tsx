@@ -9,6 +9,7 @@ import { useSubscription } from "@trpc/tanstack-react-query";
 import { InboxIcon, MapPinIcon, UsersIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import EvaluationCard from "@/components/evaluation-card";
 import LiveStatus from "@/components/live-status";
 import { incidentRef, timeAgo } from "@/lib/time";
 import { trpc } from "@/utils/trpc";
@@ -31,12 +32,22 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
   const incidents = useQuery(trpc.incidents.list.queryOptions());
 
   // Snapshot + stream: on `ready`, `resync` and every change, fetch the list again.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Severity suggested after a dispatch, per incident: shown on the card, nothing is changed.
+  const [escalations, setEscalations] = useState<Record<string, "yellow" | "red">>({});
   const stream = useSubscription(
     trpc.incidents.onChange.subscriptionOptions(
       {},
       {
-        onData: () =>
-          queryClient.invalidateQueries({ queryKey: trpc.incidents.list.queryKey() }),
+        onData: (item) => {
+          const event = item.data;
+          if (event.type === "incident.escalation_suggested" && event.to !== "green" && event.to !== "unknown") {
+            const { incidentId, to } = event;
+            setEscalations((current) => ({ ...current, [incidentId]: to }));
+          }
+          queryClient.invalidateQueries({ queryKey: trpc.incidents.list.queryKey() });
+          queryClient.invalidateQueries({ queryKey: trpc.incidents.byId.pathKey() });
+        },
       },
     ),
   );
@@ -136,6 +147,19 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                 <span className="rounded-md border px-2 py-0.5 text-xs font-semibold text-muted-foreground uppercase">
                   Ouvert
                 </span>
+                <Button
+                  variant={selectedId === incident.id ? "default" : "outline"}
+                  aria-expanded={selectedId === incident.id}
+                  aria-controls={`evaluation-${incident.id}`}
+                  onClick={() => setSelectedId(selectedId === incident.id ? null : incident.id)}
+                >
+                  Évaluation
+                </Button>
+                {selectedId === incident.id && (
+                  <div id={`evaluation-${incident.id}`} className="basis-full">
+                    <EvaluationCard incidentId={incident.id} escalationTo={escalations[incident.id] ?? null} />
+                  </div>
+                )}
               </li>
             );
           })}

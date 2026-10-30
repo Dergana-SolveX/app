@@ -1,6 +1,7 @@
 import type { Database } from "@solvex-dergana/db";
 import { masterIncidents, rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
 import type { EventBus } from "./events";
+import { retriageIncident } from "./triage";
 import { decodeSvx } from "@solvex-dergana/shared";
 import { eq, TransactionRollbackError } from "drizzle-orm";
 import { createHash } from "node:crypto";
@@ -157,7 +158,11 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       .set({ incidentId, result: { ...result, ...(duplicate ? { duplicate: true } : {}) } })
       .where(eq(smsLog.id, logged!.id));
 
-    if (created) events.publish({ type: "incident.created", incident: created });
+    if (created) {
+      // Triage before announcing, so the first thing dispatchers see already carries the recommendation.
+      const triaged = await retriageIncident({ db, events }, created.id, { announce: false });
+      events.publish({ type: "incident.created", incident: triaged ?? created });
+    }
 
     return { kind: "alert", incidentId, ack: ackFor(incidentId), duplicate };
   } catch (error) {

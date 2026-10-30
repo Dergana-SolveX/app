@@ -48,7 +48,8 @@ describe("ingestSms: a valid SVX alert", () => {
     expect(incidents[0]).toMatchObject({
       id: result.incidentId,
       status: "open",
-      recSeverity: "unknown",
+      // Trapped victims are RED by the triage rules (FR-S2-15).
+      recSeverity: "red",
       alertCount: 1,
       geohash8: "sn2j5x7k",
       estimatedVictims: 2,
