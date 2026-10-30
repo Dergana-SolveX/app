@@ -7,10 +7,11 @@ import AccountMenu from "@/components/account-menu";
 import ConnectionStatus from "@/components/connection-status";
 import ThemeToggle from "@/components/theme-toggle";
 import { navFor, ROLE_LABEL } from "@/lib/nav";
+import type { RoleHolder } from "@solvex-dergana/shared";
 
 type Props = {
   user: { name: string; email: string };
-  appUser: Parameters<typeof navFor>[0];
+  appUser: RoleHolder;
   children: ReactNode;
 };
 

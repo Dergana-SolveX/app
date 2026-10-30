@@ -1,4 +1,4 @@
-import type { AppRole } from "@solvex-dergana/shared";
+import type { AppRole, RoleHolder } from "@solvex-dergana/shared";
 import { linkOptions, type LinkProps } from "@tanstack/react-router";
 import {
   AmbulanceIcon,
@@ -16,8 +16,6 @@ export const ROLE_LABEL: Record<AppRole, string> = {
   admin: "Administrateur",
 };
 
-type AppUser = { role: AppRole; unitId: string | null; hospitalId: string | null };
-
 export type NavItem = {
   label: string;
   icon: LucideIcon;
@@ -25,7 +23,7 @@ export type NavItem = {
 };
 
 /** Sidebar entries for a role. Only screens the role may open (see `canAccess`). */
-export function navFor(user: AppUser): NavItem[] {
+export function navFor(user: RoleHolder): NavItem[] {
   const dispatcher: NavItem = {
     label: "Poste de commandement",
     icon: RadioTowerIcon,

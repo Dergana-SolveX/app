@@ -43,7 +43,7 @@ export default function AccountMenu({
         >
           {initials(name)}
         </span>
-        <span className="hidden text-left leading-tight sm:block">
+        <span className="hidden text-start leading-tight sm:block">
           <span className="block text-sm font-semibold">{name}</span>
           <span className="block text-xs font-medium text-muted-foreground">{ROLE_LABEL[role]}</span>
         </span>
