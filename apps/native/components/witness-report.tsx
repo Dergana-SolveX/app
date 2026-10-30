@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useRef, useState } from "react";
+import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   Alert,
   Platform,
@@ -19,6 +19,7 @@ import {
   createPhoneTriggerFilter,
   createWitnessFlowState,
   flowReducer,
+  buildWitnessSvxString,
   type DangerType,
   WITNESS_TEXT,
 } from "@solvex-dergana/shared";
@@ -42,7 +43,7 @@ export function WitnessReport() {
   const t = WITNESS_TEXT[state.lang];
   const isRtl = state.lang === "ar";
 
-  // Mutation
+  // Mutations
   const submitMutation = useMutation(
     trpc.alerts.submitOnline.mutationOptions({
       onSuccess: (res) => {
@@ -62,6 +63,59 @@ export function WitnessReport() {
       },
     }),
   );
+
+  const [forcedSms, setForcedSms] = useState(false);
+  const [smsAck, setSmsAck] = useState<string | null>(null);
+
+  const submitSmsMutation = useMutation(
+    trpc.alerts.submitSms.mutationOptions({
+      onSuccess: (res) => {
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
+        if (res.kind === "alert") {
+          setSmsAck(res.ack);
+          dispatch({
+            type: "SUBMISSION_SUCCESS",
+            result: {
+              alertId: `sms-${res.incidentId}`,
+              incidentId: res.incidentId,
+              duplicate: res.duplicate,
+              merged: res.merged,
+            },
+          });
+        } else {
+          dispatch({
+            type: "SUBMISSION_ERROR",
+            error: "Format SMS non reconnu",
+          });
+        }
+      },
+      onError: (err) => {
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+        }
+        dispatch({
+          type: "SUBMISSION_ERROR",
+          error: err.message || "Erreur de transmission SMS",
+        });
+      },
+    }),
+  );
+
+  const isSubmitting = submitMutation.isPending || submitSmsMutation.isPending;
+
+  const svxResult = useMemo(() => {
+    return buildWitnessSvxString({
+      victims: state.victims ?? 1,
+      conscious: state.conscious,
+      fire: state.dangers.includes("fire"),
+      trapped: state.dangers.includes("trapped"),
+      bleeding: state.dangers.includes("bleeding"),
+      lat: state.coords?.lat ?? null,
+      lng: state.coords?.lng ?? null,
+    });
+  }, [state.victims, state.conscious, state.dangers, state.coords]);
 
   // Accelerometer at ~50 Hz (20ms interval) feeding phone_trigger filter (FR-S4-01)
   useEffect(() => {
@@ -259,9 +313,17 @@ export function WitnessReport() {
       return;
     }
 
-    const payload = state.toSubmissionPayload();
     dispatch({ type: "SUBMISSION_START" });
-    submitMutation.mutate(payload);
+    if (forcedSms) {
+      submitSmsMutation.mutate({
+        from: "+213550000000",
+        body: svxResult.svx,
+        emulated: true,
+      });
+    } else {
+      const payload = state.toSubmissionPayload();
+      submitMutation.mutate(payload);
+    }
   };
 
   const handleManualLocationSubmit = () => {
@@ -278,20 +340,28 @@ export function WitnessReport() {
     triggerHaptic();
     dispatch({ type: "SET_MANUAL_LOCATION", commune, pkMarker });
 
-    const payload = {
-      ...state.toSubmissionPayload(),
-      commune: commune.trim() || null,
-      pkMarker: pkMarker.trim() || null,
-    };
-
     dispatch({ type: "SUBMISSION_START" });
-    submitMutation.mutate(payload);
+    if (forcedSms) {
+      submitSmsMutation.mutate({
+        from: "+213550000000",
+        body: svxResult.svx,
+        emulated: true,
+      });
+    } else {
+      const payload = {
+        ...state.toSubmissionPayload(),
+        commune: commune.trim() || null,
+        pkMarker: pkMarker.trim() || null,
+      };
+      submitMutation.mutate(payload);
+    }
   };
 
   const handleReset = () => {
     triggerHaptic();
     setCommune("");
     setPkMarker("");
+    setSmsAck(null);
     dispatch({ type: "RESET" });
   };
 
@@ -419,6 +489,65 @@ export function WitnessReport() {
             </>
           )}
         </View>
+      </View>
+
+      {/* Forced SMS Toggle & Preview (FR-S4-06) */}
+      <View className="mb-3">
+        <Pressable
+          testID="force-sms-toggle"
+          onPress={() => setForcedSms((prev) => !prev)}
+          className={`p-2.5 rounded-xl border flex-row items-center justify-between ${
+            forcedSms
+              ? "bg-purple-950/40 border-purple-600"
+              : "bg-slate-900 border-slate-800"
+          }`}
+        >
+          <View className="flex-row items-center gap-2">
+            <Ionicons
+              name="chatbox-ellipses"
+              size={16}
+              color={forcedSms ? "#c084fc" : "#94a3b8"}
+            />
+            <Text
+              className={`text-xs font-bold ${
+                forcedSms ? "text-purple-300" : "text-slate-400"
+              }`}
+            >
+              Forcer canal SMS (démo)
+            </Text>
+          </View>
+          <Text
+            className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+              forcedSms
+                ? "bg-purple-600 text-white"
+                : "bg-slate-800 text-slate-500"
+            }`}
+          >
+            {forcedSms ? "ACTIF" : "OFF"}
+          </Text>
+        </Pressable>
+
+        {forcedSms && (
+          <View
+            testID="raw-sms-preview"
+            className="mt-2 p-3 bg-purple-950/30 border border-purple-800/80 rounded-xl"
+          >
+            <View className="flex-row justify-between items-center mb-1.5">
+              <Text className="text-[10px] font-bold text-purple-300 uppercase">
+                RAW SMS SVX v1 (FR-S4-06)
+              </Text>
+              <Text
+                testID="sms-char-counter"
+                className="font-mono text-[10px] text-purple-200"
+              >
+                {svxResult.charCount} / 160 car.
+              </Text>
+            </View>
+            <Text className="font-mono text-xs text-white bg-slate-900/90 p-2 rounded-lg border border-purple-700/40">
+              {svxResult.svx}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Step Counter */}
@@ -651,11 +780,15 @@ export function WitnessReport() {
 
           <Pressable
             onPress={handleSubmit}
-            disabled={submitMutation.isPending}
+            disabled={isSubmitting}
             className="w-full h-16 rounded-2xl bg-red-600 active:bg-red-500 items-center justify-center shadow-lg"
           >
             <Text className="text-white font-black text-base uppercase tracking-wider">
-              {submitMutation.isPending ? t.submitting : t.submit_button}
+              {isSubmitting
+                ? t.submitting
+                : forcedSms
+                  ? "Envoyer par SMS (Émulé)"
+                  : t.submit_button}
             </Text>
           </Pressable>
         </View>
@@ -703,11 +836,15 @@ export function WitnessReport() {
 
           <Pressable
             onPress={handleManualLocationSubmit}
-            disabled={submitMutation.isPending}
+            disabled={isSubmitting}
             className="w-full h-16 rounded-2xl bg-red-600 active:bg-red-500 items-center justify-center shadow-lg mt-6"
           >
             <Text className="text-white font-black text-sm uppercase tracking-wider">
-              {submitMutation.isPending ? t.submitting : t.confirm_location_button}
+              {isSubmitting
+                ? t.submitting
+                : forcedSms
+                  ? "Envoyer par SMS (Émulé)"
+                  : t.confirm_location_button}
             </Text>
           </Pressable>
         </View>
@@ -726,7 +863,7 @@ export function WitnessReport() {
             {t.success_desc}
           </Text>
 
-          <View className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
+          <View className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
             <Text className="text-xs text-slate-400 mb-1">
               {t.success_incident_id}
             </Text>
@@ -734,6 +871,23 @@ export function WitnessReport() {
               #{state.submissionResult?.incidentId.slice(0, 8).toUpperCase()}
             </Text>
           </View>
+
+          {/* SMS Ack Card (FR-S4-06) */}
+          {smsAck && (
+            <View className="w-full bg-purple-950/40 border border-purple-800 rounded-2xl p-4 mb-4">
+              <View className="flex-row justify-between items-center mb-1">
+                <Text className="text-xs text-purple-300 font-bold">
+                  Accusé de réception (SMS)
+                </Text>
+                <Text className="text-[10px] text-purple-200 bg-purple-900/60 px-2 py-0.5 rounded">
+                  Émulé
+                </Text>
+              </View>
+              <Text className="text-white font-mono font-bold text-sm bg-slate-900 p-2.5 rounded-lg border border-purple-700/50">
+                {smsAck}
+              </Text>
+            </View>
+          )}
 
           <Pressable
             onPress={handleReset}
