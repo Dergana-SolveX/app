@@ -1,4 +1,4 @@
-import { masterIncidents, rawAlerts } from "@solvex-dergana/db/schema/index";
+import { masterIncidents, medicalProfiles, rawAlerts } from "@solvex-dergana/db/schema/index";
 import { geohashEncode } from "@solvex-dergana/shared";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -14,6 +14,7 @@ export const alertsRouter = router({
       z.object({
         idempotencyKey: z.string().trim().min(1).max(128),
         source: z.enum(["app_witness", "app_auto"]).default("app_witness"),
+        profileCode: z.string().trim().length(8).nullable().optional(),
         victims: z.number().int().min(1).max(50),
         conscious: z.number().int().min(0).max(2).nullable().default(null),
         fire: z.boolean().default(false),
@@ -45,6 +46,14 @@ export const alertsRouter = router({
         };
       }
 
+      // Medical profile lookup if short code provided (FR-S4-07 / FR-S3-07)
+      const [profile] = input.profileCode
+        ? await ctx.db
+            .select({ id: medicalProfiles.id })
+            .from(medicalProfiles)
+            .where(eq(medicalProfiles.shortCode, input.profileCode.toUpperCase()))
+        : [];
+
       const hasCoords = input.lat !== null && input.lng !== null;
       const geohash = hasCoords ? geohashEncode(input.lat!, input.lng!, 8) : null;
       const position = hasCoords
@@ -56,6 +65,7 @@ export const alertsRouter = router({
         channel: "internet" as const,
         receivedAt: now,
         eventAt: now,
+        profileId: profile?.id ?? null,
         lat: input.lat,
         lng: input.lng,
         accuracyM: input.accuracyM ? Math.round(input.accuracyM) : null,
@@ -70,6 +80,7 @@ export const alertsRouter = router({
         authenticated: null,
         rawPayload: JSON.stringify({
           source: input.source,
+          profileCode: input.profileCode,
           victims: input.victims,
           conscious: input.conscious,
           fire: input.fire,

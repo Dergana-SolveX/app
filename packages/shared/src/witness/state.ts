@@ -1,3 +1,15 @@
+// Unambiguous uppercase charset (32 chars) for 8-char short codes (FR-S4-07 / FR-S3-07)
+export const SHORT_CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+export function generateShortCode(rng: () => number = Math.random): string {
+  let result = "";
+  for (let i = 0; i < 8; i++) {
+    const idx = Math.floor(rng() * SHORT_CODE_CHARS.length);
+    result += SHORT_CODE_CHARS[idx % SHORT_CODE_CHARS.length];
+  }
+  return result;
+}
+
 export type WitnessStep =
   | 1
   | 2
@@ -18,6 +30,7 @@ export type Coords = {
 
 export type SubmissionPayload = {
   idempotencyKey: string;
+  profileCode?: string | null;
   victims: number;
   conscious: number | null;
   fire: boolean;
@@ -34,6 +47,7 @@ export type WitnessFlowState = {
   step: WitnessStep;
   idempotencyKey: string;
   lang: "fr" | "ar";
+  profileCode: string | null;
   victims: 1 | 2 | 3 | null;
   conscious: 0 | 1 | 2 | null;
   dangers: DangerType[];
@@ -60,6 +74,7 @@ export type WitnessFlowAction =
   | { type: "GPS_ACQUIRED"; coords: Coords }
   | { type: "GPS_FAILED"; status: "timeout" | "denied" }
   | { type: "SET_MANUAL_LOCATION"; commune: string; pkMarker: string }
+  | { type: "SET_PROFILE_CODE"; profileCode: string | null }
   | { type: "PROCEED_SUBMIT" }
   | { type: "SET_LANG"; lang: "fr" | "ar" }
   | { type: "SUBMISSION_START" }
@@ -79,6 +94,7 @@ function toPayload(state: Omit<WitnessFlowState, "toSubmissionPayload">): Submis
   const hasGps = state.gpsStatus === "acquired" && state.coords !== null;
   return {
     idempotencyKey: state.idempotencyKey,
+    profileCode: state.profileCode ?? null,
     victims: state.victims ?? 1,
     conscious: state.conscious,
     fire: state.dangers.includes("fire"),
@@ -92,7 +108,10 @@ function toPayload(state: Omit<WitnessFlowState, "toSubmissionPayload">): Submis
   };
 }
 
-export function createWitnessFlowState(idempotencyKey?: string): WitnessFlowState {
+export function createWitnessFlowState(
+  idempotencyKey?: string,
+  profileCode?: string | null,
+): WitnessFlowState {
   const key =
     idempotencyKey ??
     (typeof crypto !== "undefined" && crypto.randomUUID
@@ -103,6 +122,7 @@ export function createWitnessFlowState(idempotencyKey?: string): WitnessFlowStat
     step: 1 as WitnessStep,
     idempotencyKey: key,
     lang: "fr" as const,
+    profileCode: profileCode ?? null,
     victims: null,
     conscious: null,
     dangers: [] as DangerType[],
@@ -159,9 +179,9 @@ export function flowReducer(
 
     case "TICK_GPS_TIMER": {
       if (updated.gpsStatus === "searching") {
-        const nextElapsed = updated.gpsSecondsElapsed + 1;
-        updated.gpsSecondsElapsed = nextElapsed;
-        if (nextElapsed >= 20) {
+        const nextSeconds = updated.gpsSecondsElapsed + 1;
+        updated.gpsSecondsElapsed = nextSeconds;
+        if (nextSeconds >= 20) {
           updated.gpsStatus = "timeout";
         }
       }
@@ -182,6 +202,11 @@ export function flowReducer(
     case "SET_MANUAL_LOCATION": {
       updated.manualCommune = action.commune;
       updated.manualPkMarker = action.pkMarker;
+      break;
+    }
+
+    case "SET_PROFILE_CODE": {
+      updated.profileCode = action.profileCode;
       break;
     }
 
@@ -218,7 +243,7 @@ export function flowReducer(
     }
 
     case "RESET": {
-      return createWitnessFlowState(action.idempotencyKey);
+      return createWitnessFlowState(action.idempotencyKey, updated.profileCode);
     }
   }
 
