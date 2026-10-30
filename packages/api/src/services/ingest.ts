@@ -1,5 +1,5 @@
 import type { Database } from "@solvex-dergana/db";
-import { masterIncidents, rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
+import { masterIncidents, medicalProfiles, rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
 import type { EventBus } from "./events";
 import { retriageIncident } from "./triage";
 import { decodeSvx } from "@solvex-dergana/shared";
@@ -71,8 +71,14 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       .from(rawAlerts)
       .where(eq(rawAlerts.dedupeKey, dedupeKey));
 
+    // The medical profile the sender registered, if the code matches one (feeds the profile-risk rules).
+    const [profile] = alert.profileCode
+      ? await db.select({ id: medicalProfiles.id }).from(medicalProfiles).where(eq(medicalProfiles.shortCode, alert.profileCode))
+      : [];
+
     // The stored alert, the same for a recognised SVX message and for plain text.
     const alertRow = {
+      profileId: profile?.id ?? null,
       source: sourceOf(alert.layer, alert.peakG),
       channel: "sms" as const,
       receivedAt,

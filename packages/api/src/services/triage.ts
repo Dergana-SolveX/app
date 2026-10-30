@@ -80,6 +80,8 @@ export async function retriageIncident(
   const authority = routeAuthority(point?.lat, point?.lng, urbanZones, incident.roadRef)?.authority ?? null;
 
   if (incident.status !== "open") {
+    // A closed incident or a false alarm has nothing left to escalate.
+    if (incident.status === "closed" || incident.status === "false_alarm") return incident;
     const raised = RANK[result.severity] > RANK[incident.recSeverity] && (result.severity === "yellow" || result.severity === "red");
     if (!raised) return incident;
     const previous = await db

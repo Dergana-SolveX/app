@@ -139,6 +139,43 @@ describe("re-triage when more information arrives", () => {
     expect(published.map((e) => e.type)).not.toContain("incident.escalation_suggested");
   });
 
+  it("a closed incident or a false alarm never gets an escalation suggestion", async () => {
+    for (const status of ["closed", "false_alarm"] as const) {
+      const db = await createTestDb();
+      const { bus, published } = recordingBus();
+      const incidentId = await ingestWitness(db, bus); // YELLOW
+      await db.update(masterIncidents).set({ status }).where(eq(masterIncidents.id, incidentId));
+
+      await addAlert(db, incidentId, { fire: true });
+      await retriageIncident({ db, events: bus }, incidentId);
+
+      expect(published.map((e) => e.type)).not.toContain("incident.escalation_suggested");
+    }
+  });
+
+  it("an SMS carrying a known profile code links that profile, so its risk counts", async () => {
+    const db = await createTestDb();
+    await db.insert(medicalProfiles).values({
+      shortCode: "TESTCODE",
+      fullName: "Profil d'essai",
+      birthDate: "1960-01-01",
+      sex: "male",
+      medications: [{ name: "Sintrom", class: "anticoagulant" }],
+      consentAt: RECEIVED_AT,
+    });
+
+    const incidentId = await ingestWitness(db, recordingBus().bus, {
+      ...witnessAlert,
+      bleeding: false,
+      peakG: 4,
+      profileCode: "TESTCODE",
+    });
+
+    const incident = await getIncident(db, incidentId);
+    expect(incident?.alerts[0]?.profileId).not.toBeNull();
+    expect(incident?.recSeverity).toBe("red");
+  });
+
   it("a linked anticoagulant profile with a 4 g hit makes it RED", async () => {
     const db = await createTestDb();
     const [profile] = await db
