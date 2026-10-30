@@ -7,7 +7,7 @@ import { deviceCommands } from "@solvex-dergana/db/schema/comms";
 import { vehicles } from "@solvex-dergana/db/schema/profiles";
 import { deriveDeviceKey, chipCommandInput, signDevicePayload } from "@solvex-dergana/shared";
 import { commandPayload } from "@solvex-dergana/shared/crypto/deviceCommand";
-import { asc, eq, max } from "drizzle-orm";
+import { asc, eq, max } from "@solvex-dergana/db";
 import { Hono } from "hono";
 
 type Options = {

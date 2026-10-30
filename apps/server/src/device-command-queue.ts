@@ -1,7 +1,7 @@
 import type { Database } from "@solvex-dergana/db";
+import { and, eq, inArray, lte } from "@solvex-dergana/db";
 import { deviceCommands } from "@solvex-dergana/db/schema/comms";
 import { vehicles } from "@solvex-dergana/db/schema/profiles";
-import { and, eq, inArray, lte } from "drizzle-orm";
 
 /** Also run by the server timer, so offline devices time out without further requests. */
 export async function expireDeviceCommands(db: Pick<Database, "update">, now = new Date(), deviceId?: string) {

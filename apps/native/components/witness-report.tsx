@@ -120,7 +120,7 @@ export function WitnessReport() {
   // Accelerometer at ~50 Hz (20ms interval) feeding phone_trigger filter (FR-S4-01)
   useEffect(() => {
     Accelerometer.setUpdateInterval(20);
-    const sub = Accelerometer.addListener(({ x, y, z }) => {
+    const sub = Accelerometer.addListener(({ x, y, z }: { x: number; y: number; z: number }) => {
       const g = Math.sqrt(x * x + y * y + z * z);
       const now = Date.now();
       filterRef.current.pushAccel(now, g);

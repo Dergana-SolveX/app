@@ -42,6 +42,7 @@ export const masterIncidents = pgTable(
     pkMarker: text("pk_marker"),
     commune: text("commune"),
     roadRef: text("road_ref"),
+    emulated: boolean("emulated").notNull().default(false),
     /** Optimistic lock for concurrent dispatchers. */
     version: integer("version").notNull().default(1),
   },
@@ -114,6 +115,7 @@ export const dispatches = pgTable("dispatches", {
   dispatcherId: uuid("dispatcher_id"),
   decidedAt: timestamp("decided_at", { withTimezone: true }).defaultNow().notNull(),
   unitIds: uuid("unit_ids").array().notNull().default([]),
+  emulated: boolean("emulated").notNull().default(false),
   authorityNotified: boolean("authority_notified").notNull().default(false),
   authorityNotifiedAt: timestamp("authority_notified_at", { withTimezone: true }),
 });

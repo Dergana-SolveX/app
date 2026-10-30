@@ -1,6 +1,6 @@
 import { createTestDb } from "@solvex-dergana/db/testing";
 import { deriveDeviceKey, deviceKeyCheck, encodeSvx, type SvxAlert } from "@solvex-dergana/shared";
-import { vehicles } from "@solvex-dergana/db/schema/index";
+import { cellTowers, vehicles } from "@solvex-dergana/db/schema/index";
 import { describe, expect, it } from "vitest";
 
 import { createEventBus } from "./events";
@@ -349,5 +349,34 @@ describe("chip SMS authentication (FR-S3-13)", () => {
       authenticated: false,
     });
     expect(Number(detailBadSig?.confidenceScore)).toBe(0.3);
+  });
+});
+
+describe("ingestSms: an alert located by its cell (no GPS fix)", () => {
+  // Made-up tower id (test data) at El Harrach's real position.
+  const tower = { mcc: 603, mnc: 1, lac: 100, cid: 2, lat: 36.7197, lng: 3.1347, rangeM: 900, source: "opencellid" as const };
+  const ingest = async (cell: SvxAlert["cell"]) => {
+    const db = await createTestDb();
+    await db.insert(cellTowers).values(tower);
+    const result = await ingestSms(
+      { db, events: createEventBus() },
+      { from: SENDER, body: encodeSvx({ ...witnessAlert, geohash: null, cell }), receivedAt: RECEIVED_AT, emulated: true },
+    );
+    if (result.kind !== "alert") throw new Error(`expected an alert, got ${result.kind}`);
+    return { db, incidentId: result.incidentId };
+  };
+
+  it("is placed at the tower, with the tower's range as its uncertainty", async () => {
+    const { db, incidentId } = await ingest({ mcc: 603, mnc: 1, lac: 100, cid: 2 });
+
+    const incident = await getIncident(db, incidentId);
+    expect(incident).toMatchObject({ lat: 36.7197, lng: 3.1347, locationUncertaintyM: 900 });
+    expect(incident!.alerts[0]).toMatchObject({ accuracyM: 900 });
+  });
+
+  it("is still an incident, just without a position, when the cell is unknown (never dropped)", async () => {
+    const { db, incidentId } = await ingest({ mcc: 603, mnc: 1, lac: 100, cid: 999 });
+
+    expect(await getIncident(db, incidentId)).toMatchObject({ lat: null, lng: null });
   });
 });
