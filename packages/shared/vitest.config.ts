@@ -6,7 +6,7 @@ export default defineConfig({
       provider: "v8",
       include: ["src/sms/**/*.ts", "src/cluster/**/*.ts", "src/geo/**/*.ts", "src/thresholds.ts"],
       exclude: ["**/*.test.ts"],
-      // PRD NFR-S2-1: at least 90% on the SMS module.
+      // PRD NFR-S2-1: at least 90% on the SMS, cluster and geo code.
       thresholds: { statements: 90, branches: 90, functions: 90, lines: 90 },
     },
   },

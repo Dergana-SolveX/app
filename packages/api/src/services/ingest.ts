@@ -1,10 +1,15 @@
 import type { Database } from "@solvex-dergana/db";
 import { rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
-import { decodeSvx, geohashDecode, trustedEventTime } from "@solvex-dergana/shared";
+import {
+  decodeSvx,
+  GEOHASH8_ACCURACY_M,
+  geohashDecode,
+  trustedEventTime,
+} from "@solvex-dergana/shared";
 import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
-import { placeAlert } from "./clustering";
+import { placeAlert, type Placement } from "./clustering";
 import type { EventBus } from "./events";
 
 export type InboundSms = {
@@ -29,9 +34,6 @@ export type IngestResult =
     }
   /** Not an SVX alert: kept on record, no incident, no reply. */
   | { kind: "ignored"; reason: "not_svx" };
-
-/** A geohash of 8 characters pins a position to about this many metres. */
-const GEOHASH8_ACCURACY_M = 19;
 
 export type IngestDeps = { db: Database; events: EventBus };
 
@@ -131,8 +133,17 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
     }
 
     // Attach it to the incident it belongs to, or open a new one (see clustering.ts).
-    const placement = await placeAlert(db, { alertRow, position, eventAt });
+    // A retry of an SMS we already stored needs no clustering (and no lock).
+    const placement: Placement =
+      seen?.incidentId != null
+        ? { kind: "duplicate" }
+        : await placeAlert(db, { alertRow, position, eventAt });
     const duplicate = placement.kind === "duplicate";
+
+    // Told to dispatchers as soon as the incident is committed: a failure to write the SMS log below
+    // must never hide a distress signal from them (NFR-P6).
+    if (placement.kind === "created") events.publish({ type: "incident.created", incident: placement.incident });
+    if (placement.kind === "merged") events.publish({ type: "incident.updated", incident: placement.incident });
     const incidentId =
       placement.kind !== "duplicate"
         ? placement.incident.id
@@ -148,9 +159,6 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       .update(smsLog)
       .set({ incidentId, result: { ...result, ...(duplicate ? { duplicate: true } : {}) } })
       .where(eq(smsLog.id, logged!.id));
-
-    if (placement.kind === "created") events.publish({ type: "incident.created", incident: placement.incident });
-    if (placement.kind === "merged") events.publish({ type: "incident.updated", incident: placement.incident });
 
     return {
       kind: "alert",

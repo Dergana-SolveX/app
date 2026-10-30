@@ -1,5 +1,8 @@
 const ALPHABET = "0123456789bcdefghjkmnpqrstuvwxyz";
 
+/** A geohash of 8 characters pins a position to about this many metres (half the width of its cell). */
+export const GEOHASH8_ACCURACY_M = 19;
+
 export type GeohashCell = {
   /** Centre of the cell. */
   lat: number;

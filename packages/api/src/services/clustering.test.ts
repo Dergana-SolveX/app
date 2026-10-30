@@ -227,4 +227,61 @@ describe("clustering: alerts about the same crash merge into one incident", () =
     expect(incidents[0]).toMatchObject({ alertCount: 5, estimatedVictims: 5 });
     expect(results.filter((r) => r.kind === "alert" && r.merged)).toHaveLength(4);
   });
+
+  it("still counts an identical SMS as a duplicate after other alerts have merged into the incident", async () => {
+    const { db, send } = await setup();
+    const first = await send({ at: 0, from: "+213550000001" });
+    await send({ at: 1, from: "+213550000002" }); // a second witness merges
+    const again = await send({ at: 0, from: "+213550000001" }); // the first witness's SMS is retried
+    if (first.kind !== "alert" || again.kind !== "alert") throw new Error("expected alerts");
+
+    expect(again.duplicate).toBe(true);
+    expect(again.incidentId).toBe(first.incidentId);
+    expect(again.ack).toBe(first.ack);
+    expect((await listIncidents(db))[0]).toMatchObject({ alertCount: 2 });
+  });
+
+  it("lets incidents that are being handled absorb new alerts, but not finished ones", async () => {
+    for (const status of ["dispatched", "on_scene", "transporting"] as const) {
+      const { db, send } = await setup();
+      const first = await send({ at: 0, from: "+213550000001" });
+      if (first.kind !== "alert") throw new Error("expected an alert");
+      await db.update(masterIncidents).set({ status }).where(eq(masterIncidents.id, first.incidentId));
+      const second = await send({ at: 2, from: "+213550000002" });
+      expect(second.kind === "alert" && second.incidentId, status).toBe(first.incidentId);
+    }
+    for (const status of ["handed_over", "false_alarm", "closed"] as const) {
+      const { db, send } = await setup();
+      const first = await send({ at: 0, from: "+213550000001" });
+      if (first.kind !== "alert") throw new Error("expected an alert");
+      await db.update(masterIncidents).set({ status }).where(eq(masterIncidents.id, first.incidentId));
+      const second = await send({ at: 2, from: "+213550000002" });
+      expect(second.kind === "alert" && second.incidentId, status).not.toBe(first.incidentId);
+    }
+  });
+
+  it("tells dispatchers about a new incident even if recording the SMS result fails afterwards", async () => {
+    const { db, events } = await setup();
+    const stream = events.stream();
+    await stream.next(); // ready
+
+    const flaky = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop === "update") {
+          return () => {
+            throw new Error("log write failed");
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    await expect(ingestSms({ db: flaky, events }, report({ at: 0 }))).rejects.toThrow("log write failed");
+
+    const next = await Promise.race([
+      stream.next(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("no event was published")), 1000)),
+    ]);
+    expect(next.value?.event.type).toBe("incident.created");
+    await stream.return(undefined);
+  });
 });

@@ -18,7 +18,7 @@ const FRESH_MS = 15_000;
 
 /** How much to trust the incident, as a bar and as a number (never the bar alone). */
 function ConfidenceMeter({ score }: { score: number }) {
-  const percent = Math.round(score * 100);
+  const percent = Number.isFinite(score) ? Math.min(100, Math.max(0, Math.round(score * 100))) : 0;
   return (
     <div className="flex items-center gap-2" title="Confiance dans l'incident, selon le nombre et le type d'alertes">
       <div
@@ -32,7 +32,8 @@ function ConfidenceMeter({ score }: { score: number }) {
       >
         <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
       </div>
-      <span className="tabular font-mono text-xs text-muted-foreground">
+      {/* The meter above already announces the value to screen readers. */}
+      <span aria-hidden="true" className="tabular font-mono text-xs text-muted-foreground">
         Confiance {percent} %
       </span>
     </div>
@@ -154,7 +155,6 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                     {incident.estimatedVictims >= 9 ? "+" : ""} victime{incident.estimatedVictims > 1 ? "s" : ""}
                   </span>
                 )}
-                {/* Honesty rule: an incident born from the emulated GSM network must say so. */}
                 <ConfidenceMeter score={Number(incident.confidenceScore)} />
                 {incident.tentative && (
                   <span
@@ -165,6 +165,7 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                     Fusion à confirmer
                   </span>
                 )}
+                {/* Honesty rule: an incident born from the emulated GSM network must say so. */}
                 {incident.emulated && <EmulationBadge />}
                 <span className="rounded-md border px-2 py-0.5 text-xs font-semibold text-muted-foreground uppercase">
                   Ouvert

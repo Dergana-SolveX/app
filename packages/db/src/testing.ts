@@ -19,6 +19,10 @@ function migratedSnapshot() {
     await client.close();
     return snapshot;
   })();
+  // A failed first migration must not poison every later test: try again next time.
+  migrated.catch(() => {
+    migrated = undefined;
+  });
   return migrated;
 }
 
