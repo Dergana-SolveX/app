@@ -8,8 +8,7 @@
  * The area is downloaded in tiles (a big single request is often cut by the public servers) and merged.
  * Data: © OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright).
  */
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { writeFileSync } from "node:fs";
 
 import { buildRoadGraph, type OverpassData, type OverpassWay } from "../src/routing/build";
 
@@ -46,7 +45,10 @@ async function downloadTile(bbox: [number, number, number, number], label: strin
           body: new URLSearchParams({ data: query }),
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return (await response.json()) as OverpassData;
+        const answer = (await response.json()) as OverpassData & { remark?: string };
+        // A busy server answers 200 with a remark and whatever it managed to find: that data is incomplete.
+        if (answer.remark) throw new Error(`incomplete answer: ${answer.remark}`);
+        return answer;
       } catch (error) {
         console.log(`  ${label}: ${new URL(url).host} failed (${(error as Error).message.slice(0, 60)}), attempt ${attempt}`);
       }
@@ -82,6 +84,5 @@ const asset = buildRoadGraph(
   { osm3s: { timestamp_osm_base: timestamp }, elements: [...ways.values()] },
   { bbox: BBOX },
 );
-mkdirSync(dirname(OUT.pathname.replace(/^\/([A-Za-z]:)/, "$1")), { recursive: true });
 writeFileSync(OUT, JSON.stringify(asset));
 console.log(`Wrote ${asset.nodes.length / 2} nodes and ${asset.edges.length} edges to assets/algiers-roads.json`);

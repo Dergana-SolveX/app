@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildRoadGraph } from "./build";
-import { loadRoadGraph, route } from "./route";
+import { loadRoadGraph, NO_LIVE_TRAFFIC_NOTICE, route } from "./route";
 import { assetOf } from "./testing/graphs";
 import { MINI_OSM } from "./testing/mini-osm";
 
@@ -137,5 +137,19 @@ describe("route: a two-way road with bends is drawn correctly in both directions
 
   it("follows the same bends in the opposite order when driven the other way", () => {
     expect(route(bendy, B, A)!.polyline).toEqual([B, BEND2, BEND1, A]);
+  });
+});
+
+describe("loadRoadGraph rejects rush-hour multipliers that make no sense", () => {
+  const asset = buildRoadGraph(MINI_OSM, { bbox: [36.6, 2.8, 36.85, 3.55] });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])("refuses a multiplier of %s", (bad) => {
+    expect(() => loadRoadGraph(asset, { rushHour: { tertiary: bad } })).toThrow(/rush/i);
+  });
+});
+
+describe("the no-live-traffic notice", () => {
+  it("is a French sentence the UI can show next to every road ETA", () => {
+    expect(NO_LIVE_TRAFFIC_NOTICE).toMatch(/trafic/i);
   });
 });

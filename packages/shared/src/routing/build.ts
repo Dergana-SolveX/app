@@ -65,6 +65,12 @@ function directionOf(tags: Record<string, string>, roadClass: number): 0 | 1 | -
 const labelOf = (tags: Record<string, string>) =>
   tags.name && tags.ref ? `${tags.name} (${tags.ref})` : (tags.name ?? tags.ref ?? null);
 
+/** A road we can place on the map: one position for each of its nodes. */
+const hasShape = (way: OverpassWay) =>
+  Array.isArray(way.geometry) &&
+  way.geometry.length === way.nodes.length &&
+  way.geometry.every((point) => point !== null && point !== undefined);
+
 /** Turns an Overpass answer into the compact graph: wanted road classes only, split at junctions. */
 export function buildRoadGraph(
   osm: OverpassData,
@@ -74,7 +80,8 @@ export function buildRoadGraph(
     (e): e is OverpassWay =>
       e.type === "way" &&
       classOf((e as OverpassWay).tags?.highway) >= 0 &&
-      (e as OverpassWay).nodes.length >= 2,
+      (e as OverpassWay).nodes.length >= 2 &&
+      hasShape(e as OverpassWay),
   );
 
   // A node is a junction when roads meet there or a road ends there.

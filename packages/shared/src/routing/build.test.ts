@@ -161,3 +161,20 @@ describe("buildRoadGraph: classes, names and the data around them", () => {
     });
   });
 });
+
+describe("buildRoadGraph ignores roads whose shape is unusable", () => {
+  const good: OverpassWay = {
+    type: "way", id: 1, nodes: [1, 2],
+    geometry: [{ lat: 36.75, lon: 3.06 }, { lat: 36.75, lon: 3.061 }],
+    tags: { highway: "primary" },
+  };
+
+  it("skips a road with no geometry or a geometry that does not match its nodes, and keeps the others", () => {
+    const noShape = { type: "way", id: 2, nodes: [3, 4], tags: { highway: "primary" } } as unknown as OverpassWay;
+    const cutShape: OverpassWay = { ...good, id: 3, nodes: [5, 6, 7], geometry: good.geometry };
+    const holeInShape = { ...good, id: 4, nodes: [8, 9], geometry: [good.geometry[0], null] } as unknown as OverpassWay;
+    const asset = buildRoadGraph({ elements: [noShape, cutShape, holeInShape, good] }, { bbox: BBOX });
+    expect(asset.edges).toHaveLength(1);
+    expect(asset.nodes).toEqual([3675000, 306000, 3675000, 306100]);
+  });
+});

@@ -47,6 +47,9 @@ const KMH_TO_MPS = 1 / 3.6;
 /** How much slower each road class is (2 = twice as slow). Classes that are not listed are not slowed. */
 export type RushHour = Partial<Record<RoadClass, number>>;
 
+/** To show next to every road ETA: the times come from road class speeds, never from live traffic. */
+export const NO_LIVE_TRAFFIC_NOTICE = "Estimation sans trafic en temps réel : vitesses moyennes par type de route.";
+
 /** Seconds to drive one metre of a road class, slow-down included. */
 function secondsPerMetre(roadClass: RoadClass, rushHour: RushHour | undefined): number {
   return (rushHour?.[roadClass] ?? 1) / (THRESHOLDS.routing.speedsKmh[roadClass] * KMH_TO_MPS);
@@ -57,6 +60,11 @@ function secondsPerMetre(roadClass: RoadClass, rushHour: RushHour | undefined): 
  * `THRESHOLDS.routing.rushHourMultiplier` for the standard table). There is no live traffic.
  */
 export function loadRoadGraph(asset: RoadGraphAsset, { rushHour }: { rushHour?: RushHour } = {}): RoadGraph {
+  for (const [roadClass, factor] of Object.entries(rushHour ?? {})) {
+    if (!Number.isFinite(factor) || factor <= 0) {
+      throw new Error(`Invalid rush-hour multiplier for ${roadClass}: ${factor} (must be a number above 0)`);
+    }
+  }
   const nodeCount = asset.nodes.length / 2;
   const lat = new Float64Array(nodeCount);
   const lng = new Float64Array(nodeCount);
@@ -254,7 +262,7 @@ export function travelTimesToMany(graph: RoadGraph, from: LatLng, targets: reado
   const found = search(graph, start.node, { targets: wanted });
 
   const { roadFactor } = THRESHOLDS.routing.straightLine;
-  const linkMps = THRESHOLDS.routing.speedsKmh.link / 3.6;
+  const linkMps = THRESHOLDS.routing.speedsKmh.link * KMH_TO_MPS;
   return snapped.map((end) => {
     if (end === null || !Number.isFinite(found.seconds[end.node]!)) return null;
     let roadM = 0;
