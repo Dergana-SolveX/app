@@ -1,4 +1,5 @@
 import { createTestDb } from "@solvex-dergana/db/testing";
+import { encodeSvx, type SvxAlert } from "@solvex-dergana/shared";
 import { describe, expect, it } from "vitest";
 
 import { createEventBus } from "./events";
@@ -8,6 +9,22 @@ import { createTransport } from "../sms/transport";
 import { receiveSms } from "./sms-flow";
 
 const PHONE = "+213550000042";
+
+const svxAlert: SvxAlert = {
+  layer: 2,
+  geohash: "sn2j5x7k",
+  eventMinutes: Math.floor(Date.now() / 60_000),
+  peakG: null,
+  rollover: null,
+  fire: false,
+  victims: 2,
+  conscious: 1,
+  trapped: false,
+  bleeding: false,
+  profileCode: null,
+  deltaVKmh: null,
+  cell: null,
+};
 
 /** A feature phone talking to the SVX number through the emulated GSM network. */
 async function setup() {
@@ -111,6 +128,29 @@ describe("feature-phone SMS menu", () => {
     expect(await phone.text("2")).toEqual([]);
     expect(await phone.incidents()).toHaveLength(0);
     expect(await phone.wire()).toHaveLength(1); // still on record (never drop a signal)
+  });
+
+  it("never swallows a real SVX alert from a phone that is in the middle of a conversation", async () => {
+    const phone = await setup();
+    await phone.text("ACCIDENT");
+
+    const replies = await phone.text(encodeSvx(svxAlert));
+
+    expect(replies[0]).toMatch(/^SVXACK#/); // handled as the alert it is, not refused as a wrong answer
+    expect(await phone.incidents()).toHaveLength(1);
+  });
+
+  it("opens one incident when the last answer arrives twice at once", async () => {
+    const db = await createTestDb();
+    const deps = { db, events: createEventBus(), transport: createTransport("emulator", { db }) };
+    for (const answer of ["ACCIDENT", "1", "1", "0"]) await receiveSms(deps, { from: PHONE, body: answer, emulated: true });
+
+    await Promise.all([
+      receiveSms(deps, { from: PHONE, body: "Rouiba", emulated: true }),
+      receiveSms(deps, { from: PHONE, body: "Rouiba", emulated: true }),
+    ]);
+
+    expect(await listIncidents(db)).toHaveLength(1);
   });
 
   it("keeps two phones' conversations apart", async () => {

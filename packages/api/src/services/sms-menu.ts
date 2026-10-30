@@ -1,6 +1,6 @@
 import { masterIncidents, smsLog, smsMenuSessions } from "@solvex-dergana/db/schema/index";
 import type { SmsMenuAnswers } from "@solvex-dergana/db/schema/comms";
-import { geocodeLocation } from "@solvex-dergana/shared";
+import { decodeSvx, geocodeLocation } from "@solvex-dergana/shared";
 import { eq, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
@@ -82,6 +82,8 @@ export async function handleMenuSms(deps: SmsFlowDeps, sms: InboundSms): Promise
   const session = stored && receivedAt.getTime() - stored.updatedAt.getTime() <= SESSION_TTL_MS ? stored : undefined;
   const starting = isKeyword(sms.body);
   if (!starting && !session) return null;
+  // A real SVX alert is never a menu answer, even from a phone mid-conversation: it goes to the normal ingest.
+  if (!starting && decodeSvx(sms.body).recognized) return null;
 
   const [logged] = await db
     .insert(smsLog)
@@ -120,44 +122,54 @@ export async function handleMenuSms(deps: SmsFlowDeps, sms: InboundSms): Promise
     return replies;
   }
 
-  const placement = await placeAlert(db, {
-    alertRow: {
-      source: "ussd",
-      channel: "sms",
-      receivedAt,
+  // Claimed before filing, so a repeat of this last answer (or a gateway retry) cannot file a second incident.
+  const claimed = await db.delete(smsMenuSessions).where(eq(smsMenuSessions.msisdnHash, senderHash)).returning();
+  if (claimed.length === 0) return replies;
+
+  try {
+    const placement = await placeAlert(db, {
+      alertRow: {
+        source: "ussd",
+        channel: "sms",
+        receivedAt,
+        eventAt: receivedAt,
+        lat: place.lat,
+        lng: place.lng,
+        accuracyM: place.uncertaintyM,
+        victims: answers.victims ?? null,
+        conscious: answers.conscious ?? null,
+        fire: answers.fire ?? null,
+        trapped: answers.trapped ?? null,
+        rawPayload: sms.body,
+        parseErrors: [],
+        senderMsisdnHash: senderHash,
+        dedupeKey: sha("sha1", `menu${senderHash}${receivedAt.toISOString()}`),
+        emulated: sms.emulated,
+      },
+      position: { lat: place.lat, lng: place.lng, accuracyM: place.uncertaintyM },
       eventAt: receivedAt,
-      lat: place.lat,
-      lng: place.lng,
-      accuracyM: place.uncertaintyM,
-      victims: answers.victims ?? null,
-      conscious: answers.conscious ?? null,
-      fire: answers.fire ?? null,
-      trapped: answers.trapped ?? null,
-      rawPayload: sms.body,
-      parseErrors: [],
-      senderMsisdnHash: senderHash,
-      dedupeKey: sha("sha1", `menu${senderHash}${receivedAt.toISOString()}`),
-      emulated: sms.emulated,
-    },
-    position: { lat: place.lat, lng: place.lng, accuracyM: place.uncertaintyM },
-    eventAt: receivedAt,
-  });
-  if (placement.kind === "duplicate") return replies;
+    });
+    if (placement.kind === "duplicate") return replies;
 
-  const [incident] = await db
-    .update(masterIncidents)
-    .set({
-      // An incident that already says where it is keeps that.
-      commune: sql`coalesce(${masterIncidents.commune}, ${place.commune ?? null})`,
-      roadRef: sql`coalesce(${masterIncidents.roadRef}, ${place.roadRef ?? null})`,
-      pkMarker: sql`coalesce(${masterIncidents.pkMarker}, ${place.pk === undefined ? null : `PK ${place.pk}`})`,
-    })
-    .where(eq(masterIncidents.id, placement.incident.id))
-    .returning();
-  deps.events.publish({ type: placement.kind === "created" ? "incident.created" : "incident.updated", incident: incident! });
+    const [incident] = await db
+      .update(masterIncidents)
+      .set({
+        // An incident that already says where it is keeps that.
+        commune: sql`coalesce(${masterIncidents.commune}, ${place.commune ?? null})`,
+        roadRef: sql`coalesce(${masterIncidents.roadRef}, ${place.roadRef ?? null})`,
+        pkMarker: sql`coalesce(${masterIncidents.pkMarker}, ${place.pk === undefined ? null : `PK ${place.pk}`})`,
+      })
+      .where(eq(masterIncidents.id, placement.incident.id))
+      .returning();
+    deps.events.publish({ type: placement.kind === "created" ? "incident.created" : "incident.updated", incident: incident! });
 
-  await db.delete(smsMenuSessions).where(eq(smsMenuSessions.msisdnHash, senderHash));
-  await db.update(smsLog).set({ incidentId: incident!.id }).where(eq(smsLog.id, logged!.id));
-  await reply(ackFor(incident!.id), { incidentId: incident!.id });
-  return replies;
+    await db.update(smsLog).set({ incidentId: incident!.id }).where(eq(smsLog.id, logged!.id));
+    await reply(ackFor(incident!.id), { incidentId: incident!.id });
+    return replies;
+  } catch (error) {
+    // Keep the conversation so the phone can answer again, and keep the SMS on record as failed.
+    await save(lang, step, answers).catch(() => undefined);
+    await db.update(smsLog).set({ status: "failed" }).where(eq(smsLog.id, logged!.id)).catch(() => undefined);
+    throw error;
+  }
 }
