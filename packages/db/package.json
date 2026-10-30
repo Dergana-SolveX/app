@@ -13,19 +13,22 @@
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "bun src/seed/run.ts",
-    "db:reset": "bun src/seed/run.ts --reset"
+    "db:reset": "bun src/seed/run.ts --reset",
+    "test": "vitest run"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
     "pg": "^8.23.0",
     "zod": "catalog:",
-    "@solvex-dergana/shared": "workspace:*"
+    "@solvex-dergana/shared": "workspace:*",
+    "better-auth": "catalog:"
   },
   "devDependencies": {
     "@solvex-dergana/config": "workspace:*",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "1.0.0-rc.5",
     "typescript": "^6.0.3",
-    "varlock": "catalog:"
+    "varlock": "catalog:",
+    "vitest": "^4.0.0"
   }
 }

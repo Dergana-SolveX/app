@@ -108,6 +108,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@solvex-dergana/api": "workspace:*",
+        "@solvex-dergana/shared": "workspace:*",
         "@solvex-dergana/ui": "workspace:*",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/react-form": "catalog:",
@@ -153,6 +154,7 @@
       "devDependencies": {
         "@solvex-dergana/config": "workspace:*",
         "typescript": "^6.0.3",
+        "vitest": "^4.0.0",
       },
     },
     "packages/auth": {
@@ -179,6 +181,7 @@
       "name": "@solvex-dergana/db",
       "dependencies": {
         "@solvex-dergana/shared": "workspace:*",
+        "better-auth": "catalog:",
         "drizzle-orm": "catalog:",
         "pg": "^8.23.0",
         "zod": "catalog:",
@@ -189,6 +192,7 @@
         "drizzle-kit": "1.0.0-rc.5",
         "typescript": "^6.0.3",
         "varlock": "catalog:",
+        "vitest": "^4.0.0",
       },
     },
     "packages/shared": {

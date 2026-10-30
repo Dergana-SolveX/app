@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 
-import type { Context } from "./context";
+import type { AppUserContext, Context } from "./context";
 
 export const t = initTRPC.context<Context>().create();
 
@@ -23,3 +23,15 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
     },
   });
 });
+
+/** Requires a login whose `app_users` role is one of `roles`. */
+export const roleProcedure = (...roles: AppUserContext["role"][]) =>
+  protectedProcedure.use(({ ctx, next }) => {
+    if (!ctx.appUser || !roles.includes(ctx.appUser.role)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Your role cannot access this resource",
+      });
+    }
+    return next({ ctx: { ...ctx, appUser: ctx.appUser } });
+  });
