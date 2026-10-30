@@ -36,6 +36,14 @@ export const THRESHOLDS = {
     straightLine: { roadFactor: 1.4, urbanKmh: 50, openKmh: 80 },
     maxSnapM: 1500,
   },
+  /**
+   * Shock Index (heart rate / systolic pressure), PRD FR-S2-14: elevated above `elevatedAbove`, critical from
+   * `criticalFrom`. Adult thresholds do not apply under `childUnderYears`; above `elderlyOverYears` an
+   * antihypertensive can hide shock.
+   */
+  shockIndex: { elevatedAbove: 0.9, criticalFrom: 1.3, childUnderYears: 12, elderlyOverYears: 65 },
+  /** Vittel numeric cut-offs (PRD FR-S2-13): each one is positive when the measure is beyond it. */
+  vittel: { gcsBelow: 13, sbpBelow: 90, spo2Below: 90, fallAboveM: 6, fluidsAboveMl: 1000, ageAbove: 65 },
   /** An event time further than this from the time of receipt is not trusted (clock skew). */
   eventTime: { maxSkewHours: 24 },
   /** Hospital ranking penalties, in minutes added to the travel time (tunable). */
