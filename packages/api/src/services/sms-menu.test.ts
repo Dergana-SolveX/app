@@ -83,7 +83,7 @@ describe("feature-phone SMS menu", () => {
       source: "ussd",
       emulated: true,
       victims: 3,
-      conscious: 1,
+      conscious: 2, // 1 of 3 is conscious: not "all" (1) and not "none" (0); the protocol calls that 2
       fire: true,
       trapped: true,
     });
@@ -198,6 +198,23 @@ describe("feature-phone SMS menu", () => {
     const [incident] = await phone.incidents();
     expect(incident).toMatchObject({ roadRef: "RN5", pkMarker: "PK 12", commune: null });
     expect(incident!.locationUncertaintyM).toBeLessThan(1_500);
+  });
+
+  it("files 'conscious' the way triage reads it: 0 = nobody, 1 = everybody, 2 = not everybody / unknown", async () => {
+    const everybody = await setup();
+    for (const answer of ["ACCIDENT", "2", "2", "0", "Rouiba"]) await everybody.text(answer); // 2 victims, 2 conscious
+    const nobody = await setup();
+    for (const answer of ["ACCIDENT", "2", "0", "0", "Rouiba"]) await nobody.text(answer); // 2 victims, 0 conscious
+    const some = await setup();
+    for (const answer of ["ACCIDENT", "3", "2", "0", "Rouiba"]) await some.text(answer); // 3 victims, 2 conscious
+
+    const consciousOf = async (phone: Awaited<ReturnType<typeof setup>>) => {
+      const [incident] = await phone.incidents();
+      return (await phone.incident(incident!.id))!.alerts[0]!.conscious;
+    };
+    expect(await consciousOf(everybody)).toBe(1);
+    expect(await consciousOf(nobody)).toBe(0);
+    expect(await consciousOf(some)).toBe(2); // 2 of 3 must never read as "everybody is conscious"
   });
 
   it("puts every message of the conversation on the wire log as emulated, and never stores the phone number", async () => {

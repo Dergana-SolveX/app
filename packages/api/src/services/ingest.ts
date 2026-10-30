@@ -11,6 +11,7 @@ import {
 import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
+import { resolveCell } from "./cells";
 import { placeAlert, type Placement } from "./clustering";
 import type { EventBus } from "./events";
 import { retriageIncident } from "./triage";
@@ -113,8 +114,14 @@ export async function ingestSms({ db, events, masterDeviceSecret }: IngestDeps, 
     }
 
     // Where and when it happened. A late SMS keeps its true time, a wrong device clock is ignored.
-    const cell = alert.geohash ? geohashDecode(alert.geohash) : null;
-    const position = cell ? { lat: cell.lat, lng: cell.lng, accuracyM: GEOHASH8_ACCURACY_M } : null;
+    // A GPS fix wins; without one, the cell the phone or chip was on gives a coarse position (the tower's range).
+    const fix = alert.geohash ? geohashDecode(alert.geohash) : null;
+    const tower = !fix && alert.cell ? await resolveCell(db, alert.cell) : null;
+    const position = fix
+      ? { lat: fix.lat, lng: fix.lng, accuracyM: GEOHASH8_ACCURACY_M }
+      : tower
+        ? { lat: tower.lat, lng: tower.lng, accuracyM: tower.rangeM }
+        : null;
     const eventAt = trustedEventTime(
       alert.eventMinutes === null ? null : new Date(alert.eventMinutes * 60_000),
       receivedAt,

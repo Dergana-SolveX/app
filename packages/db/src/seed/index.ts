@@ -19,6 +19,7 @@ import { profiles, vehicleRows } from "./profiles";
 import { units } from "./units";
 import { userRows } from "./users";
 import { zoneRows } from "./zones";
+import { seedDemoHistory } from "./history";
 
 /** Tables owned by the app (everything except Better Auth). Truncated by `resetApp`. */
 const APP_TABLES = [
@@ -107,6 +108,7 @@ export async function seed(db: Database, { masterDeviceSecret, demoPassword }: S
   await db.insert(vehicles).values(vehicleValues).onConflictDoNothing();
   await db.insert(zones).values(zoneRows).onConflictDoNothing();
   await seedDemoLogins(db, demoPassword);
+  await seedDemoHistory(db);
 }
 
 /**

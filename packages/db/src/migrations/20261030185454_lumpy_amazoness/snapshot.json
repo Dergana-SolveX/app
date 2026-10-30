@@ -1,0 +1,149 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "4dba89e8-7acf-4525-8b31-5607fc486dd3",
+  "prevIds": [
+    "ea1ce4af-4c4d-40ba-9e53-8ae98f9f4b41"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "dispatches",
+        "emulated"
+      ],
+      "writes": [
+        "s|col|public.dispatches.emulated",
+        "n|col|public.dispatches.emulated",
+        "e|col|public.dispatches.emulated"
+      ],
+      "reads": [
+        "n|tbl|public.dispatches",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "master_incidents",
+        "emulated"
+      ],
+      "writes": [
+        "s|col|public.master_incidents.emulated",
+        "n|col|public.master_incidents.emulated",
+        "e|col|public.master_incidents.emulated"
+      ],
+      "reads": [
+        "n|tbl|public.master_incidents",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "handovers",
+        "emulated"
+      ],
+      "writes": [
+        "s|col|public.handovers.emulated",
+        "n|col|public.handovers.emulated",
+        "e|col|public.handovers.emulated"
+      ],
+      "reads": [
+        "n|tbl|public.handovers",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "medic_assessments",
+        "emulated"
+      ],
+      "writes": [
+        "s|col|public.medic_assessments.emulated",
+        "n|col|public.medic_assessments.emulated",
+        "e|col|public.medic_assessments.emulated"
+      ],
+      "reads": [
+        "n|tbl|public.medic_assessments",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "dispatches",
+        "name": "emulated",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "master_incidents",
+        "name": "emulated",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "handovers",
+        "name": "emulated",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "medic_assessments",
+        "name": "emulated",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}
