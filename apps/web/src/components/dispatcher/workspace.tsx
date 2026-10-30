@@ -1,9 +1,12 @@
 import { lazy, Suspense, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
+import { BarChart3Icon, RadioTowerIcon } from "lucide-react";
+
 import { Button } from "@solvex-dergana/ui/components/button";
 import { trpc, trpcClient } from "@/utils/trpc";
 import { DispatcherQueue } from "./queue";
+import { DispatcherStats } from "./stats";
 import { DispatcherSummary } from "./summary";
 import { IncidentDetailPanel, type Correction } from "./detail";
 import { isActive } from "./types";
@@ -13,6 +16,7 @@ const DispatcherMap = lazy(() =>
 );
 
 export default function DispatcherWorkspace() {
+  const [activeTab, setActiveTab] = useState<"live" | "stats">("live");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const incidents = useQuery(trpc.incidents.list.queryOptions());
@@ -100,71 +104,106 @@ export default function DispatcherWorkspace() {
       await refresh();
     }
   }
+
   return (
     <div className="p-3 md:p-5">
-      {incidents.isPending ? (
-        <p role="status">Chargement de la file…</p>
-      ) : incidents.isError ? (
-        <div role="alert">
-          <p>Impossible de charger les incidents.</p>
-          <Button onClick={() => incidents.refetch()}>Réessayer</Button>
+      {/* Top Workspace Tab Switcher */}
+      <div className="mb-4 flex items-center justify-between border-b pb-3">
+        <div className="inline-flex rounded-lg border bg-muted/40 p-1" role="tablist">
+          <Button
+            variant={activeTab === "live" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("live")}
+            className="h-8 gap-1.5 text-xs font-semibold"
+            role="tab"
+            aria-selected={activeTab === "live"}
+          >
+            <RadioTowerIcon className="size-3.5" aria-hidden="true" />
+            Opérations directes
+          </Button>
+          <Button
+            variant={activeTab === "stats" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("stats")}
+            className="h-8 gap-1.5 text-xs font-semibold"
+            role="tab"
+            aria-selected={activeTab === "stats"}
+          >
+            <BarChart3Icon className="size-3.5" aria-hidden="true" />
+            Statistiques
+          </Button>
         </div>
+      </div>
+
+      {activeTab === "stats" ? (
+        <DispatcherStats />
       ) : (
-        <DispatcherSummary incidents={incidents.data} status={stream.status} />
-      )}
-      <div className="grid items-start gap-3 xl:grid-cols-[minmax(220px,0.7fr)_minmax(280px,1fr)_minmax(340px,1fr)]">
-        <DispatcherQueue
-          incidents={incidents.data ?? []}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
-        <div className="min-w-0">
-          {layers.isError && (
-            <div role="alert" className="mb-3 rounded-md border p-3">
-              <p>Unités, hôpitaux et zones indisponibles.</p>
-              <Button variant="outline" onClick={() => layers.refetch()}>
-                Recharger la carte
-              </Button>
+        <>
+          {incidents.isPending ? (
+            <p role="status">Chargement de la file…</p>
+          ) : incidents.isError ? (
+            <div role="alert">
+              <p>Impossible de charger les incidents.</p>
+              <Button onClick={() => incidents.refetch()}>Réessayer</Button>
             </div>
+          ) : (
+            <DispatcherSummary incidents={incidents.data} status={stream.status} />
           )}
-          {layers.isPending && (
-            <p role="status">Chargement des unités et des hôpitaux…</p>
-          )}
-          <Suspense fallback={<p role="status">Chargement de la carte…</p>}>
-            <DispatcherMap
-              incidents={(incidents.data ?? []).filter(isActive)}
-              layers={layers.data ?? { units: [], hospitals: [], zones: [] }}
+          <div className="grid items-start gap-3 xl:grid-cols-[minmax(220px,0.7fr)_minmax(280px,1fr)_minmax(340px,1fr)]">
+            <DispatcherQueue
+              incidents={incidents.data ?? []}
               selectedId={selectedId}
               onSelect={setSelectedId}
             />
-          </Suspense>
-        </div>
-        {!selectedId ? (
-          <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Sélectionnez un incident dans la file ou sur la carte.
+            <div className="min-w-0">
+              {layers.isError && (
+                <div role="alert" className="mb-3 rounded-md border p-3">
+                  <p>Unités, hôpitaux et zones indisponibles.</p>
+                  <Button variant="outline" onClick={() => layers.refetch()}>
+                    Recharger la carte
+                  </Button>
+                </div>
+              )}
+              {layers.isPending && (
+                <p role="status">Chargement des unités et des hôpitaux…</p>
+              )}
+              <Suspense fallback={<p role="status">Chargement de la carte…</p>}>
+                <DispatcherMap
+                  incidents={(incidents.data ?? []).filter(isActive)}
+                  layers={layers.data ?? { units: [], hospitals: [], zones: [] }}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                />
+              </Suspense>
+            </div>
+            {!selectedId ? (
+              <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                Sélectionnez un incident dans la file ou sur la carte.
+              </div>
+            ) : detail.isPending ? (
+              <p role="status">Chargement de l'incident…</p>
+            ) : detail.isError ? (
+              <div role="alert">
+                <p>{detail.error.message}</p>
+                <Button onClick={() => detail.refetch()}>Réessayer</Button>
+              </div>
+            ) : (
+              <IncidentDetailPanel
+                key={detail.data.id}
+                incident={detail.data}
+                profiles={profiles.data}
+                profilesError={
+                  profiles.error
+                    ? "Impossible de charger les profils médicaux. Réessayez en sélectionnant l'incident."
+                    : undefined
+                }
+                candidates={incidents.data ?? []}
+                onCorrect={correct}
+              />
+            )}
           </div>
-        ) : detail.isPending ? (
-          <p role="status">Chargement de l'incident…</p>
-        ) : detail.isError ? (
-          <div role="alert">
-            <p>{detail.error.message}</p>
-            <Button onClick={() => detail.refetch()}>Réessayer</Button>
-          </div>
-        ) : (
-          <IncidentDetailPanel
-            key={detail.data.id}
-            incident={detail.data}
-            profiles={profiles.data}
-            profilesError={
-              profiles.error
-                ? "Impossible de charger les profils médicaux. Réessayez en sélectionnant l'incident."
-                : undefined
-            }
-            candidates={incidents.data ?? []}
-            onCorrect={correct}
-          />
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

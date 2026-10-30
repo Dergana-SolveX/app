@@ -1,11 +1,3 @@
-import {
-  medicalProfiles,
-  masterIncidents,
-  ambulanceUnits,
-  hospitalsMatrix,
-  zones,
-} from "@solvex-dergana/db/schema/index";
-import { eq } from "drizzle-orm";
 import { createTestDb } from "@solvex-dergana/db/testing";
 import { encodeSvx, type SvxAlert } from "@solvex-dergana/shared";
 import { afterEach, describe, expect, it } from "vitest";

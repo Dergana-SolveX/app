@@ -2,7 +2,17 @@ import { TRPCError, tracked } from "@trpc/server";
 import { z } from "zod";
 
 import { roleProcedure, router } from "../index";
-import { getEvaluation, listIncidents } from "../services/incidents";
+import {
+  getIncident,
+  getIncidentProfiles,
+  getMapLayers,
+  listIncidents,
+} from "../services/incidents";
+import {
+  markFalseAlarm,
+  mergeIncidents,
+  splitIncident,
+} from "../services/incident-corrections";
 
 const dispatcherAccess = roleProcedure("dispatcher", "admin");
 
@@ -23,6 +33,7 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.updated", incident: result.target });
       return result.target;
     }),
+
   split: dispatcherAccess
     .input(
       z.object({
@@ -40,6 +51,7 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.created", incident });
       return incident;
     }),
+
   markFalseAlarm: dispatcherAccess
     .input(
       z.object({
@@ -53,14 +65,18 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.updated", incident });
       return incident;
     }),
+
   mapLayers: dispatcherAccess.query(({ ctx }) => getMapLayers(ctx.db)),
+
   profiles: dispatcherAccess
     .input(z.object({ id: z.uuid() }))
     .query(({ ctx, input }) =>
       getIncidentProfiles(ctx.db, input.id, ctx.appUser),
     ),
+
+  /** One incident with its raw alerts, journal, and recommendation: the evaluation card. Null if unknown. */
   byId: dispatcherAccess
-    .input(z.object({ id: z.uuid() }))
+    .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const incident = await getIncident(ctx.db, input.id);
       if (!incident)
@@ -73,11 +89,6 @@ export const incidentsRouter = router({
 
   /** The snapshot the dispatcher queue starts from (and refetches on `ready` / `resync`). */
   list: dispatcherAccess.query(({ ctx }) => listIncidents(ctx.db)),
-
-  /** One incident with its recommendation and the reasons behind it: the evaluation card. Null if unknown. */
-  byId: dispatcherAccess
-    .input(z.object({ id: z.string().uuid() }))
-    .query(({ ctx, input }) => getEvaluation(ctx.db, input.id)),
 
   /** Live stream of dispatcher events over SSE. `lastEventId` is filled in by the client on reconnect. */
   onChange: dispatcherAccess
