@@ -1,5 +1,6 @@
 import { trpcServer } from "@hono/trpc-server";
 import { appRouter } from "@solvex-dergana/api/routers/index";
+import { sweepUssdSessions } from "@solvex-dergana/api/services/ussd";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -7,6 +8,7 @@ import { logger } from "hono/logger";
 import { createContext } from "./context";
 import { createDevicesApp, expireDeviceCommands } from "./devices";
 import { createInternalSmsApp } from "./internal-sms";
+import { createUssdApp } from "./ussd-routes";
 import { ENV } from "./env.server";
 import { auth, db, events, smsTransport } from "./services";
 
@@ -50,6 +52,14 @@ app.route(
     masterDeviceSecret: ENV.MASTER_DEVICE_SECRET,
   }),
 );
+
+// USSD aggregator callback (*140#): CON / END plain-text dialogue, same shared secret.
+app.route("/", createUssdApp({ secret: ENV.GATEWAY_SHARED_SECRET, db, events }));
+
+// A USSD session that goes quiet is never announced by the operator: save what it answered after 120 s of silence.
+setInterval(() => {
+  sweepUssdSessions({ db, events }).catch((error) => console.error("[ussd] sweep failed", error));
+}, 15_000);
 
 // Device REST endpoints (heartbeat, events) for B2B IoT crash chips
 app.route(
