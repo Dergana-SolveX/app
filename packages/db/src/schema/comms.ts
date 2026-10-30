@@ -52,3 +52,16 @@ export const deviceCommands = pgTable(
   },
   (t) => [unique("device_commands_device_seq_unique").on(t.deviceId, t.seq)],
 );
+
+/** Where a feature phone is in the interactive SMS menu (PRD FR-S3-14). One row per phone; removed once the report is filed. */
+export const smsMenuSessions = pgTable("sms_menu_sessions", {
+  /** sha256 of the phone number: the number itself is never stored. */
+  msisdnHash: text("msisdn_hash").primaryKey(),
+  lang: text("lang", { enum: ["fr", "ar"] }).notNull(),
+  /** The question the phone has been asked and has not answered yet. */
+  step: text("step", { enum: ["victims", "conscious", "danger", "location"] }).notNull(),
+  answers: jsonb("answers").$type<SmsMenuAnswers>().notNull().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type SmsMenuAnswers = { victims?: number; conscious?: number; fire?: boolean; trapped?: boolean };

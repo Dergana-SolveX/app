@@ -14,11 +14,16 @@ import { ambulanceUnits, hospitalsMatrix } from "./hospitals";
 import { dispatches, masterIncidents, type VittelState } from "./incidents";
 import { medicalProfiles } from "./profiles";
 
+/** The ranking the server computed for a bilan, best first (PRD FR-S2-27). */
 export type HospitalRanking = {
   hospitalId: string;
   etaMin: number;
+  etaSource: "road" | "straight_line";
   matched: string[];
   missing: string[];
+  diverting: string[];
+  score: number;
+  scoreBreakdown: { etaMin: number; missingPenaltyMin: number; divertPenaltyMin: number };
   flags?: string[];
 }[];
 
@@ -66,5 +71,7 @@ export const handovers = pgTable("handovers", {
   respondedAt: timestamp("responded_at", { withTimezone: true }),
   respondedBy: text("responded_by"),
   divertSpecialty: text("divert_specialty"),
+  /** Sent if unacknowledged after 60 seconds (PRD FR-S3-22, FR-S7-03). */
+  smsFallbackSentAt: timestamp("sms_fallback_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

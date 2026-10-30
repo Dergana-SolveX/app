@@ -9,8 +9,8 @@
     "serve": "vite preview",
     "start": "vite",
     "check-types": "vite build && tsc --noEmit",
-    "env:generate": "varlock codegen",
-    "test": "vitest run"
+    "test": "vitest run",
+    "env:generate": "varlock codegen"
   },
   "dependencies": {
     "@solvex-dergana/api": "workspace:*",

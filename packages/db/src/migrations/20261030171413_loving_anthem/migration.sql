@@ -1,0 +1,1 @@
+ALTER TABLE "handovers" ADD COLUMN "sms_fallback_sent_at" timestamp with time zone;
