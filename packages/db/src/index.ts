@@ -5,15 +5,22 @@ import type { DatabaseConfig } from "./config";
 import { relations } from "./relations";
 
 export function createDb(env: DatabaseConfig) {
+  const connectionString = env.DATABASE_URL_POOLED || env.DATABASE_URL;
   const pool = new Pool({
-    connectionString: env.DATABASE_URL_POOLED || env.DATABASE_URL,
-    idleTimeoutMillis: 30_000,
+    connectionString,
     max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 20000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
   });
-  pool.on("error", () => undefined);
+
+  pool.on("error", (err) => {
+    console.error("[db-pool] Connection error on idle client:", err.message);
+  });
+
   return drizzle({ client: pool, relations });
 }
 
 export type Database = ReturnType<typeof createDb>;
-export { and, asc, eq, inArray, lte, max } from "drizzle-orm";
 export * from "./types";
