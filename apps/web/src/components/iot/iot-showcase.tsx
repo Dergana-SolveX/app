@@ -10,13 +10,11 @@ import { GChart } from "./g-chart";
 import { JourneyTimeline } from "./journey-timeline";
 import { RECORD_LABELS, STATE_LABELS } from "./labels";
 import { PacketCard } from "./packet-card";
-import { getPresentationKeyAction, type PresentationAction } from "./presentation";
+import { getPresentationKeyAction } from "./presentation";
 import { SCENARIOS, ScenarioPanel } from "./scenario-panel";
 import { StateStrip } from "./state-strip";
 import { TRACE_LABEL, useChipSimulator } from "./use-chip-simulator";
 import { VehicleTwin } from "./vehicle-twin";
-
-export { getPresentationKeyAction, type PresentationAction };
 
 /** Keys that are typed into a field must not trigger a scenario. */
 const isTyping = (target: EventTarget | null) =>
@@ -48,8 +46,13 @@ export default function IotShowcase() {
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
-  // Inactivity Cursor Auto-Hiding (after 3 seconds) for Projector / Fullscreen mode
+  // Inactivity Cursor Auto-Hiding (after 3 seconds) specifically in Fullscreen / Presentation mode
   useEffect(() => {
+    if (!isFullscreen) {
+      setCursorHidden(false);
+      return;
+    }
+
     const onMouseMove = () => {
       setCursorHidden(false);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -63,7 +66,7 @@ export default function IotShowcase() {
       window.removeEventListener("mousemove", onMouseMove);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
-  }, []);
+  }, [isFullscreen]);
 
   // Keyboard Shortcuts (F, 1-5, R, Space during CONFIRM)
   useEffect(() => {
@@ -124,7 +127,7 @@ export default function IotShowcase() {
     <div
       ref={root}
       className={`dark min-h-[calc(100dvh-4rem)] bg-background p-4 text-foreground md:p-6 transition-all ${
-        cursorHidden ? "cursor-none" : ""
+        isFullscreen && cursorHidden ? "cursor-none" : ""
       }`}
     >
       {/* Header */}
@@ -198,11 +201,11 @@ export default function IotShowcase() {
         {/* Center Column: 3D Vehicle Twin, Live G-Chart, State Strip */}
         <div className="flex min-w-0 flex-col gap-4">
           <VehicleTwin
-            rollDeg={snapshot.orientation.rollDeg}
-            pitchDeg={snapshot.orientation.pitchDeg}
+            orientation={snapshot.orientation}
             state={snapshot.state}
             nowMs={snapshot.nowMs}
             lastImpactMs={snapshot.lastImpactMs}
+            isImpacting={snapshot.isImpacting}
           />
           <GChart chart={snapshot.chart} nowMs={snapshot.nowMs} rejected={snapshot.rejected} />
           <StateStrip snapshot={snapshot} onCancel={() => actions.press("cancel")} />
@@ -214,8 +217,7 @@ export default function IotShowcase() {
             state={snapshot.state}
             channel={activeChannel}
             peakG={peakG}
-            rollDeg={snapshot.orientation.rollDeg}
-            pitchDeg={snapshot.orientation.pitchDeg}
+            orientation={snapshot.orientation}
           />
           <PacketCard transmissions={snapshot.transmissions} />
         </div>

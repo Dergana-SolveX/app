@@ -1,5 +1,10 @@
 import type { ChipState } from "@solvex-dergana/shared";
-import { ShieldAlertIcon, CarIcon } from "lucide-react";
+import { ShieldAlertIcon } from "lucide-react";
+
+export type OrientationAngles = {
+  rollDeg: number;
+  pitchDeg: number;
+};
 
 export function formatDegrees(deg: number): string {
   if (Math.abs(deg) < 0.05) return "0.0°";
@@ -10,10 +15,7 @@ export function formatDegrees(deg: number): string {
 export function getVehicleTwinStatus({
   rollDeg,
   pitchDeg,
-}: {
-  rollDeg: number;
-  pitchDeg: number;
-}): "STABLE" | "INCLINÉ" | "TONNEAU" {
+}: OrientationAngles): "STABLE" | "INCLINÉ" | "TONNEAU" {
   if (Math.abs(rollDeg) > 60 || Math.abs(pitchDeg) > 60) {
     return "TONNEAU";
   }
@@ -29,28 +31,29 @@ export function isImpactingNow(
   lastImpactMs: number | null,
 ): boolean {
   if (state === "IMPACT") return true;
-  if (lastImpactMs !== null && nowMs - lastImpactMs <= 800) return true;
+  if (lastImpactMs !== null && nowMs - lastImpactMs < 800) return true;
   return false;
 }
 
 export function VehicleTwin({
-  rollDeg = 0,
-  pitchDeg = 0,
+  orientation,
   state,
   nowMs,
   lastImpactMs = null,
+  isImpacting,
 }: {
-  rollDeg: number;
-  pitchDeg: number;
+  orientation: OrientationAngles;
   state: ChipState;
   nowMs: number;
   lastImpactMs?: number | null;
+  isImpacting?: boolean;
 }) {
-  const impacting = isImpactingNow(state, nowMs, lastImpactMs);
-  const status = getVehicleTwinStatus({ rollDeg, pitchDeg });
+  const { rollDeg, pitchDeg } = orientation;
+  const impacting = isImpacting ?? isImpactingNow(state, nowMs, lastImpactMs);
+  const status = getVehicleTwinStatus(orientation);
 
-  // 3D rotation angles clamped for smooth visual presentation
-  const clampedRoll = Math.max(-180, Math.min(180, rollDeg));
+  // Pitch is clamped to [-90, 90] for realistic vehicle kinematics.
+  // Roll is unclamped so the vehicle can execute complete 360-degree rollovers (Tonneau).
   const clampedPitch = Math.max(-90, Math.min(90, pitchDeg));
 
   // Alternate flash color (red/white) based on 150ms cycle during impact
@@ -111,7 +114,7 @@ export function VehicleTwin({
           className="relative transition-transform duration-75 ease-out"
           style={{
             transformStyle: "preserve-3d",
-            transform: `rotateX(${-clampedPitch}deg) rotateZ(${-clampedRoll}deg)`,
+            transform: `rotateX(${-clampedPitch}deg) rotateZ(${-rollDeg}deg)`,
           }}
         >
           {/* Shadow plane beneath vehicle */}

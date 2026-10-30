@@ -77,6 +77,19 @@ function createEngine() {
   let lastSampleClock = -1;
   let lastImpactMs: number | null = null;
 
+  function resetOrientation() {
+    orientationFilter = createOrientationFilter();
+    angles = { rollDeg: 0, pitchDeg: 0 };
+    lastSampleClock = -1;
+    lastImpactMs = null;
+  }
+
+  function stepOrientation(sample: SensorSample, clock: number) {
+    const dtS = lastSampleClock >= 0 ? Math.max(0.001, (clock - lastSampleClock) / 1000) : 0.02;
+    lastSampleClock = clock;
+    angles = orientationFilter.update(sample, dtS);
+  }
+
   let trace: Trace | null = null;
   let traceStartMs = 0;
   let index = 0;
@@ -169,10 +182,7 @@ function createEngine() {
       if (record.type === "state_change" && record.data.to === "BOOT") {
         transmissions.length = 0;
         rejected = null;
-        lastImpactMs = null;
-        orientationFilter = createOrientationFilter();
-        angles = { rollDeg: 0, pitchDeg: 0 };
-        lastSampleClock = -1;
+        resetOrientation();
       }
       if (record.type === "http_sent" || record.type === "sms_sent") transmit(record, clock);
     }
@@ -190,10 +200,7 @@ function createEngine() {
         chip = createChip({ forceSms });
       }
       last = null;
-      orientationFilter = createOrientationFilter();
-      angles = { rollDeg: 0, pitchDeg: 0 };
-      lastSampleClock = -1;
-      lastImpactMs = null;
+      resetOrientation();
       out.push(...chip.reset(clock));
       return;
     }
@@ -219,10 +226,7 @@ function createEngine() {
         trace = null;
         playing = null;
         pending = null;
-        orientationFilter = createOrientationFilter();
-        angles = { rollDeg: 0, pitchDeg: 0 };
-        lastSampleClock = -1;
-        lastImpactMs = null;
+        resetOrientation();
         out.push(...chip.reset(clock));
       } else {
         out.push(...chip.press(button, clock));
@@ -239,11 +243,7 @@ function createEngine() {
         const sample = { ...trace.samples[index]!, tMs: traceStartMs + trace.samples[index]!.tMs };
         out.push(...chip.sample(sample));
         pushChart(sample.tMs, Math.hypot(sample.ax, sample.ay, sample.az));
-
-        const dtS = lastSampleClock >= 0 ? Math.max(0.001, (sample.tMs - lastSampleClock) / 1000) : 0.02;
-        lastSampleClock = sample.tMs;
-        angles = orientationFilter.update(sample, dtS);
-
+        stepOrientation(sample, sample.tMs);
         last = sample;
         index += 1;
       }
@@ -256,10 +256,7 @@ function createEngine() {
       const rest: SensorSample = { tMs: clock, ax: 0, ay: last?.ay ?? 0, az: last?.az ?? 1, gx: 0, gy: 0, gz: 0, smoke: 0, flame: false };
       out.push(...chip.sample(rest));
       pushChart(clock, Math.hypot(rest.ax, rest.ay, rest.az));
-
-      const dtS = lastSampleClock >= 0 ? Math.max(0.001, (clock - lastSampleClock) / 1000) : 0.02;
-      lastSampleClock = clock;
-      angles = orientationFilter.update(rest, dtS);
+      stepOrientation(rest, clock);
     }
     out.push(...chip.advance(clock));
     absorb(out, clock);

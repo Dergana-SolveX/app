@@ -24,6 +24,7 @@ export type JourneyEventTimeline = {
   transmissions: Transmission[];
   records: ChipRecord[];
   nowMs: number;
+  dispatcherEventAtMs?: number | null;
 };
 
 /**
@@ -36,7 +37,7 @@ export function computeJourneyHops(timeline: JourneyEventTimeline): JourneyHop[]
 
   // Find impact detection time (T0)
   const impactRecord = records.find((r) => r.type === "impact_detected");
-  const t0_chip = impactRecord ? impactRecord.tMs : latestTx?.packet.eventMs ?? null;
+  const t0Chip = impactRecord ? impactRecord.tMs : latestTx?.packet.eventMs ?? null;
 
   const hops: JourneyHop[] = [
     {
@@ -45,7 +46,7 @@ export function computeJourneyHops(timeline: JourneyEventTimeline): JourneyHop[]
       subtitle: "Détection g-spike / gyro & confirmation",
       titleAr: "شريحة SVX (المستشعر)",
       status: "idle",
-      timestampMs: t0_chip,
+      timestampMs: t0Chip,
       latencyMs: null,
       totalLatencyMs: null,
     },
@@ -85,7 +86,7 @@ export function computeJourneyHops(timeline: JourneyEventTimeline): JourneyHop[]
     },
   ];
 
-  if (t0_chip !== null) {
+  if (t0Chip !== null) {
     hops[0]!.status = "active";
   }
 
@@ -94,7 +95,7 @@ export function computeJourneyHops(timeline: JourneyEventTimeline): JourneyHop[]
 
     const sentAt = latestTx.sentAtMs ?? latestTx.packet.eventMs;
     hops[1]!.timestampMs = sentAt;
-    hops[1]!.latencyMs = t0_chip !== null ? Math.max(0, sentAt - t0_chip) : 0;
+    hops[1]!.latencyMs = t0Chip !== null ? Math.max(0, sentAt - t0Chip) : 0;
 
     if (latestTx.status === "pending") {
       hops[1]!.status = "active";
@@ -113,10 +114,14 @@ export function computeJourneyHops(timeline: JourneyEventTimeline): JourneyHop[]
       hops[2]!.incidentId = latestTx.incidentId;
       hops[2]!.ack = latestTx.ack;
 
+      const dispatcherAt = timeline.dispatcherEventAtMs ?? ackedAt;
+      const dispatcherHopLatency = timeline.dispatcherEventAtMs ? Math.max(0, dispatcherAt - ackedAt) : 0;
+
       hops[3]!.status = "completed";
-      hops[3]!.timestampMs = ackedAt;
+      hops[3]!.timestampMs = dispatcherAt;
+      hops[3]!.latencyMs = dispatcherHopLatency;
       hops[3]!.incidentId = latestTx.incidentId;
-      hops[3]!.totalLatencyMs = t0_chip !== null ? Math.max(0, ackedAt - t0_chip) : null;
+      hops[3]!.totalLatencyMs = t0Chip !== null ? Math.max(0, dispatcherAt - t0Chip) : null;
     }
   }
 
@@ -134,12 +139,14 @@ export function JourneyTimeline({
   transmissions,
   records,
   nowMs,
+  dispatcherEventAtMs,
 }: {
   transmissions: Transmission[];
   records: ChipRecord[];
   nowMs: number;
+  dispatcherEventAtMs?: number | null;
 }) {
-  const hops = computeJourneyHops({ transmissions, records, nowMs });
+  const hops = computeJourneyHops({ transmissions, records, nowMs, dispatcherEventAtMs });
   const finalHop = hops[3]!;
   const isCompleted = finalHop.status === "completed";
 

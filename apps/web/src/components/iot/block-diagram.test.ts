@@ -38,19 +38,19 @@ describe("Animated block diagram logic (FR-S8-08)", () => {
 
   it("displays correct AT command on the modem block based on channel and state", () => {
     // In IDLE or ARMED without active transmission: AT+CSQ (signal quality check)
-    expect(getActiveAtCommand({ state: "ARMED", channel: "sms", attempt: 1 })).toBe("AT+CSQ");
+    expect(getActiveAtCommand({ state: "ARMED", channel: "sms" })).toBe("AT+CSQ");
 
     // During SMS SEND
-    expect(getActiveAtCommand({ state: "SEND", channel: "sms", attempt: 1 })).toContain("AT+CMGS");
+    expect(getActiveAtCommand({ state: "SEND", channel: "sms" })).toContain("AT+CMGS");
 
     // During HTTP SEND
-    expect(getActiveAtCommand({ state: "SEND", channel: "http", attempt: 1 })).toContain("AT+HTTPACTION");
+    expect(getActiveAtCommand({ state: "SEND", channel: "http" })).toContain("AT+HTTPACTION");
 
     // During AWAIT_ACK
-    expect(getActiveAtCommand({ state: "AWAIT_ACK", channel: "sms", attempt: 1 })).toBe("AT+CMGL");
-    expect(getActiveAtCommand({ state: "AWAIT_ACK", channel: "http", attempt: 1 })).toBe("AT+HTTPREAD");
+    expect(getActiveAtCommand({ state: "AWAIT_ACK", channel: "sms" })).toBe("AT+CMGL");
+    expect(getActiveAtCommand({ state: "AWAIT_ACK", channel: "http" })).toBe("AT+HTTPREAD");
 
     // In DONE or IDLE with no activity
-    expect(getActiveAtCommand({ state: "DONE", channel: "http", attempt: 1 })).toBe("IDLE");
+    expect(getActiveAtCommand({ state: "DONE", channel: "http" })).toBe("IDLE");
   });
 });

@@ -18,7 +18,6 @@ export function getActiveBlocks(state: ChipState): ActiveBlocks {
   const isConfirm = state === "CONFIRM";
   const isSend = state === "SEND";
   const isAwaitAck = state === "AWAIT_ACK";
-  const isDone = state === "DONE";
 
   return {
     power: true,
@@ -33,11 +32,9 @@ export function getActiveBlocks(state: ChipState): ActiveBlocks {
 export function getActiveAtCommand({
   state,
   channel,
-  attempt = 1,
 }: {
   state: ChipState;
   channel: "http" | "sms";
-  attempt?: number;
 }): string {
   if (state === "BOOT" || state === "ARMED") {
     return "AT+CSQ"; // Signal quality interrogation
@@ -55,18 +52,17 @@ export function BlockDiagram({
   state,
   channel = "http",
   peakG = 0,
-  rollDeg = 0,
-  pitchDeg = 0,
+  orientation = { rollDeg: 0, pitchDeg: 0 },
 }: {
   state: ChipState;
   channel?: "http" | "sms";
   peakG?: number;
-  rollDeg?: number;
-  pitchDeg?: number;
+  orientation?: { rollDeg: number; pitchDeg: number };
 }) {
   const diagramId = useId();
   const active = getActiveBlocks(state);
   const atCommand = getActiveAtCommand({ state, channel });
+  const { rollDeg } = orientation;
 
   return (
     <section aria-labelledby="block-diagram-title" className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
