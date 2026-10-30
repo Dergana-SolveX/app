@@ -25,6 +25,17 @@ export const THRESHOLDS = {
     max: 0.99,
     downgradeFactor: 0.5,
   },
+  /**
+   * Road routing. Speeds are what an ambulance really averages per road class (not the legal limits).
+   * `rushHourMultiplier` slows a class down (1 = off). `straightLine` is the fallback for positions
+   * that are not on the road graph. A position further than `maxSnapM` from any road is off the graph.
+   */
+  routing: {
+    speedsKmh: { motorway: 90, trunk: 70, primary: 50, secondary: 40, tertiary: 35, link: 30 },
+    rushHourMultiplier: { motorway: 1, trunk: 1, primary: 1, secondary: 1, tertiary: 1, link: 1 },
+    straightLine: { roadFactor: 1.4, urbanKmh: 50, openKmh: 80 },
+    maxSnapM: 1500,
+  },
   /** An event time further than this from the time of receipt is not trusted (clock skew). */
   eventTime: { maxSkewHours: 24 },
   /** Hospital ranking penalties, in minutes added to the travel time (tunable). */

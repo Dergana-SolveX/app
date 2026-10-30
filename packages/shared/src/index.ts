@@ -9,3 +9,7 @@ export * from "./geo/distance";
 export * from "./geo/polygon";
 export * from "./cluster/merge";
 export * from "./cluster/confidence";
+export * from "./routing/polyline";
+export * from "./routing/build";
+export * from "./routing/route";
+export * from "./routing/fallback";

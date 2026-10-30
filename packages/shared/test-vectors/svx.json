@@ -231,7 +231,7 @@
     }
   ],
   "thresholds": {
-    "$comment": "Values from docs/PRD.md section 7.1 (FR-S2-01) and FR-S2-27. matcher penalties are tunable placeholders chosen for the demo; every detector (phone, chip, server) must read the same numbers. Confidence weights are PRD FR-S2-09; independentBonus (+0.1 when the alerts come from at least two different layers), max and downgradeFactor (bad CRC or failed signature halves an alert's weight) are tunable placeholders agreed for the demo. eventTime.maxSkewHours is FR-S2-10.",
+    "$comment": "Values from docs/PRD.md section 7.1 (FR-S2-01) and FR-S2-27. matcher penalties are tunable placeholders chosen for the demo; every detector (phone, chip, server) must read the same numbers. Confidence weights are PRD FR-S2-09; independentBonus (+0.1 when the alerts come from at least two different layers), max and downgradeFactor (bad CRC or failed signature halves an alert's weight) are tunable placeholders agreed for the demo. eventTime.maxSkewHours is FR-S2-10. routing.speedsKmh are tunable placeholders for an ambulance in real Algiers traffic (PRD FR-S2-20 gives none). rushHourMultiplier divides nothing by default (all 1 = off, FR-S2-24): a value above 1 slows that road class. straightLine is PRD FR-S2-23. maxSnapM: a position further than this from any road is treated as off-graph.",
     "phoneTrigger": {
       "peakG": 4,
       "speedBeforeKmh": 25,
@@ -273,6 +273,30 @@
     },
     "eventTime": {
       "maxSkewHours": 24
+    },
+    "routing": {
+      "speedsKmh": {
+        "motorway": 90,
+        "trunk": 70,
+        "primary": 50,
+        "secondary": 40,
+        "tertiary": 35,
+        "link": 30
+      },
+      "rushHourMultiplier": {
+        "motorway": 1,
+        "trunk": 1,
+        "primary": 1,
+        "secondary": 1,
+        "tertiary": 1,
+        "link": 1
+      },
+      "straightLine": {
+        "roadFactor": 1.4,
+        "urbanKmh": 50,
+        "openKmh": 80
+      },
+      "maxSnapM": 1500
     }
   }
 }
