@@ -1,6 +1,12 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  // Most tests start an in-process Postgres (PGlite); on a busy machine that can take more than the default 5 s.
-  test: { testTimeout: 20_000 },
+  test: {
+    // Every test boots an in-process Postgres (PGlite) and runs the real migrations;
+    // that takes several seconds when many test files start at once.
+    // Each worker holds several of those databases in memory: too many at once runs out of memory.
+    maxWorkers: 2,
+    testTimeout: 60_000,
+    hookTimeout: 60_000,
+  },
 });

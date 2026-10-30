@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "6019e7d3-386d-4aa6-9ded-de8c62dc9465",
+  "prevIds": [
+    "04663adf-b78f-44ee-9d63-83b322408764"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "raw_alerts",
+        "rollover"
+      ],
+      "writes": [
+        "s|col|public.raw_alerts.rollover",
+        "n|col|public.raw_alerts.rollover",
+        "e|col|public.raw_alerts.rollover"
+      ],
+      "reads": [
+        "n|tbl|public.raw_alerts",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "raw_alerts",
+        "name": "rollover",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

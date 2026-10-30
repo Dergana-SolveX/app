@@ -9,12 +9,20 @@ import { useSubscription } from "@trpc/tanstack-react-query";
 import { GitMergeIcon, InboxIcon, MapPinIcon, UsersIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import EvaluationCard from "@/components/evaluation-card";
 import LiveStatus from "@/components/live-status";
 import { incidentRef, timeAgo } from "@/lib/time";
 import { trpc } from "@/utils/trpc";
 
 /** A new incident stays highlighted for this long. */
 const FRESH_MS = 15_000;
+
+/** Where the incident is, as precisely as the alerts say: a geohash, else a road kilometre point, else a commune. */
+function placeLabel(incident: { geohash8: string | null; roadRef: string | null; pkMarker: string | null; commune: string | null }) {
+  if (incident.geohash8) return incident.geohash8;
+  if (incident.roadRef && incident.pkMarker) return `${incident.roadRef} ${incident.pkMarker}`;
+  return incident.commune ?? "position inconnue";
+}
 
 /** How much to trust the incident, as a bar and as a number (never the bar alone). */
 function ConfidenceMeter({ score }: { score: number }) {
@@ -54,13 +62,17 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
   const now = useNow(5_000);
   const incidents = useQuery(trpc.incidents.list.queryOptions());
 
-  // Snapshot + stream: on `ready`, `resync` and every change, fetch the list again.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Snapshot + stream: on `ready`, `resync` and every change, fetch the list (and open cards) again.
   const stream = useSubscription(
     trpc.incidents.onChange.subscriptionOptions(
       {},
       {
-        onData: () =>
-          queryClient.invalidateQueries({ queryKey: trpc.incidents.list.queryKey() }),
+        onData: () => {
+          queryClient.invalidateQueries({ queryKey: trpc.incidents.list.queryKey() });
+          queryClient.invalidateQueries({ queryKey: trpc.incidents.byId.pathKey() });
+        },
       },
     ),
   );
@@ -146,7 +158,7 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                 </div>
                 <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                   <MapPinIcon className="size-4" aria-hidden="true" />
-                  <span className="font-mono">{incident.geohash8 ?? "position inconnue"}</span>
+                  <span className="font-mono">{placeLabel(incident)}</span>
                 </span>
                 {incident.estimatedVictims !== null && (
                   <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -170,6 +182,19 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                 <span className="rounded-md border px-2 py-0.5 text-xs font-semibold text-muted-foreground uppercase">
                   Ouvert
                 </span>
+                <Button
+                  variant={selectedId === incident.id ? "default" : "outline"}
+                  aria-expanded={selectedId === incident.id}
+                  aria-controls={`evaluation-${incident.id}`}
+                  onClick={() => setSelectedId(selectedId === incident.id ? null : incident.id)}
+                >
+                  Évaluation
+                </Button>
+                {selectedId === incident.id && (
+                  <div id={`evaluation-${incident.id}`} className="basis-full">
+                    <EvaluationCard incidentId={incident.id} />
+                  </div>
+                )}
               </li>
             );
           })}

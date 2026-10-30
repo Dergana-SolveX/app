@@ -10,8 +10,16 @@ export type DispatcherEvent =
   /** The server cannot replay what the client missed: fetch the incident list again. */
   | { type: "resync" }
   | { type: "incident.created"; incident: Incident }
-  /** An alert merged into an existing incident (count, confidence or position changed). */
-  | { type: "incident.updated"; incident: Incident };
+  /** An alert merged into an existing incident, or its automatic recommendation changed (count, confidence, position, triage). */
+  | { type: "incident.updated"; incident: Incident }
+  /** New data raises the severity of an incident already dispatched: a human decides what to do. */
+  | {
+      type: "incident.escalation_suggested";
+      incidentId: string;
+      from: Incident["recSeverity"];
+      to: Incident["recSeverity"];
+      reasons: { fr: string; ar: string }[];
+    };
 
 type Published = Exclude<DispatcherEvent, { type: "ready" | "resync" }>;
 type Stored = { id: string; seq: number; event: Published };

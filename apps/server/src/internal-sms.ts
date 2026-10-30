@@ -53,7 +53,9 @@ export function createInternalSmsApp({
     if (!parsed.success) return c.json({ error: "invalid_body" }, 400);
 
     const result = await receiveSms({ db, events, transport }, parsed.data);
-    const replies = result.kind === "alert" ? [{ to: parsed.data.from, body: result.ack }] : [];
+    const texts =
+      result.kind === "alert" ? [result.ack] : result.kind === "menu" ? result.replies : [];
+    const replies = texts.map((body) => ({ to: parsed.data.from, body }));
     return c.json({ result, replies });
   });
 
