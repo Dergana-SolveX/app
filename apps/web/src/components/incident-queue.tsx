@@ -16,6 +16,13 @@ import { trpc } from "@/utils/trpc";
 /** A new incident stays highlighted for this long. */
 const FRESH_MS = 15_000;
 
+/** Where the incident is, as precisely as the alerts say: a geohash, else a road kilometre point, else a commune. */
+function placeLabel(incident: { geohash8: string | null; roadRef: string | null; pkMarker: string | null; commune: string | null }) {
+  if (incident.geohash8) return incident.geohash8;
+  if (incident.roadRef && incident.pkMarker) return `${incident.roadRef} ${incident.pkMarker}`;
+  return incident.commune ?? "position inconnue";
+}
+
 /** How much to trust the incident, as a bar and as a number (never the bar alone). */
 function ConfidenceMeter({ score }: { score: number }) {
   const percent = Number.isFinite(score) ? Math.min(100, Math.max(0, Math.round(score * 100))) : 0;
@@ -146,7 +153,7 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                 </div>
                 <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                   <MapPinIcon className="size-4" aria-hidden="true" />
-                  <span className="font-mono">{incident.geohash8 ?? "position inconnue"}</span>
+                  <span className="font-mono">{placeLabel(incident)}</span>
                 </span>
                 {incident.estimatedVictims !== null && (
                   <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
