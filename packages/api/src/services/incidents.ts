@@ -122,7 +122,18 @@ export async function getEvaluation(db: Database, id: string) {
       }
     : null;
 
-  return { ...incident, reasons, escalation, authorityReason, authorityNotification };
+  const alerts = await db
+    .select()
+    .from(rawAlerts)
+    .where(eq(rawAlerts.incidentId, id))
+    .orderBy(asc(rawAlerts.receivedAt));
+  const journal = await db
+    .select()
+    .from(incidentEvents)
+    .where(eq(incidentEvents.incidentId, id))
+    .orderBy(asc(incidentEvents.at));
+
+  return { ...incident, alerts, journal, reasons, escalation, authorityReason, authorityNotification };
 }
 
 /** Notifies the relevant authority (Police / Gendarmerie) by SMS and logs it (FR-S5-05). */
