@@ -1,4 +1,5 @@
 import {
+  boolean,
   doublePrecision,
   integer,
   jsonb,
@@ -54,6 +55,7 @@ export const medicAssessments = pgTable("medic_assessments", {
   chosenHospitalId: uuid("chosen_hospital_id").references(() => hospitalsMatrix.id),
   overrideReason: text("override_reason"),
   etaMinutes: doublePrecision("eta_minutes"),
+  emulated: boolean("emulated").notNull().default(false),
   assessedAt: timestamp("assessed_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -73,5 +75,6 @@ export const handovers = pgTable("handovers", {
   divertSpecialty: text("divert_specialty"),
   /** Sent if unacknowledged after 60 seconds (PRD FR-S3-22, FR-S7-03). */
   smsFallbackSentAt: timestamp("sms_fallback_sent_at", { withTimezone: true }),
+  emulated: boolean("emulated").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

@@ -1,4 +1,3 @@
-import { TRPCError } from "@trpc/server";
 import type { Database } from "@solvex-dergana/db";
 import {
   ambulanceUnits,
@@ -11,6 +10,7 @@ import {
   zones,
 } from "@solvex-dergana/db/schema/index";
 import { routeAuthority } from "@solvex-dergana/shared";
+import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, sql } from "drizzle-orm";
 
 import type { AppUserContext } from "../context";
@@ -72,16 +72,7 @@ export async function getIncident(db: Database, id: string) {
     .from(incidentEvents)
     .where(eq(incidentEvents.incidentId, id))
     .orderBy(asc(incidentEvents.at));
-  return { ...incident, alerts, journal };
-}
 
-/**
- * The data behind the evaluation card: the incident with the reasons for its recommendation.
- * The reasons come from the latest `triage.recommended` event (the recommendation never changes after dispatch).
- */
-export async function getEvaluation(db: Database, id: string) {
-  const [incident] = await db.select().from(masterIncidents).where(eq(masterIncidents.id, id));
-  if (!incident) return null;
   const [latest] = await db
     .select({ payload: incidentEvents.payload })
     .from(incidentEvents)
@@ -90,7 +81,6 @@ export async function getEvaluation(db: Database, id: string) {
     .limit(1);
   const reasons = (latest?.payload.reasons ?? []) as { fr: string; ar: string }[];
 
-  // A severity increase suggested after the dispatch (nothing was changed): the card keeps showing it on reload.
   const [suggested] = await db
     .select({ payload: incidentEvents.payload })
     .from(incidentEvents)
@@ -246,11 +236,11 @@ export async function getIncidentProfiles(
       shortCode: p.shortCode,
       bloodType: p.bloodType,
       allergies: p.allergies,
-      anticoagulant: p.medications.some((m: any) => m.class === "anticoagulant"),
-      unreliableShockIndex: p.medications.some(
-        (m: any) => m.class === "beta_blocker",
+      anticoagulant: (p.medications as any[]).some((m) => m?.class === "anticoagulant"),
+      unreliableShockIndex: (p.medications as any[]).some(
+        (m) => m?.class === "beta_blocker",
       ),
-      insulin: p.medications.some((m: any) => m.class === "insulin"),
+      insulin: (p.medications as any[]).some((m) => m?.class === "insulin"),
     }));
   });
 }
@@ -265,6 +255,12 @@ export async function getMapLayers(db: Database) {
 }
 
 /** The journal of an incident (every automatic and human decision), oldest first. */
-export async function listIncidentEvents(db: Database, incidentId: string) {
-  return db.select().from(incidentEvents).where(eq(incidentEvents.incidentId, incidentId)).orderBy(asc(incidentEvents.at));
+export async function getJournal(db: Database, id: string) {
+  return db
+    .select()
+    .from(incidentEvents)
+    .where(eq(incidentEvents.incidentId, id))
+    .orderBy(asc(incidentEvents.at));
 }
+
+export const listIncidentEvents = getJournal;

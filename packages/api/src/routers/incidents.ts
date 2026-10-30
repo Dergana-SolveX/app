@@ -2,13 +2,10 @@ import { TRPCError, tracked } from "@trpc/server";
 import { z } from "zod";
 
 import { roleProcedure, router } from "../index";
-import {
-  markFalseAlarm,
-  mergeIncidents,
-  splitIncident,
-} from "../services/incident-corrections";
+import { markFalseAlarm, mergeIncidents, splitIncident } from "../services/incident-corrections";
 import {
   getEvaluation,
+  getIncident,
   getIncidentProfiles,
   getMapLayers,
   listIncidents,
@@ -34,6 +31,7 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.updated", incident: result.target });
       return result.target;
     }),
+
   split: dispatcherAccess
     .input(
       z.object({
@@ -51,6 +49,7 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.created", incident });
       return incident;
     }),
+
   markFalseAlarm: dispatcherAccess
     .input(
       z.object({
@@ -64,28 +63,27 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.updated", incident });
       return incident;
     }),
+
   mapLayers: dispatcherAccess.query(({ ctx }) => getMapLayers(ctx.db)),
+
   profiles: dispatcherAccess
     .input(z.object({ id: z.uuid() }))
     .query(({ ctx, input }) =>
       getIncidentProfiles(ctx.db, input.id, ctx.appUser),
     ),
-
   /** The snapshot the dispatcher queue starts from (and refetches on `ready` / `resync`). */
   list: dispatcherAccess.query(({ ctx }) => listIncidents(ctx.db)),
 
-  /** One incident with its recommendation and the reasons behind it: the evaluation card. */
+  /**
+   * One incident for both dispatcher screens: the evaluation card (reasons, escalation, authority) and the detail
+   * panel (raw alerts, journal). NOT_FOUND when it does not exist.
+   */
   byId: dispatcherAccess
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const incident = await getEvaluation(ctx.db, input.id);
-      if (!incident) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Incident introuvable",
-        });
-      }
-      return incident;
+      const [evaluation, detail] = await Promise.all([getEvaluation(ctx.db, input.id), getIncident(ctx.db, input.id)]);
+      if (!evaluation || !detail) throw new TRPCError({ code: "NOT_FOUND", message: "Incident introuvable" });
+      return { ...evaluation, alerts: detail.alerts, journal: detail.journal };
     }),
 
   /** Notifies the relevant authority (Police / Gendarmerie) by SMS summary and logs it (FR-S5-05). */

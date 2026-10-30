@@ -101,3 +101,8 @@ function geocodeKilometrePoint(text: string): LocationPlace | null {
 export function geocodeLocation(text: string): LocationPlace | null {
   return geocodeKilometrePoint(text) ?? geocodeCommune(text);
 }
+
+/** The communes we know and where their centre is, in alphabetical order (for a place picker). */
+export function listCommunes(): { name: string; lat: number; lng: number }[] {
+  return COMMUNES.map(({ name, lat, lng }) => ({ name, lat, lng })).sort((a, b) => a.name.localeCompare(b.name, "fr"));
+}

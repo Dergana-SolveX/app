@@ -9,6 +9,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import FeaturePhone from "@/components/feature-phone";
+import UssdPhone from "@/components/ussd-phone";
 import { SMS_PRESETS } from "@/lib/sms-presets";
 import { clockTime, incidentRef } from "@/lib/time";
 import { trpc } from "@/utils/trpc";
@@ -144,6 +145,10 @@ export default function GsmPanel() {
 
       <div className="rounded-lg border bg-card p-5">
         <FeaturePhone from={from} />
+      </div>
+
+      <div className="rounded-lg border bg-card p-5">
+        <UssdPhone from={from} />
       </div>
 
       <div className="rounded-lg border bg-card p-5">
