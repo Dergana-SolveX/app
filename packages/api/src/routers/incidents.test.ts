@@ -1,6 +1,14 @@
+import {
+  medicalProfiles,
+  masterIncidents,
+  ambulanceUnits,
+  hospitalsMatrix,
+  zones,
+} from "@solvex-dergana/db/schema/index";
+import { eq } from "drizzle-orm";
 import { createTestDb } from "@solvex-dergana/db/testing";
 import { encodeSvx, type SvxAlert } from "@solvex-dergana/shared";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { AppUserContext, Context } from "../context";
 import { t } from "../index";
@@ -34,8 +42,20 @@ const appUser = (role: AppUserContext["role"]): AppUserContext => ({
   hospitalId: null,
 });
 
-async function setup(options: { bufferSize?: number; role?: AppUserContext["role"] } = {}) {
+const testDatabases: Awaited<ReturnType<typeof createTestDb>>[] = [];
+afterEach(async () => {
+  for (const db of testDatabases.splice(0)) {
+    await (
+      db as unknown as { $client: { close(): Promise<void> } }
+    ).$client.close();
+  }
+});
+
+async function setup(
+  options: { bufferSize?: number; role?: AppUserContext["role"] } = {},
+) {
   const db = await createTestDb();
+  testDatabases.push(db);
   const events = createEventBus({ bufferSize: options.bufferSize });
   const ctx = {
     db,
@@ -47,7 +67,11 @@ async function setup(options: { bufferSize?: number; role?: AppUserContext["role
   const send = (n: number, place = n) =>
     ingestSms(
       { db, events },
-      { from: `+21355000000${n}`, body: encodeSvx(makeAlert(n, place)), emulated: true },
+      {
+        from: `+21355000000${n}`,
+        body: encodeSvx(makeAlert(n, place)),
+        emulated: true,
+      },
     );
   return { db, events, caller, send };
 }
@@ -59,13 +83,21 @@ const unwrap = (item: unknown) => {
 };
 
 /** Pulls the next `count` items from a subscription, failing instead of hanging. */
-async function take<T>(iterable: AsyncIterable<T>, count: number): Promise<T[]> {
+async function take<T>(
+  iterable: AsyncIterable<T>,
+  count: number,
+): Promise<T[]> {
   const it = iterable[Symbol.asyncIterator]();
   const out: T[] = [];
   for (let i = 0; i < count; i++) {
     const next = await Promise.race([
       it.next(),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timed out waiting for an event")), 2000)),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("timed out waiting for an event")),
+          2000,
+        ),
+      ),
     ]);
     if (next.done) break;
     out.push(next.value);
@@ -102,19 +134,28 @@ describe("incidents.onChange (the dispatcher live stream)", () => {
     // Two incidents arrive while the client is disconnected.
     const a = await send(1);
     const b = await send(2);
-    if (a.kind !== "alert" || b.kind !== "alert") throw new Error("expected alerts");
+    if (a.kind !== "alert" || b.kind !== "alert")
+      throw new Error("expected alerts");
 
-    const replayed = (await take(await caller.onChange({ lastEventId }), 2)).map(unwrap);
-    expect(replayed.map((r) => r.event.type)).toEqual(["incident.created", "incident.created"]);
-    expect(replayed.map((r) => (r.event as { incident: { id: string } }).incident.id)).toEqual([
-      a.incidentId,
-      b.incidentId,
+    const replayed = (
+      await take(await caller.onChange({ lastEventId }), 2)
+    ).map(unwrap);
+    expect(replayed.map((r) => r.event.type)).toEqual([
+      "incident.created",
+      "incident.created",
     ]);
+    expect(
+      replayed.map(
+        (r) => (r.event as { incident: { id: string } }).incident.id,
+      ),
+    ).toEqual([a.incidentId, b.incidentId]);
   });
 
   it("asks for a resync when the id comes from another run of the server", async () => {
     const { caller } = await setup();
-    const [first] = (await take(await caller.onChange({ lastEventId: "some-other-boot:7" }), 1)).map(unwrap);
+    const [first] = (
+      await take(await caller.onChange({ lastEventId: "some-other-boot:7" }), 1)
+    ).map(unwrap);
     expect(first?.event).toEqual({ type: "resync" });
   });
 
@@ -127,7 +168,9 @@ describe("incidents.onChange (the dispatcher live stream)", () => {
     await send(2);
     await send(3); // the first one has now been pushed out of the 2-event buffer
 
-    const [first] = (await take(await caller.onChange({ lastEventId }), 1)).map(unwrap);
+    const [first] = (await take(await caller.onChange({ lastEventId }), 1)).map(
+      unwrap,
+    );
     expect(first?.event).toEqual({ type: "resync" });
   });
 });
@@ -141,7 +184,8 @@ describe("incidents.onChange: merged alerts", () => {
     const first = await send(1, 0);
     await stream.next(); // incident.created
     const second = await send(2, 0); // the same place and time: the same crash
-    if (first.kind !== "alert" || second.kind !== "alert") throw new Error("expected alerts");
+    if (first.kind !== "alert" || second.kind !== "alert")
+      throw new Error("expected alerts");
 
     const update = unwrap((await stream.next()).value);
     expect(update.event).toMatchObject({
@@ -164,7 +208,9 @@ describe("incidents access control", () => {
     for (const role of ["medic", "hospital"] as const) {
       const { caller } = await setup({ role });
       await expect(caller.list()).rejects.toMatchObject({ code: "FORBIDDEN" });
-      await expect(caller.onChange({})).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(caller.onChange({})).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
     }
   });
 

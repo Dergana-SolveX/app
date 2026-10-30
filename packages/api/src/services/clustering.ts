@@ -137,6 +137,7 @@ export async function placeAlert(db: Database, input: PlacementInput): Promise<P
           .update(masterIncidents)
           .set({
             alertCount: alerts.length,
+            version: incident.version + 1,
             firstAlertAt: eventAt < incident.firstAlertAt ? eventAt : incident.firstAlertAt,
             lastAlertAt: eventAt > incident.lastAlertAt ? eventAt : incident.lastAlertAt,
             estimatedVictims: largest(incident.estimatedVictims, alertRow.victims ?? null),
