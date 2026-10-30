@@ -1,6 +1,7 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
-export const alertSource = pgEnum("alert_source", ["iot", "app_auto", "app_witness", "ussd"]);
+// "unknown": a message whose source cannot be told (e.g. text that is not an SVX alert).
+export const alertSource = pgEnum("alert_source", ["iot", "app_auto", "app_witness", "ussd", "unknown"]);
 export const alertChannel = pgEnum("alert_channel", ["internet", "sms", "ussd"]);
 export const severity = pgEnum("severity", ["red", "yellow", "green", "unknown"]);
 export const incidentStatus = pgEnum("incident_status", [

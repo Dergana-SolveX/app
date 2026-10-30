@@ -1,4 +1,14 @@
-import { index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+
+import { masterIncidents } from "./incidents";
+
+/** What the ingest pipeline learned from an SMS (shown in the console wire log). */
+export type SmsResult = {
+  recognized: boolean;
+  crcValid: boolean;
+  parseErrors: string[];
+  duplicate?: boolean;
+};
 
 export const smsLog = pgTable(
   "sms_log",
@@ -12,6 +22,11 @@ export const smsLog = pgTable(
       enum: ["received", "queued", "sent", "delivered", "failed"],
     }).notNull(),
     at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+    /** True for SMS that went through the emulated GSM network (honesty rule). */
+    emulated: boolean("emulated").notNull().default(false),
+    /** The incident this SMS created or was merged into (inbound), or is about (outbound ack). */
+    incidentId: uuid("incident_id").references(() => masterIncidents.id),
+    result: jsonb("result").$type<SmsResult>(),
   },
   (t) => [index("sms_log_at_idx").on(t.at)],
 );

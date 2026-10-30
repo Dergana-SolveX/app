@@ -1,8 +1,7 @@
 import type { Context as ApiContext } from "@solvex-dergana/api/context";
 import type { Context as HonoContext } from "hono";
 
-import { db } from "./services";
-import { auth } from "./services";
+import { auth, db, events, smsTransport } from "./services";
 
 export type CreateContextOptions = {
   context: HonoContext;
@@ -20,6 +19,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     : null;
   return {
     db,
+    events,
+    smsTransport,
     session,
     appUser,
   };

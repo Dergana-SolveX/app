@@ -5,8 +5,9 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 import { createContext } from "./context";
+import { createInternalSmsApp } from "./internal-sms";
 import { ENV } from "./env.server";
-import { auth } from "./services";
+import { auth, db, events, smsTransport } from "./services";
 
 const app = new Hono();
 
@@ -22,6 +23,9 @@ app.use(
 );
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
+
+// SMS gateways (emulator, Android relay, USB modem) hand SMS to the server here, with the shared secret.
+app.route("/", createInternalSmsApp({ secret: ENV.GATEWAY_SHARED_SECRET, db, transport: smsTransport, events }));
 
 app.use(
   "/trpc/*",
