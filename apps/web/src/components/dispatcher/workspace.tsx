@@ -30,6 +30,9 @@ export default function DispatcherWorkspace() {
         queryKey: trpc.incidents.byId.queryKey(),
       }),
       queryClient.invalidateQueries({
+        queryKey: trpc.incidents.profiles.queryKey(),
+      }),
+      queryClient.invalidateQueries({
         queryKey: trpc.incidents.mapLayers.queryKey(),
       }),
     ]);
@@ -95,9 +98,6 @@ export default function DispatcherWorkspace() {
       }
     } finally {
       await refresh();
-      await queryClient.invalidateQueries({
-        queryKey: trpc.incidents.profiles.queryKey(),
-      });
     }
   }
   return (
