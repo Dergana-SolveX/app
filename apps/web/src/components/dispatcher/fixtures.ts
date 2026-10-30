@@ -21,7 +21,12 @@ export const incident: IncidentDetail = {
   pkMarker: null,
   commune: "Alger",
   roadRef: null,
+  emulated: false,
   version: 1,
+  reasons: [],
+  authorityReason: null,
+  escalation: null,
+  authorityNotification: null,
   alerts: [
     {
       id: "00000000-0000-4000-8000-000000000002",
@@ -37,6 +42,7 @@ export const incident: IncidentDetail = {
       gForce: null,
       deltaVKmh: null,
       rolloverDeg: null,
+      rollover: false,
       fire: false,
       victims: 1,
       conscious: 1,

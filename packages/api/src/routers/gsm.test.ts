@@ -1,3 +1,4 @@
+import { cellTowers } from "@solvex-dergana/db/schema/index";
 import { createTestDb } from "@solvex-dergana/db/testing";
 import { encodeSvx, type SvxAlert } from "@solvex-dergana/shared";
 import { describe, expect, it } from "vitest";
@@ -35,6 +36,7 @@ async function setup(role: AppUserContext["role"] = "admin") {
     appUser: { id: "u1", role, unitId: null, hospitalId: null },
   } as unknown as Context;
   return {
+    db,
     gsm: t.createCallerFactory(gsmRouter)(ctx),
     incidents: t.createCallerFactory(incidentsRouter)(ctx),
   };
@@ -98,6 +100,51 @@ describe("gsm.inject: the feature-phone menu", () => {
     const list = await incidents.list();
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ commune: "Rouiba", emulated: true });
+  });
+});
+
+describe("gsm.ussd (the USSD operator emulator)", () => {
+  // A made-up tower id (test data) at El Harrach's real position.
+  const tower = { mcc: 603, mnc: 1, lac: 100, cid: 2, lat: 36.7197, lng: 3.1347, rangeM: 900, source: "opencellid" as const };
+  const ELHARRACH_AREA = { lat: 36.72, lng: 3.14 };
+  const dialAll = async (gsm: Awaited<ReturnType<typeof setup>>["gsm"], near?: { lat: number; lng: number }) => {
+    let last;
+    for (const text of ["", "2", "2*1", "2*1*1", "2*1*1*0", "2*1*1*0*1"]) {
+      last = await gsm.ussd({ sessionId: "E1", phoneNumber: "+213550000042", text, near });
+    }
+    return last!;
+  };
+
+  it("presents a real tower near the chosen point, and the alert it files is located there and flagged emulated", async () => {
+    const { db, gsm, incidents } = await setup();
+    await db.insert(cellTowers).values(tower);
+
+    const first = await gsm.ussd({ sessionId: "E0", phoneNumber: "+213550000042", text: "", near: ELHARRACH_AREA });
+    expect(first).toMatchObject({ type: "CON", tower: { cellId: "603-1-100-2", rangeM: 900 } });
+    expect(first.tower!.distanceM).toBeLessThan(1_000);
+
+    const last = await dialAll(gsm, ELHARRACH_AREA);
+
+    expect(last.type).toBe("END");
+    const [incident] = await incidents.list();
+    expect(incident).toMatchObject({ lat: 36.7197, lng: 3.1347, locationUncertaintyM: 900, emulated: true });
+  });
+
+  it("still works with no tower in reach: it says so, and the alert is filed without a position", async () => {
+    const { gsm, incidents } = await setup(); // no towers imported
+    const first = await gsm.ussd({ sessionId: "E0", phoneNumber: "+213550000042", text: "", near: ELHARRACH_AREA });
+    expect(first.tower).toBeNull();
+
+    await dialAll(gsm, ELHARRACH_AREA);
+
+    expect(await incidents.list()).toMatchObject([{ lat: null, lng: null }]);
+  });
+
+  it("is admin only", async () => {
+    for (const role of ["dispatcher", "medic", "hospital"] as const) {
+      const { gsm } = await setup(role);
+      await expect(gsm.ussd({ sessionId: "E", phoneNumber: "+213550000042", text: "" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    }
   });
 });
 

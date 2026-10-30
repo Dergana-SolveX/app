@@ -2,7 +2,15 @@ import { TRPCError, tracked } from "@trpc/server";
 import { z } from "zod";
 
 import { roleProcedure, router } from "../index";
-import { getEvaluation, listIncidents, notifyAuthority } from "../services/incidents";
+import { markFalseAlarm, mergeIncidents, splitIncident } from "../services/incident-corrections";
+import {
+  getEvaluation,
+  getIncident,
+  getIncidentProfiles,
+  getMapLayers,
+  listIncidents,
+  notifyAuthority,
+} from "../services/incidents";
 
 const dispatcherAccess = roleProcedure("dispatcher", "admin");
 
@@ -23,6 +31,7 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.updated", incident: result.target });
       return result.target;
     }),
+
   split: dispatcherAccess
     .input(
       z.object({
@@ -34,12 +43,13 @@ export const incidentsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const incident = await splitIncident(ctx.db, ctx.appUser, input);
-      const source = await getIncident(ctx.db, input.id);
+      const source = await getEvaluation(ctx.db, input.id);
       if (source)
         ctx.events.publish({ type: "incident.updated", incident: source });
       ctx.events.publish({ type: "incident.created", incident });
       return incident;
     }),
+
   markFalseAlarm: dispatcherAccess
     .input(
       z.object({
@@ -53,31 +63,28 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.updated", incident });
       return incident;
     }),
+
   mapLayers: dispatcherAccess.query(({ ctx }) => getMapLayers(ctx.db)),
+
   profiles: dispatcherAccess
     .input(z.object({ id: z.uuid() }))
     .query(({ ctx, input }) =>
       getIncidentProfiles(ctx.db, input.id, ctx.appUser),
     ),
-  byId: dispatcherAccess
-    .input(z.object({ id: z.uuid() }))
-    .query(async ({ ctx, input }) => {
-      const incident = await getIncident(ctx.db, input.id);
-      if (!incident)
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Incident introuvable",
-        });
-      return incident;
-    }),
-
   /** The snapshot the dispatcher queue starts from (and refetches on `ready` / `resync`). */
   list: dispatcherAccess.query(({ ctx }) => listIncidents(ctx.db)),
 
-  /** One incident with its recommendation and the reasons behind it: the evaluation card. Null if unknown. */
+  /**
+   * One incident for both dispatcher screens: the evaluation card (reasons, escalation, authority) and the detail
+   * panel (raw alerts, journal). NOT_FOUND when it does not exist.
+   */
   byId: dispatcherAccess
     .input(z.object({ id: z.string().uuid() }))
-    .query(({ ctx, input }) => getEvaluation(ctx.db, input.id)),
+    .query(async ({ ctx, input }) => {
+      const [evaluation, detail] = await Promise.all([getEvaluation(ctx.db, input.id), getIncident(ctx.db, input.id)]);
+      if (!evaluation || !detail) throw new TRPCError({ code: "NOT_FOUND", message: "Incident introuvable" });
+      return { ...evaluation, alerts: detail.alerts, journal: detail.journal };
+    }),
 
   /** Notifies the relevant authority (Police / Gendarmerie) by SMS summary and logs it (FR-S5-05). */
   notifyAuthority: dispatcherAccess
