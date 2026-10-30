@@ -35,6 +35,12 @@
       "cache": false,
       "interactive": true
     },
+    "db:seed": {
+      "cache": false
+    },
+    "db:reset": {
+      "cache": false
+    },
     "db:studio": {
       "cache": false,
       "persistent": true

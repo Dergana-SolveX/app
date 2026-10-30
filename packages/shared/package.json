@@ -1,0 +1,22 @@
+{
+  "name": "@solvex-dergana/shared",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts",
+    "./test-vectors/*": "./test-vectors/*"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@solvex-dergana/config": "workspace:*",
+    "typescript": "^6.0.3",
+    "vitest": "^4.0.0"
+  }
+}
