@@ -42,6 +42,7 @@ export const incident: IncidentDetail = {
       gForce: null,
       deltaVKmh: null,
       rolloverDeg: null,
+      rollover: false,
       fire: false,
       victims: 1,
       conscious: 1,

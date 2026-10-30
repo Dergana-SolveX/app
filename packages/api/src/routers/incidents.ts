@@ -31,6 +31,7 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.updated", incident: result.target });
       return result.target;
     }),
+
   split: dispatcherAccess
     .input(
       z.object({
@@ -48,6 +49,7 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.created", incident });
       return incident;
     }),
+
   markFalseAlarm: dispatcherAccess
     .input(
       z.object({
@@ -61,7 +63,9 @@ export const incidentsRouter = router({
       ctx.events.publish({ type: "incident.updated", incident });
       return incident;
     }),
+
   mapLayers: dispatcherAccess.query(({ ctx }) => getMapLayers(ctx.db)),
+
   profiles: dispatcherAccess
     .input(z.object({ id: z.uuid() }))
     .query(({ ctx, input }) =>
@@ -75,7 +79,7 @@ export const incidentsRouter = router({
    * panel (raw alerts, journal). NOT_FOUND when it does not exist.
    */
   byId: dispatcherAccess
-    .input(z.object({ id: z.uuid() }))
+    .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const [evaluation, detail] = await Promise.all([getEvaluation(ctx.db, input.id), getIncident(ctx.db, input.id)]);
       if (!evaluation || !detail) throw new TRPCError({ code: "NOT_FOUND", message: "Incident introuvable" });

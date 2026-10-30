@@ -6,6 +6,7 @@ import { gsmRouter } from "./gsm";
 import { handoversRouter } from "./handovers";
 import { hospitalsRouter } from "./hospitals";
 import { incidentsRouter } from "./incidents";
+import { statsRouter } from "./stats";
 
 export const appRouter = router({
   assessments: assessmentsRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   handovers: handoversRouter,
   hospitals: hospitalsRouter,
   incidents: incidentsRouter,
+  stats: statsRouter,
   healthCheck: publicProcedure.query(() => {
     return "OK";
   }),
