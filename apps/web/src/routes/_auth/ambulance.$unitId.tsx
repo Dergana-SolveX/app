@@ -16,15 +16,19 @@ export const Route = createFileRoute("/_auth/ambulance/$unitId")({
 function AmbulanceScreen() {
   const { unitId } = Route.useParams();
   // The bilan opens on the mission's incident when the medic taps "Ouvrir le bilan".
-  const [bilanIncidentId, setBilanIncidentId] = useState<string | null>(null);
+  // The counter makes every tap reopen it, even for the same incident after coming back to the picker.
+  const [bilan, setBilan] = useState<{ incidentId: string; tap: number } | null>(null);
   return (
     <>
       <PageHeader
         title="Tablette ambulance"
         description="Mission reçue du dispatch, puis bilan secouriste : critères de Vittel et indice de choc calculés en direct, sans réseau."
       />
-      <MissionCard unitId={unitId} onOpenBilan={setBilanIncidentId} />
-      <BilanWorkspace key={bilanIncidentId ?? "picker"} unitId={unitId} initialIncidentId={bilanIncidentId} />
+      <MissionCard
+        unitId={unitId}
+        onOpenBilan={(incidentId) => setBilan((last) => ({ incidentId, tap: (last?.tap ?? 0) + 1 }))}
+      />
+      <BilanWorkspace key={bilan?.tap ?? 0} unitId={unitId} initialIncidentId={bilan?.incidentId ?? null} />
     </>
   );
 }

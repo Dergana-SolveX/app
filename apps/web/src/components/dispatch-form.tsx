@@ -6,10 +6,10 @@ import { Textarea } from "@solvex-dergana/ui/components/textarea";
 import { dispatchDiffers } from "@solvex-dergana/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangleIcon, CheckCircle2Icon, Loader2Icon, SirenIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-import { timeAgo } from "@/lib/time";
+import { incidentRef, timeAgo } from "@/lib/time";
 import { trpc } from "@/utils/trpc";
 
 const UNIT_NAMES: Record<string, string> = {
@@ -32,12 +32,8 @@ export default function DispatchForm({ incidentId }: { incidentId: string }) {
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
 
-  // The prefill is a starting point: taken once per incident, never overwriting what the dispatcher changed.
-  useEffect(() => {
-    setUnitIds(null);
-    setReason("");
-    setNotes("");
-  }, [incidentId]);
+  // The prefill is only a starting point: what the dispatcher changes is never overwritten.
+  // The parent keys this form by incident, so each incident starts from its own prefill.
   const chosen = unitIds ?? form.data?.prefill ?? [];
 
   const approve = useMutation(
@@ -138,6 +134,9 @@ export default function DispatchForm({ incidentId }: { incidentId: string }) {
               </span>
               <span className="text-sm text-muted-foreground">
                 {unit.baseName} · <span className="tabular">{distanceLabel(unit.distanceM)}</span>
+                {unit.busyWith && (
+                  <strong className="ms-2 text-sev-yellow">déjà en mission (#{incidentRef(unit.busyWith)})</strong>
+                )}
               </span>
             </Label>
           </div>

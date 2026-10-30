@@ -9,7 +9,7 @@ import {
 } from "@solvex-dergana/db/schema/index";
 import { dispatchDiffers, haversineM, profileRisk } from "@solvex-dergana/shared";
 import { TRPCError } from "@trpc/server";
-import { and, arrayContains, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, arrayContains, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import type { AppUserContext } from "../context";
 import type { EventBus } from "./events";
@@ -20,6 +20,14 @@ export async function getDispatchRecommendation(db: Database, incidentId: string
   if (!incident) throw new TRPCError({ code: "NOT_FOUND", message: "Unknown incident" });
 
   const units = await db.select().from(ambulanceUnits).where(eq(ambulanceUnits.available, true));
+  // A unit already on another mission stays offered (the dispatcher decides) but is flagged, so nobody takes a crew off a mission by accident.
+  const active = await db
+    .select({ incidentId: dispatches.incidentId, unitIds: dispatches.unitIds })
+    .from(dispatches)
+    .innerJoin(masterIncidents, eq(masterIncidents.id, dispatches.incidentId))
+    .where(and(inArray(masterIncidents.status, ["dispatched", "on_scene", "transporting"]), ne(dispatches.incidentId, incidentId)))
+    .orderBy(asc(dispatches.decidedAt));
+  const busyWith = (unitId: string) => active.findLast((row) => row.unitIds.includes(unitId))?.incidentId ?? null;
   const { lat, lng } = incident;
   const candidates = units
     .map((unit) => ({
@@ -27,6 +35,7 @@ export async function getDispatchRecommendation(db: Database, incidentId: string
       callSign: unit.callSign,
       type: unit.type,
       baseName: unit.baseName,
+      busyWith: busyWith(unit.id),
       distanceM: lat !== null && lng !== null ? haversineM(lat, lng, unit.lat, unit.lng) : null,
     }))
     .sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity) || a.callSign.localeCompare(b.callSign));
@@ -125,7 +134,7 @@ export async function approveDispatch(
         .limit(1);
       throw new TRPCError({
         code: "CONFLICT",
-        message: `Déjà traité par ${first?.name ?? "un autre dispatcher"}`,
+        message: first ? `Déjà traité par ${first.name ?? "un autre dispatcher"}` : "Cet incident n'est plus ouvert",
       });
     }
     if (incident.version !== input.expectedVersion) {
@@ -153,7 +162,7 @@ export async function approveDispatch(
         decided: {
           unitIds: input.unitIds,
           units: chosen.map((unit) => ({ id: unit!.id, callSign: unit!.callSign, type: unit!.type })),
-          notes: input.notes ?? null,
+          notes: input.notes?.trim() || null,
         },
         modified,
         modificationReason: modified ? reason! : null,
@@ -187,7 +196,7 @@ export async function approveDispatch(
       incidentId: input.incidentId,
       unitId,
       unitIds: input.unitIds,
-      notes: input.notes ?? null,
+      notes: input.notes?.trim() || null,
       at: result.dispatch.decidedAt.toISOString(),
     });
   }

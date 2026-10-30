@@ -206,6 +206,50 @@ describe("dispatch.recommendation: once the incident is dispatched", () => {
   });
 });
 
+describe("dispatch.recommendation: units already on a mission", () => {
+  it("flags a unit that is already dispatched elsewhere, without hiding it (the dispatcher decides)", async () => {
+    const { dispatch, addUnits, report } = await setup();
+    const [harrach, rouiba] = await addUnits(EL_HARRACH_MED, ROUIBA_VSAV);
+    const first = await report();
+    const { version } = await dispatch.recommendation({ incidentId: first });
+    await dispatch.approve({ incidentId: first, expectedVersion: version, unitIds: [harrach!.id] });
+
+    // A second, far-away incident: El Harrach's ambulance is still offered, but marked busy.
+    const second = await report({ ...fireAtBabEzzouar, geohash: "snd1jdg6" }, "+213550000002");
+    const form = await dispatch.recommendation({ incidentId: second });
+
+    const byId = Object.fromEntries(form.candidates.map((unit) => [unit.id, unit]));
+    expect(byId[harrach!.id]).toMatchObject({ busyWith: first });
+    expect(byId[rouiba!.id]).toMatchObject({ busyWith: null });
+  });
+});
+
+describe("dispatch.approve: edge cases", () => {
+  it("does not claim someone already handled an incident that was closed without a dispatch", async () => {
+    const { db, dispatch, addUnits, report } = await setup();
+    const [harrach] = await addUnits(EL_HARRACH_MED);
+    const incidentId = await report();
+    const { version } = await dispatch.recommendation({ incidentId });
+    await db.update(masterIncidents).set({ status: "false_alarm" }).where(eq(masterIncidents.id, incidentId));
+
+    const error = await dispatch.approve({ incidentId, expectedVersion: version, unitIds: [harrach!.id] }).catch((e) => e);
+
+    expect(error).toMatchObject({ code: "CONFLICT", message: expect.stringMatching(/plus ouvert/i) });
+    expect(error.message).not.toMatch(/déjà traité/i);
+  });
+
+  it("ignores blank notes instead of showing an empty instruction to the crew", async () => {
+    const { as, dispatch, addUnits, report } = await setup();
+    const [harrach] = await addUnits(EL_HARRACH_MED);
+    const incidentId = await report();
+    const { version } = await dispatch.recommendation({ incidentId });
+    await dispatch.approve({ incidentId, expectedVersion: version, unitIds: [harrach!.id], notes: "   " });
+
+    const mission = await as(appUser("medic", harrach!.id)).currentMission({ unitId: harrach!.id });
+    expect(mission!.notes).toBeNull();
+  });
+});
+
 describe("dispatch.approve: two dispatchers", () => {
   it("tells the second approver who already handled the incident", async () => {
     const { db, as, addUnits, report, journal } = await setup();

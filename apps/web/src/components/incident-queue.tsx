@@ -189,7 +189,7 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                 {selectedId === incident.id && (
                   <div id={`evaluation-${incident.id}`} className="basis-full space-y-4">
                     <EvaluationCard incidentId={incident.id} />
-                    <DispatchForm incidentId={incident.id} />
+                    <DispatchForm key={incident.id} incidentId={incident.id} />
                   </div>
                 )}
               </li>
