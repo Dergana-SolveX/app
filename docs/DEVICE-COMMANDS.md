@@ -26,10 +26,15 @@ Use the provisioned 32-byte HKDF device key, never the master secret, on the dev
 Every heartbeat and acknowledgement carries:
 
 - `X-SVX-Timestamp`: decimal Unix milliseconds, within five minutes of server time.
-- `X-SVX-Signature`: lowercase hex HMAC-SHA256 of the UTF-8 string
-  `timestamp + "." + rawRequestBody`. Signing the timestamp prevents changing it
-  to make an old request appear fresh. Serialize the body once, then sign and send
-  those exact bytes.
+- `X-SVX-Signature`: lowercase hex HMAC-SHA256 of the raw UTF-8 JSON body,
+  matching the existing issue #14 device protocol. The simulator includes `t`
+  (Unix milliseconds) inside that signed body and sends the same timestamp header.
+  Serialize the body once, then sign and send those exact bytes.
+
+Request authentication and crash-event ingestion remain owned by the existing
+`createDeviceApp` routes; the queue extends their heartbeat and acknowledgement
+behavior. Command sequence checks prevent duplicate command execution. This change
+does not add a request-nonce store or change issue #14's request-replay policy.
 
 `POST /devices/:deviceId/heartbeat` takes `{ "deviceId": "SVX-CHIP-001",
 "emulated": true }` plus optional telemetry. The server records that telemetry and
@@ -50,10 +55,12 @@ execution. The shared command consumer implements this protocol.
 }
 ```
 
-This endpoint currently handles `command_ack` only. Other chip event processing
-belongs to the crash/event pipeline. Acknowledgement results persist the trusted
-request's `emulated` flag. Unknown, undelivered, or expired sequences return 409.
-Duplicate acknowledgements return success without replacing the first result.
+Command acknowledgements are handled alongside the existing crash/event pipeline.
+Acknowledgement results persist the authenticated request's `emulated` flag.
+Unknown and still-queued sequences return 409. A result received after timeout is
+retained with its acknowledgement time while the command remains `timeout`, so a
+late execution is visible in the audit. Duplicate acknowledgements return success
+without replacing the first result.
 
 Commands progress `queued → delivered → acked`. Queued or delivered commands
 expire 60 seconds after issue, even if the device is offline. A five-second server
@@ -96,6 +103,6 @@ the instance's lifetime.
 
 `bun run --cwd apps/server test` exercises the HTTP interface against a database
 created from the real migrations, plus the simulated chip against those endpoints.
-Coverage includes authorization, concurrent sequencing, independent Node-crypto
+Coverage includes authorization, concurrent sequencing and simulator polls, late results, independent Node-crypto
 signature verification, delivery/retry, timeout, acknowledgement audit, forged and
 stale requests, command effects, replay rejection, and checkpoint restoration.

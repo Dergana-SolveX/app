@@ -1,3 +1,4 @@
+import { createEventBus } from "@solvex-dergana/api/services/events";
 import { createHmac } from "node:crypto";
 import { createTestDb } from "@solvex-dergana/db/testing";
 import { vehicles } from "@solvex-dergana/db/schema/profiles";
@@ -20,7 +21,7 @@ async function setup() {
   const key = await deriveDeviceKey(masterSecret, deviceId);
   await db.insert(vehicles).values({ deviceId, deviceSecretHash: await deviceKeyCheck(key) });
   let time = Date.parse("2026-10-30T12:00:00Z");
-  const app = createDevicesApp({ db, masterSecret, now: () => new Date(time),
+  const app = createDevicesApp({ db, masterSecret, events: createEventBus(), now: () => new Date(time),
     authenticate: async (request) => {
       const role = request.headers.get("x-test-role");
       return role ? { id: "admin-1", role } : null;
@@ -34,7 +35,7 @@ async function setup() {
   const signed = (path: string, body: unknown, options: { key?: Uint8Array; timestamp?: number } = {}) => {
     const raw = JSON.stringify(body);
     const timestamp = String(options.timestamp ?? time);
-    const signature = createHmac("sha256", options.key ?? key).update(`${timestamp}.${raw}`).digest("hex");
+    const signature = createHmac("sha256", options.key ?? key).update(raw).digest("hex");
     return app.request(`/devices/${deviceId}/${path}`, { method: "POST", body: raw,
       headers: { "content-type": "application/json", "X-SVX-Timestamp": timestamp, "X-SVX-Signature": signature } });
   };
@@ -81,14 +82,14 @@ it("delivers pending commands on signed heartbeats and records an idempotent ack
   expect((await heartbeatBody(await signed("heartbeat", heartbeat))).commands).toEqual([]);
 });
 
-it("expires queued and delivered commands after 60 seconds, rejects late acks, and never reuses sequences", async () => {
+it("expires queued and delivered commands after 60 seconds and never reuses sequences", async () => {
   const { request, signed, advance } = await setup();
   await request("commands", { cmd: "selftest" });
   await signed("heartbeat", { deviceId, emulated: true });
   await request("commands", { cmd: "selftest" });
   advance(60_001);
   expect((await heartbeatBody(await signed("heartbeat", { deviceId, emulated: true }))).commands).toEqual([]);
-  expect((await signed("events", { deviceId, t: 1793361660001, type: "command_ack", data: { seq: 1, result: { ok: true } } })).status).toBe(409);
+  expect((await signed("events", { deviceId, t: 1793361660001, type: "command_ack", data: { seq: 1, result: { ok: true } } })).status).toBe(200);
   expect((await auditLog(await request("commands"))).map((c: { status: string }) => c.status)).toEqual(["timeout", "timeout"]);
   expect(await (await request("commands", { cmd: "selftest" })).json()).toMatchObject({ seq: 3 });
 });
@@ -192,4 +193,59 @@ it("the simulated chip checkpoints its result before sending an acknowledgement"
       return app.request(path, init);
     } });
   await chip.poll();
+});
+
+
+it("delivers commands to the existing device client without replacing its heartbeat protocol", async () => {
+  const { request, app } = await setup();
+  await request("commands", { cmd: "selftest" });
+  // The API fixture uses a fixed clock; the legacy client signs its own body timestamp.
+  const response = await app.request(`/devices/${deviceId}/heartbeat`, {
+    method: "POST", body: JSON.stringify({ deviceId, t: 1793361600000, batteryPct: 80 }),
+    headers: { "X-SVX-Timestamp": "1793361600000", "X-SVX-Signature": createHmac("sha256", await deriveDeviceKey(masterSecret, deviceId))
+      .update(JSON.stringify({ deviceId, t: 1793361600000, batteryPct: 80 })).digest("hex") },
+  });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ ok: true, commands: [{ seq: 1, cmd: "selftest" }] });
+});
+
+it("serializes overlapping simulator polls so saved replay state never moves backwards", async () => {
+  const { createSimulatedChip } = await import("@solvex-dergana/shared/chip/simulator");
+  const { request, app, key } = await setup();
+  await request("commands", { cmd: "arm", args: ["on"] });
+  let releaseSave!: () => void;
+  const saveGate = new Promise<void>((resolve) => { releaseSave = resolve; });
+  let startedSave!: () => void;
+  const saveStarted = new Promise<void>((resolve) => { startedSave = resolve; });
+  let saveCalls = 0;
+  const persisted: number[] = [];
+  const chip = createSimulatedChip({ deviceId, key, now: () => 1793361600000,
+    saveState: async (state) => {
+      if (++saveCalls === 1) { startedSave(); await saveGate; }
+      persisted.push(state.lastSeq);
+    }, request: async (path, init) => app.request(path, init) });
+  const first = chip.poll();
+  await saveStarted;
+  await request("commands", { cmd: "arm", args: ["off"] });
+  const second = chip.poll();
+  // Let the second request reach the transport before releasing slow persistence.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  releaseSave();
+  await Promise.all([first, second]);
+  expect(persisted).toEqual([1, 2]);
+  expect(chip.snapshot()).toMatchObject({ lastSeq: 2, demoArm: false });
+});
+
+it("retains a late device result without changing timeout status or allowing later overwrites", async () => {
+  const { request, signed, advance } = await setup();
+  await request("commands", { cmd: "selftest" });
+  await signed("heartbeat", { deviceId, emulated: true });
+  advance(60_001);
+  const ack = { deviceId, t: 1793361660001, type: "command_ack", emulated: true,
+    data: { seq: 1, result: { ok: true, late: true } } };
+  expect((await signed("events", ack)).status).toBe(200);
+  await signed("events", { ...ack, data: { seq: 1, result: { ok: false } } });
+  expect((await auditLog(await request("commands")))[0]).toMatchObject({
+    status: "timeout", result: { ok: true, late: true, emulated: true }, ackedAt: "2026-10-30T12:01:00.001Z",
+  });
 });

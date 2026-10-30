@@ -1,3 +1,5 @@
+import { acknowledgeDeviceCommand, deliverDeviceCommands } from "./device-command-queue";
+import { chipCommandAck } from "@solvex-dergana/shared";
 import type { EventBus } from "@solvex-dergana/api/services/events";
 import {
   findVehicleByDeviceId,
@@ -13,6 +15,7 @@ export type DeviceAppDeps = {
   masterDeviceSecret: string;
   db: Database;
   events: EventBus;
+  now?: () => Date;
 };
 
 type DeviceVariables = {
@@ -28,7 +31,7 @@ const MAX_DRIFT_MS = 5 * 60 * 1000; // ±5 min replay window (PRD FR-S3-11)
  * REST endpoints for B2B IoT crash chips (/devices/:deviceId/heartbeat and /events).
  * Authenticated with X-SVX-Signature HMAC-SHA256(derivedKey, body) + timestamp check.
  */
-export function createDeviceApp({ masterDeviceSecret, db, events }: DeviceAppDeps) {
+export function createDeviceApp({ masterDeviceSecret, db, events, now = () => new Date() }: DeviceAppDeps) {
   const app = new Hono<{ Variables: DeviceVariables }>();
 
   // Common authentication & replay protection middleware for /devices/:deviceId/*
@@ -84,7 +87,7 @@ export function createDeviceApp({ masterDeviceSecret, db, events }: DeviceAppDep
       return c.json({ error: "unauthorized", message: "invalid_timestamp" }, 401);
     }
 
-    const drift = Math.abs(Date.now() - tsMs);
+    const drift = Math.abs(now().getTime() - tsMs);
     if (drift > MAX_DRIFT_MS) {
       return c.json({ error: "replay_rejected", message: "timestamp outside +-5 min window" }, 401);
     }
@@ -96,6 +99,10 @@ export function createDeviceApp({ masterDeviceSecret, db, events }: DeviceAppDep
       if (!isNaN(bodyMs) && Math.abs(bodyMs - tsMs) > MAX_DRIFT_MS) {
         return c.json({ error: "replay_rejected", message: "body timestamp does not match header" }, 401);
       }
+    }
+
+    if (bodyJson?.deviceId !== undefined && bodyJson.deviceId !== deviceId) {
+      return c.json({ error: "device_id_mismatch" }, 400);
     }
 
     const deviceKey = await deriveDeviceKey(masterDeviceSecret, deviceId);
@@ -134,7 +141,7 @@ export function createDeviceApp({ masterDeviceSecret, db, events }: DeviceAppDep
       return c.json({ error: result.error }, 404);
     }
 
-    return c.json({ ok: true });
+    return c.json({ ok: true, commands: await deliverDeviceCommands(db, deviceId, now()) });
   });
 
   app.post("/devices/:deviceId/events", async (c) => {
@@ -146,6 +153,14 @@ export function createDeviceApp({ masterDeviceSecret, db, events }: DeviceAppDep
 
     if (!bodyJson || typeof bodyJson["type"] !== "string") {
       return c.json({ error: "invalid_body" }, 400);
+    }
+
+    if (bodyJson.type === "command_ack") {
+      const input = chipCommandAck.safeParse(bodyJson);
+      if (!input.success) return c.json({ error: "invalid_command_ack" }, 400);
+      const accepted = await acknowledgeDeviceCommand(db, deviceId,
+        { ...input.data.data, emulated: input.data.emulated }, now());
+      return accepted ? c.json({ accepted: true }) : c.json({ error: "command_not_delivered" }, 409);
     }
 
     const result = await ingestDeviceEvent(

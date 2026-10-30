@@ -57,12 +57,21 @@ export type ChipEvent = z.infer<typeof chipEvent>;
 
 export const chipCommandName = z.enum(["inject_trace", "force_channel", "arm", "selftest"]);
 
-/** Signed, numbered command: `SVXCMD <seq> <cmd> <args> <hmac>` over USB, or queued via /devices/:id/commands. */
-export const chipCommand = z.object({
-  seq: z.number().int().nonnegative(),
+/** Admin command input; wire commands share the same argument bounds. */
+export const chipCommandInput = z.object({
   cmd: chipCommandName,
-  args: z.array(z.string()).default([]),
+  args: z.array(z.string().max(128)).max(16).default([]),
+}).strict();
+
+/** Signed, numbered command: `SVXCMD <seq> <cmd> <args> <hmac>` over USB, or queued via /devices/:id/commands. */
+export const chipCommand = chipCommandInput.extend({
+  seq: z.number().int().nonnegative(),
   hmac: z.string(),
+}).strip();
+
+export const chipCommandAck = chipEvent.extend({
+  type: z.literal("command_ack"),
+  data: z.object({ seq: z.number().int().positive(), result: z.record(z.string(), z.unknown()) }),
 });
 export type ChipCommand = z.infer<typeof chipCommand>;
 
