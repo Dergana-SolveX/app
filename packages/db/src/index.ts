@@ -23,4 +23,5 @@ export function createDb(env: DatabaseConfig) {
 }
 
 export type Database = ReturnType<typeof createDb>;
+export { and, asc, eq, inArray, lte, max } from "drizzle-orm";
 export * from "./types";
