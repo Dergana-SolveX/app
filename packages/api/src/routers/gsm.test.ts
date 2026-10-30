@@ -82,6 +82,25 @@ describe("gsm.inject (the emulated GSM network panel)", () => {
   });
 });
 
+describe("gsm.inject: the feature-phone menu", () => {
+  it("answers ACCIDENT in the outbox, and the finished conversation shows up as an emulated incident", async () => {
+    const { gsm, incidents } = await setup();
+    const from = "+213550000077";
+
+    for (const text of ["ACCIDENT", "2", "1", "0", "Rouiba"]) await gsm.inject({ from, body: text });
+
+    const outbox = await gsm.outbox();
+    expect(outbox).toHaveLength(5);
+    expect(outbox.every((sms) => sms.emulated)).toBe(true);
+    expect(outbox[0]!.body).toMatch(/^SVXACK#/);
+    expect(outbox[4]!.body).toMatch(/victimes/i);
+
+    const list = await incidents.list();
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ commune: "Rouiba", emulated: true });
+  });
+});
+
 describe("gsm.inject: input limits", () => {
   it("rejects absurdly long messages and phone numbers", async () => {
     const { gsm } = await setup();
