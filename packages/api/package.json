@@ -1,0 +1,22 @@
+{
+  "name": "@solvex-dergana/api",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@solvex-dergana/auth": "workspace:*",
+    "@solvex-dergana/db": "workspace:*",
+    "@trpc/client": "catalog:",
+    "@trpc/server": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@solvex-dergana/config": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}
