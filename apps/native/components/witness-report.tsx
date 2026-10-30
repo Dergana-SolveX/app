@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useState } from "react";
+import React, { useEffect, useReducer, useRef, useState } from "react";
 import {
   Alert,
   Platform,
@@ -10,15 +10,20 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
+import { Accelerometer } from "expo-sensors";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import {
+  countdownReducer,
+  createCrashCountdownState,
+  createPhoneTriggerFilter,
   createWitnessFlowState,
   flowReducer,
   type DangerType,
   WITNESS_TEXT,
 } from "@solvex-dergana/shared";
 import { trpc } from "@/utils/trpc";
+import { CrashCountdownOverlay } from "@/components/crash-countdown-overlay";
 
 export function WitnessReport() {
   const [state, dispatch] = useReducer(
@@ -26,6 +31,13 @@ export function WitnessReport() {
     undefined,
     () => createWitnessFlowState(),
   );
+
+  const [crashState, crashDispatch] = useReducer(
+    countdownReducer,
+    undefined,
+    createCrashCountdownState,
+  );
+  const filterRef = useRef(createPhoneTriggerFilter());
 
   const t = WITNESS_TEXT[state.lang];
   const isRtl = state.lang === "ar";
@@ -51,9 +63,86 @@ export function WitnessReport() {
     }),
   );
 
-  // GPS Acquisition
+  // Accelerometer at ~50 Hz (20ms interval) feeding phone_trigger filter (FR-S4-01)
+  useEffect(() => {
+    Accelerometer.setUpdateInterval(20);
+    const sub = Accelerometer.addListener(({ x, y, z }) => {
+      const g = Math.sqrt(x * x + y * y + z * z);
+      const now = Date.now();
+      filterRef.current.pushAccel(now, g);
+      const res = filterRef.current.evaluate(now);
+      if (res.triggered) {
+        crashDispatch({
+          type: "TRIGGER_CRASH",
+          payload: {
+            peakG: res.peakG,
+            speedBeforeKmh: res.speedBeforeKmh,
+            simulated: false,
+            timestamp: now,
+          },
+        });
+      }
+    });
+
+    return () => {
+      sub.remove();
+    };
+  }, []);
+
+  // 1-second countdown interval
+  useEffect(() => {
+    if (crashState.status !== "countdown") return;
+    const interval = setInterval(() => {
+      crashDispatch({ type: "TICK" });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [crashState.status]);
+
+  // Handle countdown expiration -> submit automatic crash alert
+  useEffect(() => {
+    if (crashState.status === "expired") {
+      crashDispatch({ type: "SENDING_ALERT" });
+      submitMutation.mutate(
+        {
+          idempotencyKey: `auto-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          source: "app_auto",
+          victims: 1,
+          conscious: null,
+          fire: false,
+          trapped: false,
+          bleeding: false,
+          lat: state.coords?.lat ?? null,
+          lng: state.coords?.lng ?? null,
+          accuracyM: state.coords?.accuracyM ?? null,
+          commune: null,
+          pkMarker: null,
+        },
+        {
+          onSuccess: (res) => {
+            crashDispatch({
+              type: "ALERT_SENT",
+              payload: {
+                alertId: res.alertId,
+                incidentId: res.incidentId,
+                timestamp: Date.now(),
+              },
+            });
+          },
+          onError: (err) => {
+            crashDispatch({
+              type: "ALERT_ERROR",
+              payload: { error: err.message || "Erreur d'envoi automatique" },
+            });
+          },
+        },
+      );
+    }
+  }, [crashState.status]);
+
+  // GPS Acquisition & Speed tracking
   useEffect(() => {
     let isMounted = true;
+    let posSub: Location.LocationSubscription | null = null;
 
     async function startGps() {
       try {
@@ -77,6 +166,36 @@ export function WitnessReport() {
             },
           });
         }
+
+        // Speed tracking feeding phone_trigger
+        posSub = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 1000,
+            distanceInterval: 1,
+          },
+          (position) => {
+            if (!isMounted) return;
+            const speedKmh =
+              position.coords.speed && position.coords.speed > 0
+                ? position.coords.speed * 3.6
+                : 0;
+            const now = Date.now();
+            filterRef.current.pushSpeed(now, speedKmh);
+            const res = filterRef.current.evaluate(now);
+            if (res.triggered) {
+              crashDispatch({
+                type: "TRIGGER_CRASH",
+                payload: {
+                  peakG: res.peakG,
+                  speedBeforeKmh: res.speedBeforeKmh,
+                  simulated: false,
+                  timestamp: now,
+                },
+              });
+            }
+          },
+        );
       } catch {
         if (isMounted) {
           dispatch({ type: "GPS_FAILED", status: "timeout" });
@@ -87,6 +206,7 @@ export function WitnessReport() {
     startGps();
     return () => {
       isMounted = false;
+      posSub?.remove();
     };
   }, []);
 
@@ -131,7 +251,7 @@ export function WitnessReport() {
   const handleSubmit = () => {
     triggerHaptic();
     if (
-      state.gpsStatus !== "acquired" &&
+      (state.gpsStatus === "timeout" || state.gpsStatus === "denied") &&
       !state.manualCommune.trim() &&
       !state.manualPkMarker.trim()
     ) {
@@ -145,12 +265,12 @@ export function WitnessReport() {
   };
 
   const handleManualLocationSubmit = () => {
-    if (!commune.trim() || !pkMarker.trim()) {
+    if (!commune.trim() && !pkMarker.trim()) {
       Alert.alert(
         state.lang === "ar" ? "تنبيه" : "Champ requis",
         state.lang === "ar"
-          ? "يرجى إدخال البلدية والنقطة الكيلومترية"
-          : "Veuillez renseigner la commune et le repère routier (PK).",
+          ? "يرجى إدخال البلدية أو النقطة الكيلومترية"
+          : "Veuillez renseigner la commune ou le repère routier (PK).",
       );
       return;
     }
@@ -176,57 +296,101 @@ export function WitnessReport() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={{ flexGrow: 1, padding: 16 }}
-      className="bg-slate-950"
-    >
-      {/* Top Banner with Language Toggle */}
-      <View className="flex-row items-center justify-between mb-4 pb-3 border-b border-slate-800">
-        <View className="flex-row items-center gap-2">
-          <View className="size-8 rounded-lg bg-red-600 items-center justify-center">
-            <Ionicons name="warning" size={18} color="#ffffff" />
-          </View>
-          <View>
-            <Text className="text-white font-black text-sm uppercase tracking-wide">
-              {t.title}
-            </Text>
-            <Text className="text-red-400 text-[10px] font-bold">
-              14 / 154 URGENCE
-            </Text>
-          </View>
-        </View>
+    <View style={{ flex: 1 }}>
+      <CrashCountdownOverlay
+        state={crashState}
+        onCancel={() => crashDispatch({ type: "CANCEL" })}
+        onReset={() => crashDispatch({ type: "RESET" })}
+      />
 
-        <View className="flex-row bg-slate-800 rounded-full p-0.5 border border-slate-700">
-          <Pressable
-            onPress={() => dispatch({ type: "SET_LANG", lang: "fr" })}
-            className={`px-3 py-1 rounded-full ${
-              state.lang === "fr" ? "bg-red-600" : "bg-transparent"
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, padding: 16 }}
+        className="bg-slate-950"
+      >
+        {/* Top Banner with Language Toggle & Hidden Simulation Trigger */}
+        <View
+          className={`items-center justify-between mb-4 pb-3 border-b border-slate-800 ${
+            isRtl ? "flex-row-reverse" : "flex-row"
+          }`}
+        >
+          <View
+            className={`items-center gap-2 ${
+              isRtl ? "flex-row-reverse" : "flex-row"
             }`}
           >
-            <Text
-              className={`text-xs font-bold ${
-                state.lang === "fr" ? "text-white" : "text-slate-400"
-              }`}
+            <View className="size-8 rounded-lg bg-red-600 items-center justify-center">
+              <Ionicons name="warning" size={18} color="#ffffff" />
+            </View>
+            <View>
+              <Text
+                style={{ writingDirection: isRtl ? "rtl" : "ltr" }}
+                className="text-white font-black text-sm uppercase tracking-wide"
+              >
+                {t.title}
+              </Text>
+              <Text className="text-red-400 text-[10px] font-bold">
+                14 / 154 URGENCE
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-row items-center gap-2">
+            {/* Hidden 'simuler un choc' button (FR-S4-01 / Issue #21) */}
+            <Pressable
+              testID="simulate-impact-button"
+              accessibilityLabel="Simuler un choc"
+              onPress={() => {
+                const res = filterRef.current.triggerSimulated(Date.now());
+                crashDispatch({
+                  type: "TRIGGER_CRASH",
+                  payload: {
+                    peakG: res.peakG,
+                    speedBeforeKmh: res.speedBeforeKmh,
+                    simulated: true,
+                    timestamp: Date.now(),
+                  },
+                });
+              }}
+              style={{ opacity: 0.25 }}
+              className="bg-slate-900 border border-slate-800 rounded px-2 py-1 active:opacity-100"
             >
-              FR
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => dispatch({ type: "SET_LANG", lang: "ar" })}
-            className={`px-3 py-1 rounded-full ${
-              state.lang === "ar" ? "bg-red-600" : "bg-transparent"
-            }`}
-          >
-            <Text
-              className={`text-xs font-bold ${
-                state.lang === "ar" ? "text-white" : "text-slate-400"
-              }`}
-            >
-              عربي
-            </Text>
-          </Pressable>
+              <Text className="text-[10px] text-slate-400 font-medium">
+                simuler un choc
+              </Text>
+            </Pressable>
+
+            <View className="flex-row bg-slate-800 rounded-full p-0.5 border border-slate-700">
+              <Pressable
+                onPress={() => dispatch({ type: "SET_LANG", lang: "fr" })}
+                className={`px-3 py-1 rounded-full ${
+                  state.lang === "fr" ? "bg-red-600" : "bg-transparent"
+                }`}
+              >
+                <Text
+                  className={`text-xs font-bold ${
+                    state.lang === "fr" ? "text-white" : "text-slate-400"
+                  }`}
+                >
+                  FR
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => dispatch({ type: "SET_LANG", lang: "ar" })}
+                className={`px-3 py-1 rounded-full ${
+                  state.lang === "ar" ? "bg-red-600" : "bg-transparent"
+                }`}
+              >
+                <Text
+                  className={`text-xs font-bold ${
+                    state.lang === "ar" ? "text-white" : "text-slate-400"
+                  }`}
+                >
+                  عربي
+                </Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
-      </View>
 
       {/* GPS Status Indicator */}
       <View className="mb-4 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 flex-row items-center justify-between">
@@ -582,5 +746,6 @@ export function WitnessReport() {
         </View>
       )}
     </ScrollView>
-  );
+  </View>
+);
 }

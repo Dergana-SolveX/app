@@ -155,4 +155,66 @@ describe("WitnessPhoneFrame (Seam 3)", () => {
       expect(body[0].pkMarker).toBe("PK 14");
     });
   });
+
+  it("triggers 15 s countdown when hidden 'Simuler un choc' is clicked and cancels without sending an alert", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WitnessPhoneFrame />
+      </QueryClientProvider>,
+    );
+
+    // Find and click the hidden simulation button
+    const simBtn = screen.getByTestId("simulate-impact-button");
+    expect(simBtn).toBeTruthy();
+    await userEvent.click(simBtn);
+
+    // Should display full-screen countdown
+    expect(screen.getByTestId("crash-countdown-overlay")).toBeTruthy();
+    expect(screen.getByTestId("countdown-timer-value").textContent).toBe("15");
+    expect(screen.getByText(/CHOC DÉTECTÉ/i)).toBeTruthy();
+
+    // Click "JE VAIS BIEN — ANNULER"
+    const cancelBtn = screen.getByTestId("cancel-crash-button");
+    await userEvent.click(cancelBtn);
+
+    // Overlay shows cancelled confirmation
+    expect(screen.getByText(/ALERTE ANNULÉE/i)).toBeTruthy();
+
+    // Verification: NO network requests were sent
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("submits automatic crash alert with source 'app_auto' when countdown expires", async () => {
+    vi.useFakeTimers();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WitnessPhoneFrame initialCoords={{ lat: 36.75, lng: 3.05, accuracyM: 5 }} />
+      </QueryClientProvider>,
+    );
+
+    const simBtn = screen.getByTestId("simulate-impact-button");
+    act(() => {
+      simBtn.click();
+    });
+
+    expect(screen.getByTestId("crash-countdown-overlay")).toBeTruthy();
+
+    // Advance 15 seconds
+    act(() => {
+      vi.advanceTimersByTime(15_000);
+    });
+
+    vi.useRealTimers();
+
+    // Verification: fetch called with source: "app_auto"
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c: any) => c[0].includes("alerts.submitOnline"));
+      expect(call).toBeDefined();
+      const body = JSON.parse(call[1].body);
+      expect(body[0].source).toBe("app_auto");
+      expect(body[0].lat).toBe(36.75);
+    });
+  });
 });
+
