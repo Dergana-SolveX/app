@@ -9,11 +9,8 @@ import {
 import {
   ageYears,
   assessVictim,
-  deriveNeeds,
   hospitalFromRow,
-  isInShock,
-  matchHospitals,
-  needFacts,
+  recommendForBilan,
   VITTEL_ITEMS,
   type VittelState,
 } from "@solvex-dergana/shared";
@@ -75,6 +72,9 @@ export async function saveAssessment(
   now = new Date(),
 ) {
   const unitId = unitFor(appUser, input.unitId);
+  // Reference data does not change with this save: read it before taking the lock on the incident.
+  const hospitalRows = await db.select().from(hospitalsMatrix);
+  const zonePolygons = (await db.select({ polygon: zones.polygon }).from(zones)).map((z) => z.polygon);
 
   return db.transaction(async (tx) => {
     // Locks the incident, so two saves of the same victim cannot both insert.
@@ -107,31 +107,24 @@ export async function saveAssessment(
     });
 
     // Rank the hospitals from the scene, as the tablet does, and keep the result next to the decision.
-    const hospitalRows = await tx.select().from(hospitalsMatrix);
-    const facts = needFacts({
-      gcs: input.gcs ?? null,
-      sbp: input.sbp ?? null,
-      shockIndex: index?.value ?? null,
-      ageYears: age,
-      pregnant: (profile?.pregnancyStatus ?? "none") !== "none",
-      injuries: input.suspectedInjuries,
-      vittel: state,
-    });
-    const needs = deriveNeeds(facts);
     const recommendation =
       incident.lat !== null && incident.lng !== null && hospitalRows.length > 0
-        ? {
-            needs,
-            ...matchHospitals({
-              needs,
-              hospitals: hospitalRows.map(hospitalFromRow),
-              origin: [incident.lat, incident.lng],
-              graph: algiersRoadGraph(),
-              zones: (await tx.select({ polygon: zones.polygon }).from(zones)).map((z) => z.polygon),
-              severity: incident.recSeverity,
-              inShock: isInShock(facts),
-            }),
-          }
+        ? recommendForBilan({
+            bilan: {
+              gcs: input.gcs ?? null,
+              sbp: input.sbp ?? null,
+              shockIndex: index?.value ?? null,
+              ageYears: age,
+              pregnant: (profile?.pregnancyStatus ?? "none") !== "none",
+              injuries: input.suspectedInjuries,
+              vittel: state,
+            },
+            hospitals: hospitalRows.map(hospitalFromRow),
+            origin: [incident.lat, incident.lng],
+            graph: algiersRoadGraph(),
+            zones: zonePolygons,
+            severity: incident.recSeverity,
+          })
         : null;
 
     let chosen: NonNullable<typeof recommendation>["ranking"][number] | undefined;
@@ -141,12 +134,13 @@ export async function saveAssessment(
       }
       chosen = recommendation?.ranking.find((m) => m.hospitalId === input.chosenHospitalId);
     }
+    // Any choice other than the recommended one needs a reason, including when nothing could be recommended.
     const overriding = Boolean(
-      input.chosenHospitalId && recommendation?.recommended && input.chosenHospitalId !== recommendation.recommended.hospitalId,
+      input.chosenHospitalId && recommendation && input.chosenHospitalId !== recommendation.recommended?.hospitalId,
     );
     const reason = input.overrideReason?.trim();
     if (overriding && !reason) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "A reason is required to choose another hospital than the recommended one" });
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Un motif est obligatoire pour choisir un autre hôpital que le recommandé" });
     }
     const eta = chosen ?? recommendation?.recommended ?? null;
 

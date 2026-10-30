@@ -41,6 +41,9 @@ export function RouteMap({
   });
 
   const path = points.map((p) => project(p)).map(({ x, y }, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  // A label on the right half of the picture is written towards the left, so it never runs off the edge.
+  const anchor = (x: number) => (x > width / 2 ? "end" : "start");
+  const labelX = (x: number) => (x > width / 2 ? x - 14 : x + 14);
   const start = project(from);
   const end = project(to);
 
@@ -55,10 +58,10 @@ export function RouteMap({
         <path d={path} fill="none" className="stroke-primary" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
         <circle cx={start.x} cy={start.y} r={9} className="fill-sev-red stroke-card" strokeWidth={3} />
         <circle cx={end.x} cy={end.y} r={9} className="fill-primary stroke-card" strokeWidth={3} />
-        <text x={start.x + 14} y={start.y - 12} className="fill-foreground text-[13px] font-bold">
+        <text x={labelX(start.x)} y={start.y - 14} textAnchor={anchor(start.x)} className="fill-foreground text-[16px] font-bold">
           {fromLabel}
         </text>
-        <text x={end.x + 14} y={end.y - 12} className="fill-foreground text-[13px] font-bold">
+        <text x={labelX(end.x)} y={end.y - 14} textAnchor={anchor(end.x)} className="fill-foreground text-[16px] font-bold">
           {toLabel}
         </text>
       </svg>

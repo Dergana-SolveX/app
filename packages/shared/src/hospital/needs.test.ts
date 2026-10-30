@@ -85,6 +85,12 @@ describe("needFacts (what the bilan tells the rules)", () => {
     expect(needFacts({ ...empty, vittel: { l3: { flailChest: { value: false, source: "medic" } } } }).polytrauma).toBe(false);
   });
 
+  it("does not take a penetrating neck wound for a head trauma, but counts it as its own body region", () => {
+    const yes = { value: true, source: "medic" as const };
+    expect(needFacts({ ...empty, vittel: { l3: { penetratingNeck: yes } } })).toMatchObject({ headTrauma: false, polytrauma: false });
+    expect(needFacts({ ...empty, vittel: { l3: { penetratingNeck: yes } }, injuries: ["Thorax"] }).polytrauma).toBe(true);
+  });
+
   it("calls it a polytrauma from two different body regions, from either source, but not from one", () => {
     expect(needFacts({ ...empty, injuries: ["Thorax"] }).polytrauma).toBe(false);
     expect(needFacts({ ...empty, injuries: ["Thorax", "Thorax"] }).polytrauma).toBe(false);

@@ -4,8 +4,8 @@ import {
   type HospitalMatch,
   type LatLng,
   type MatchHospital,
-  type MatchResult,
-  type NeedResult,
+  type Need,
+  type Recommendation,
   type RoadGraph,
 } from "@solvex-dergana/shared";
 import { Button } from "@solvex-dergana/ui/components/button";
@@ -46,7 +46,7 @@ function mergeSteps(steps: { name: string | null; distanceM: number; durationS: 
   return merged;
 }
 
-function NeedChip({ need, state }: { need: keyof typeof NEED_LABELS; state: "matched" | "missing" | "diverting" | "preferred-missing" | "preferred-matched" }) {
+function NeedChip({ need, state }: { need: Need; state: "matched" | "missing" | "diverting" | "preferred-missing" | "preferred-matched" }) {
   const styles = {
     matched: "border-sev-green/40 bg-sev-green-soft text-sev-green",
     "preferred-matched": "border-sev-green/40 bg-sev-green-soft text-sev-green",
@@ -120,7 +120,10 @@ function HospitalCard({
       {match.flags.includes("secondary_transfer_risk") && (
         <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-sev-yellow">
           <TriangleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
-          Transfert secondaire probable : aucun hôpital ne couvre tous les besoins.
+          Transfert secondaire probable :{" "}
+          {match.missing.length > 0
+            ? `il manque ${match.missing.map((need) => NEED_LABELS[need]).join(", ")}.`
+            : `${match.diverting.map((need) => NEED_LABELS[need]).join(", ")} en détournement.`}
         </p>
       )}
       {match.flags.includes("stabilisation_only") && (
@@ -151,11 +154,6 @@ function HospitalCard({
   );
 }
 
-export type Orientation = {
-  needs: NeedResult;
-  result: MatchResult;
-};
-
 /** The ranked hospitals, the choice, and the route to the retained hospital. Everything is computed here, offline. */
 export function OrientationPanel({
   orientation,
@@ -168,7 +166,7 @@ export function OrientationPanel({
   onReason,
   cache,
 }: {
-  orientation: Orientation;
+  orientation: Recommendation;
   hospitals: MatchHospital[];
   scene: LatLng;
   graph: RoadGraph | null | "error";
@@ -180,12 +178,12 @@ export function OrientationPanel({
   cache: { savedAt: number } | null;
 }) {
   const reasonId = useId();
-  const { needs, result } = orientation;
+  const { needs, ...result } = orientation;
   const byId = new Map(hospitals.map((h) => [h.id, h]));
   const recommendedId = result.recommended?.hospitalId ?? null;
   const focusId = chosenId ?? recommendedId;
   const focus = focusId ? byId.get(focusId) : undefined;
-  const overriding = chosenId !== null && recommendedId !== null && chosenId !== recommendedId;
+  const overriding = chosenId !== null && chosenId !== recommendedId;
 
   const road = useMemo(
     () => (graph && graph !== "error" && focus ? route(graph, scene, [focus.lat, focus.lng]) : null),
@@ -255,15 +253,21 @@ export function OrientationPanel({
         </ol>
       )}
 
-      {recommendedId && (
+      {result.ranking.length > 0 && (
         <div className="flex flex-col gap-3 rounded-lg border bg-raised p-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" size="lg" onClick={() => onChoose(recommendedId)} disabled={chosenId === recommendedId}>
-              <CheckIcon aria-hidden="true" />
-              {chosenId === recommendedId ? "Recommandé confirmé" : "Confirmer le recommandé"}
-            </Button>
-            <p className="text-sm text-muted-foreground">ou choisissez un autre hôpital dans la liste, en indiquant le motif.</p>
-          </div>
+          {recommendedId ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" size="lg" onClick={() => onChoose(recommendedId)} disabled={chosenId === recommendedId}>
+                <CheckIcon aria-hidden="true" />
+                {chosenId === recommendedId ? "Recommandé confirmé" : "Confirmer le recommandé"}
+              </Button>
+              <p className="text-sm text-muted-foreground">ou choisissez un autre hôpital dans la liste, en indiquant le motif.</p>
+            </div>
+          ) : (
+            <p className="text-sm font-semibold">
+              Aucun hôpital ne peut être recommandé pour cette victime : choisissez un hôpital dans la liste, en indiquant le motif.
+            </p>
+          )}
           {overriding && (
             <div>
               <Label htmlFor={reasonId} className="mb-1.5 block text-sm font-semibold">
@@ -273,7 +277,7 @@ export function OrientationPanel({
                 id={reasonId}
                 value={overrideReason}
                 onChange={(event) => onReason(event.target.value)}
-                aria-invalid={overrideReason.trim() === ""}
+                aria-required="true"
                 aria-describedby={`${reasonId}-help`}
                 maxLength={300}
                 placeholder="Ex. : famille sur place, hôpital recommandé saturé…"

@@ -51,6 +51,11 @@ export type MatchResult = {
   stabiliseFirst: boolean;
 };
 
+/** Ranking groups, best first: everything met with no relevant divert; a partial match; a polyclinic that may not be recommended. */
+const FULL_MATCH = 0;
+const PARTIAL_MATCH = 1;
+const NOT_RECOMMENDABLE = 2;
+
 /**
  * Ranks hospitals for a victim (PRD FR-S2-27/28). `score = ETA (min) + W_missing x missing + W_divert x diverting`.
  * Hospitals with every need met and no relevant divert come first; polyclinics are only recommended for a
@@ -99,19 +104,18 @@ export function matchHospitals(input: {
     return { hospital, result };
   });
 
-  // Group 0: has everything and no relevant divert. 1: partial. 2: polyclinics that may not be recommended.
   const group = ({ hospital, result }: (typeof matches)[number]) => {
-    if (hospital.stabilizationOnly && input.severity !== "green") return 2;
-    return result.missing.length === 0 && result.diverting.length === 0 ? 0 : 1;
+    if (hospital.stabilizationOnly && input.severity !== "green") return NOT_RECOMMENDABLE;
+    return result.missing.length === 0 && result.diverting.length === 0 ? FULL_MATCH : PARTIAL_MATCH;
   };
   const ranked = matches
     .map((entry, index) => ({ entry, index, group: group(entry) }))
     .sort((a, b) => a.group - b.group || a.entry.result.score - b.entry.result.score || a.index - b.index);
   const ranking = ranked.map(({ entry }) => entry.result);
 
-  const best = ranked[0] && ranked[0].group < 2 ? ranked[0] : undefined;
+  const best = ranked[0] && ranked[0].group < NOT_RECOMMENDABLE ? ranked[0] : undefined;
   const recommended = best?.entry.result ?? null;
-  if (best && best.group === 1) recommended!.flags.push("secondary_transfer_risk");
+  if (best && best.group === PARTIAL_MATCH) recommended!.flags.push("secondary_transfer_risk");
 
   const nearestStabilisation = matches
     .filter(({ hospital }) => hospital.stabilizationOnly)

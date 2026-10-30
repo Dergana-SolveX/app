@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { LatLng } from "../routing/polyline";
+import { THRESHOLDS } from "../thresholds";
 import { loadRoadGraph } from "../routing/route";
 import { assetOf } from "../routing/testing/graphs";
 import { hospitalFromRow, matchHospitals, type MatchHospital } from "./match";
@@ -10,6 +11,8 @@ import type { Need, NeedResult } from "./needs";
 const LAT = 36.75;
 const at = (hop: number): LatLng => [LAT, 3.0 + hop * 0.01];
 const HOP_MIN = 1000 / (35 / 3.6) / 60;
+// The weights are tunable placeholders: the tests follow them, they do not pin their values.
+const { missingCapabilityPenaltyMin: MISSING, divertPenaltyMin: DIVERT } = THRESHOLDS.matcher;
 const graph = loadRoadGraph(
   assetOf(
     [0, 1, 2, 3].map(at),
@@ -59,7 +62,7 @@ describe("matchHospitals: the score is the time plus a penalty for each gap (PRD
     expect(result.ranking[0]).toMatchObject({ etaSource: "road", matched: ["neurosurgery", "ct_scanner"], missing: [], diverting: [] });
   });
 
-  it("adds 30 minutes for each needed capability a hospital lacks, and ranks it below those that have all", () => {
+  it("adds the missing-capability penalty for each needed capability a hospital lacks, and ranks it below those that have all", () => {
     const noCt = hospital("A", at(1), ALL.filter((n) => n !== "ct_scanner"));
     const result = match(["neurosurgery", "ct_scanner"], [noCt, B, C]);
     const first = result.ranking.map((m) => m.hospitalId);
@@ -67,18 +70,18 @@ describe("matchHospitals: the score is the time plus a penalty for each gap (PRD
     const a = result.ranking[2]!;
     expect(a.missing).toEqual(["ct_scanner"]);
     expect(a.matched).toEqual(["neurosurgery"]);
-    expect(a.score).toBeCloseTo(HOP_MIN + 30, 1);
-    expect(a.scoreBreakdown).toEqual({ etaMin: a.etaMin, missingPenaltyMin: 30, divertPenaltyMin: 0 });
+    expect(a.score).toBeCloseTo(HOP_MIN + MISSING, 1);
+    expect(a.scoreBreakdown).toEqual({ etaMin: a.etaMin, missingPenaltyMin: MISSING, divertPenaltyMin: 0 });
   });
 
-  it("adds 60 minutes for each needed capability the hospital has but is diverting", () => {
+  it("adds the divert penalty for each needed capability the hospital has but is diverting", () => {
     const diverting = hospital("A", at(1), ALL, { status: { neurosurgery: "divert" } });
     const result = match(["neurosurgery", "ct_scanner"], [diverting, B]);
     const a = result.ranking.find((m) => m.hospitalId === "A")!;
     expect(a.diverting).toEqual(["neurosurgery"]);
     expect(a.matched).toEqual(["neurosurgery", "ct_scanner"]);
-    expect(a.scoreBreakdown.divertPenaltyMin).toBe(60);
-    expect(a.score).toBeCloseTo(HOP_MIN + 60, 1);
+    expect(a.scoreBreakdown.divertPenaltyMin).toBe(DIVERT);
+    expect(a.score).toBeCloseTo(HOP_MIN + DIVERT, 1);
     expect(result.recommended!.hospitalId).toBe("B");
   });
 
@@ -94,7 +97,7 @@ describe("matchHospitals: the score is the time plus a penalty for each gap (PRD
     const a = match(["icu"], [lacksAndDiverts]).ranking[0]!;
     expect(a.missing).toEqual(["icu"]);
     expect(a.diverting).toEqual([]);
-    expect(a.scoreBreakdown).toMatchObject({ missingPenaltyMin: 30, divertPenaltyMin: 0 });
+    expect(a.scoreBreakdown).toMatchObject({ missingPenaltyMin: MISSING, divertPenaltyMin: 0 });
   });
 
   it("always has a breakdown that adds up to the score", () => {

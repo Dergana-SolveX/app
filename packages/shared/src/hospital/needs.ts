@@ -26,7 +26,7 @@ export const NEED_LABELS: Record<Need, string> = {
   pediatric: "Pédiatrie",
 };
 
-type Region = "head" | "spine" | "thorax" | "abdomen" | "pelvis" | "limbs";
+type Region = "head" | "neck" | "spine" | "thorax" | "abdomen" | "pelvis" | "limbs";
 
 /** The injuries a medic can tick, and what each one means for the rules. Plain text is what gets saved. */
 export const INJURY_TAGS: Record<string, Region | "burn" | "none"> = {
@@ -44,7 +44,7 @@ export const INJURY_TAGS: Record<string, Region | "burn" | "none"> = {
 /** Vittel anatomical answers that also say which part of the body is hurt. */
 const VITTEL_REGIONS: Record<string, Region | "burn"> = {
   penetratingHead: "head",
-  penetratingNeck: "head",
+  penetratingNeck: "neck",
   penetratingThorax: "thorax",
   flailChest: "thorax",
   penetratingAbdomen: "abdomen",
@@ -123,14 +123,14 @@ export function deriveNeeds(facts: NeedFacts): NeedResult {
   const reasons: { need: Need; why: string }[] = [];
   const ask = (needs: Need[], why: string) => needs.forEach((need) => reasons.push({ need, why }));
 
-  if (facts.gcs !== null && facts.gcs <= gcsAtMost) ask(["neurosurgery", "ct_scanner"], `Glasgow ${facts.gcs} (13 ou moins)`);
+  if (facts.gcs !== null && facts.gcs <= gcsAtMost) ask(["neurosurgery", "ct_scanner"], `Glasgow ${facts.gcs} (${gcsAtMost} ou moins)`);
   if (facts.headTrauma) ask(["neurosurgery", "ct_scanner"], "Traumatisme crânien");
   if (facts.spinal) ask(["neurosurgery", "ct_scanner"], "Atteinte du rachis suspectée");
   if (facts.burn) ask(["burn_unit"], "Brûlure ou inhalation de fumées");
 
   if (isInShock(facts)) {
     const lowPressure = facts.sbp !== null && facts.sbp < THRESHOLDS.vittel.sbpBelow;
-    ask(["trauma_surgery", "blood_bank", "icu"], lowPressure ? `PAS ${facts.sbp} (moins de 90)` : "Indice de choc élevé");
+    ask(["trauma_surgery", "blood_bank", "icu"], lowPressure ? `PAS ${facts.sbp} (moins de ${THRESHOLDS.vittel.sbpBelow})` : "Indice de choc élevé");
   }
   if (facts.pregnant) ask(["obstetrics"], "Victime enceinte");
   if (facts.polytrauma) ask(["trauma_surgery", "icu", "ct_scanner"], "Polytraumatisme (plusieurs régions du corps)");

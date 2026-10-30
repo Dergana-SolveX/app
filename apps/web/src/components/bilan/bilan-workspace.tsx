@@ -62,7 +62,7 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
   const [active, setActive] = useState(1);
   // Taken once: the age a profile gives must not change under the medic between renders.
   const [now] = useState(() => new Date());
-  const orientationData = useOrientationData();
+  const orientationData = useOrientationData(unitId);
   const graph = useRoadGraph();
 
   // Saved victims come back as drafts once, when the mission first loads.

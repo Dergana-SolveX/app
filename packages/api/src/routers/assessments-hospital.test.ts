@@ -146,6 +146,19 @@ describe("assessments.save: the medic's choice", () => {
     expect(row!.etaMinutes).toBeCloseTo(result.recommendation!.ranking.find((m) => m.hospitalId === far.id)!.etaMin, 6);
   });
 
+  it("still asks for a reason when no hospital can be recommended (every hospital is a polyclinic for a red victim)", async () => {
+    const { db, caller, incident, near, far, noIcu } = await setup();
+    await db.update(hospitalsMatrix).set({ tier: "epsp_polyclinic", capStabilizationOnly: true });
+    const blind = await caller.save({ incidentId: incident.id, ...SHOCK });
+    expect(blind.recommendation!.recommended).toBeNull();
+    for (const id of [near.id, far.id, noIcu.id]) {
+      await expect(caller.save({ incidentId: incident.id, ...SHOCK, chosenHospitalId: id })).rejects.toMatchObject({
+        code: "BAD_REQUEST",
+      });
+    }
+    await caller.save({ incidentId: incident.id, ...SHOCK, chosenHospitalId: near.id, overrideReason: "Seule structure à portée" });
+  });
+
   it("says so when the chosen hospital does not exist", async () => {
     const { caller, incident } = await setup();
     await expect(

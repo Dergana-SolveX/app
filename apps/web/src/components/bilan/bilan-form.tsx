@@ -1,13 +1,11 @@
 import {
   assessVictim,
-  deriveNeeds,
   hospitalFromRow,
   INJURY_TAGS,
-  isInShock,
-  matchHospitals,
-  needFacts,
+  recommendForBilan,
   type LatLng,
   type RoadGraph,
+  type Severity,
   type VittelLevel,
   type VittelState,
 } from "@solvex-dergana/shared";
@@ -79,9 +77,9 @@ export function BilanForm({
   now: Date;
   /** Where the victims are: the incident position, null while unknown. */
   scene: LatLng | null;
-  severity: "red" | "yellow" | "green" | "unknown";
+  severity: Severity;
   orientationData: {
-    data: { hospitals: Parameters<typeof hospitalFromRow>[0][]; zones: Parameters<typeof matchHospitals>[0]["zones"][number][] } | undefined;
+    data: { hospitals: Parameters<typeof hospitalFromRow>[0][]; zones: Parameters<typeof recommendForBilan>[0]["zones"][number][] } | undefined;
     savedAt: number | null;
     fromCache: boolean;
     loading: boolean;
@@ -104,27 +102,31 @@ export function BilanForm({
   const hospitals = useMemo(() => orientationData.data?.hospitals.map(hospitalFromRow) ?? [], [orientationData.data]);
   const orientation = useMemo(() => {
     if (!scene || !graph || graph === "error" || hospitals.length === 0) return null;
-    const facts = needFacts({
-      gcs: draft.gcs,
-      sbp: draft.sbp,
-      shockIndex: assessment.shockIndex?.value ?? null,
-      ageYears: assessment.age,
-      pregnant: (profile?.pregnancyStatus ?? "none") !== "none",
-      injuries: draft.injuries,
-      vittel: assessment.state,
+    return recommendForBilan({
+      bilan: {
+        gcs: draft.gcs,
+        sbp: draft.sbp,
+        shockIndex: assessment.shockIndex?.value ?? null,
+        ageYears: assessment.age,
+        pregnant: (profile?.pregnancyStatus ?? "none") !== "none",
+        injuries: draft.injuries,
+        vittel: assessment.state,
+      },
+      hospitals,
+      origin: scene,
+      graph,
+      zones: orientationData.data?.zones ?? [],
+      severity,
     });
-    const needs = deriveNeeds(facts);
-    return {
-      needs,
-      result: matchHospitals({
-        needs, hospitals, origin: scene, graph, zones: orientationData.data?.zones ?? [], severity, inShock: isInShock(facts),
-      }),
-    };
+    // `assessment.state` is rebuilt on each render, so it cannot be a dependency: its inputs are.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene, graph, hospitals, severity, draft.gcs, draft.sbp, draft.injuries, assessment.shockIndex?.value, assessment.age, assessment.state, profile?.pregnancyStatus]);
-  const recommendedId = orientation?.result.recommended?.hospitalId ?? null;
+  }, [scene, graph, hospitals, orientationData.data?.zones, severity, draft.gcs, draft.sbp, draft.injuries, draft.medic, draft.estAge, draft.profileId, draft.hr, draft.spo2, sensors, now, assessment.shockIndex?.value, assessment.age, profile?.pregnancyStatus]);
+  const recommendedId = orientation?.recommended?.hospitalId ?? null;
+  // Any choice other than the recommended one needs a reason, also when nothing could be recommended.
   const missingReason =
-    draft.chosenHospitalId !== null && recommendedId !== null && draft.chosenHospitalId !== recommendedId && draft.overrideReason.trim() === "";
+    draft.chosenHospitalId !== null &&
+    draft.chosenHospitalId !== recommendedId &&
+    draft.overrideReason.trim() === "";
   const answer = (level: VittelLevel, id: string, value: boolean | number | null) =>
     set({ medic: withAnswer(draft.medic, level, id, value) });
 
