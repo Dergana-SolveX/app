@@ -79,6 +79,13 @@ describe("stats router (role-scoped queries, real tables, emulated filter)", () 
     // Breakdown by commune & authority
     expect(stats.byCommune.length).toBeGreaterThan(0);
     expect(stats.byAuthority.length).toBeGreaterThan(0);
+
+    // Accepts string date input (coerces to Date without failing with invalid_type)
+    const statsWithDateStr = await (caller.stats.dispatcher as any)({
+      from: "2026-09-30T23:00:00.000Z",
+      includeEmulated: true,
+    });
+    expect(statsWithDateStr.summary.totalIncidents).toBeGreaterThanOrEqual(0);
   });
 
   it("filters out emulated data when includeEmulated is false", async () => {

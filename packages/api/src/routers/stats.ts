@@ -9,8 +9,8 @@ export const statsRouter = router({
     .input(
       z
         .object({
-          from: z.date().optional(),
-          to: z.date().optional(),
+          from: z.coerce.date().optional(),
+          to: z.coerce.date().optional(),
           includeEmulated: z.boolean().default(true),
         })
         .optional(),
@@ -24,8 +24,8 @@ export const statsRouter = router({
       z
         .object({
           hospitalId: z.string().uuid().optional(),
-          from: z.date().optional(),
-          to: z.date().optional(),
+          from: z.coerce.date().optional(),
+          to: z.coerce.date().optional(),
           includeEmulated: z.boolean().default(true),
         })
         .optional(),
