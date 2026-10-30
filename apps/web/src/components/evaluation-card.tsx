@@ -1,8 +1,16 @@
 import { Button } from "@solvex-dergana/ui/components/button";
 import { SeverityBadge } from "@solvex-dergana/ui/components/severity-badge";
 import { Skeleton } from "@solvex-dergana/ui/components/skeleton";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowUpIcon, PhoneIcon, SirenIcon } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowUpIcon,
+  CheckCircle2Icon,
+  Loader2Icon,
+  PhoneIcon,
+  SendIcon,
+  SirenIcon,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { evaluationView } from "@/lib/evaluation";
 import { trpc } from "@/utils/trpc";
@@ -10,11 +18,23 @@ import { trpc } from "@/utils/trpc";
 const SEVERITY_WORD = { red: "rouge", yellow: "jaune", green: "vert", unknown: "inconnue" } as const;
 
 /**
- * The dispatcher's evaluation card (FR-S5-02): severity, the reasons behind it, the recommended units
- * and authority. Everything here is a recommendation; the dispatch decision is a separate human action.
+ * The dispatcher's evaluation card (FR-S5-02, FR-S5-05): severity, the reasons behind it,
+ * the recommended units and authority with one-click SMS notification through active transport.
  */
 export default function EvaluationCard({ incidentId }: { incidentId: string }) {
+  const queryClient = useQueryClient();
   const query = useQuery(trpc.incidents.byId.queryOptions({ id: incidentId }));
+
+  const notify = useMutation(
+    trpc.incidents.notifyAuthority.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Autorité notifiée (${data.phone}) : SMS envoyé dans la boîte d'envoi.`);
+        queryClient.invalidateQueries({ queryKey: trpc.incidents.byId.queryKey({ id: incidentId }) });
+        queryClient.invalidateQueries({ queryKey: trpc.incidents.list.queryKey() });
+      },
+      onError: (err) => toast.error(err.message),
+    }),
+  );
 
   if (query.isPending) return <Skeleton className="h-48 w-full" aria-hidden="true" />;
 
@@ -95,9 +115,57 @@ export default function EvaluationCard({ incidentId }: { incidentId: string }) {
             Autorité à prévenir
           </h4>
           {view.authority ? (
-            <p className="text-sm">
-              {view.authority.name} <span className="font-mono text-muted-foreground">({view.authority.phones})</span>
-            </p>
+            <div className="space-y-2 text-sm">
+              <p className="font-semibold">
+                {view.authority.name} <span className="font-mono text-muted-foreground">({view.authority.phones})</span>
+              </p>
+              {view.authority.reason && (
+                <p className="text-xs text-muted-foreground">
+                  Motif : {view.authority.reason}
+                </p>
+              )}
+              {view.authority.notification ? (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2Icon className="size-3.5" aria-hidden="true" />
+                    Notifiée à {new Date(view.authority.notification.notifiedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={notify.isPending}
+                    onClick={() => notify.mutate({ incidentId })}
+                  >
+                    {notify.isPending ? <Loader2Icon className="size-3 animate-spin" /> : "Re-notifier"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs font-semibold"
+                    disabled={notify.isPending}
+                    onClick={() => notify.mutate({ incidentId })}
+                  >
+                    {notify.isPending ? (
+                      <>
+                        <Loader2Icon className="size-3.5 animate-spin" aria-hidden="true" />
+                        Notification en cours…
+                      </>
+                    ) : (
+                      <>
+                        <SendIcon className="size-3.5" aria-hidden="true" />
+                        Notifier ({view.authority.primaryPhone})
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">Position inconnue : autorité non déterminée.</p>
           )}

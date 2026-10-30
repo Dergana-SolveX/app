@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { haversineM } from "./distance";
-import { geocodeCommune, geocodeLocation } from "./communes";
+import { geocodeCommune, geocodeLocation, listCommunes } from "./communes";
 
 // Reference positions are well-known landmarks, written as literals (not derived from the table).
 const BAB_EZZOUAR = { lat: 36.7255, lng: 3.1836 };
@@ -67,5 +67,15 @@ describe("geocodeLocation (commune or road kilometre point)", () => {
   it("returns nothing for a kilometre point off the known stretch or on an unknown road", () => {
     expect(geocodeLocation("RN5 PK 300")).toBeNull();
     expect(geocodeLocation("RN99 PK 12")).toBeNull();
+  });
+});
+
+describe("listCommunes", () => {
+  it("lists the communes with their centre, for a place picker", () => {
+    const list = listCommunes();
+
+    expect(list.length).toBeGreaterThanOrEqual(13);
+    expect(list.find((c) => c.name === "Bab Ezzouar")).toEqual({ name: "Bab Ezzouar", lat: 36.7255, lng: 3.1836 });
+    expect(list.map((c) => c.name)).toEqual([...list.map((c) => c.name)].sort((a, b) => a.localeCompare(b, "fr")));
   });
 });

@@ -1,4 +1,5 @@
 import { createTestDb } from "@solvex-dergana/db/testing";
+import { incidentEvents } from "@solvex-dergana/db/schema/index";
 import { encodeSvx, type SvxAlert } from "@solvex-dergana/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -49,9 +50,17 @@ async function setup(
   const db = await createTestDb();
   testDatabases.push(db);
   const events = createEventBus({ bufferSize: options.bufferSize });
+  const sentSms: { to: string; body: string; incidentId?: string }[] = [];
+  const smsTransport = {
+    kind: "emulator" as const,
+    async send(to: string, body: string, meta?: { incidentId?: string }) {
+      sentSms.push({ to, body, incidentId: meta?.incidentId });
+    },
+  };
   const ctx = {
     db,
     events,
+    smsTransport,
     session: { user: { id: "auth-1" } },
     appUser: appUser(options.role ?? "dispatcher"),
   } as unknown as Context;
@@ -65,7 +74,7 @@ async function setup(
         emulated: true,
       },
     );
-  return { db, events, caller, send };
+  return { db, events, caller, send, sentSms };
 }
 
 /** A stream item as the server-side caller sees it: a `[id, event]` envelope made by `tracked()`. */
@@ -209,12 +218,31 @@ describe("incidents access control", () => {
   it("lists the incidents a dispatcher can see after an SMS arrives", async () => {
     const { caller, send } = await setup();
     await send(1);
-    expect(await caller.list()).toHaveLength(1);
+    const list = await caller.list();
+    expect(list).toHaveLength(1);
+    expect(list[0]?.hasEscalation).toBe(false);
+  });
+
+  it("flags an incident with hasEscalation when an escalation suggestion exists (FR-S5-07)", async () => {
+    const { db, caller, send } = await setup();
+    const sent = await send(1);
+    if (sent.kind !== "alert") throw new Error("expected an alert");
+
+    await db.insert(incidentEvents).values({
+      incidentId: sent.incidentId,
+      actorRole: "system",
+      type: "incident.escalation_suggested",
+      payload: { from: "yellow", to: "red", reasons: [{ fr: "Nouvelle alerte grave", ar: "تنبيه خطير جديد" }] },
+    });
+
+    const list = await caller.list();
+    expect(list[0]?.hasEscalation).toBe(true);
+    expect(list[0]?.escalationTo).toBe("red");
   });
 });
 
 describe("incidents.byId (the evaluation card)", () => {
-  it("returns the recommendation with the reasons behind it in French and Arabic", async () => {
+  it("returns the recommendation with reasons, authority reason and notification status", async () => {
     const { caller, send } = await setup();
     const sent = await send(3); // 3 victims: RED (FR-S2-15)
     if (sent.kind !== "alert") throw new Error("expected an alert");
@@ -224,9 +252,11 @@ describe("incidents.byId (the evaluation card)", () => {
     expect(card).toMatchObject({ id: sent.incidentId, recSeverity: "red" });
     expect(card?.reasons).toEqual([{ fr: "3 victimes ou plus", ar: "3 ضحايا أو أكثر" }]);
     expect(card?.recUnits).toEqual([expect.objectContaining({ type: "vsav_standard", count: 1 })]);
+    expect(card?.authorityReason).toBeTypeOf("string");
+    expect(card?.authorityNotification).toBeNull();
   });
 
-  it("throws NOT_FOUND for an incident that does not exist", async () => {
+  it("says NOT_FOUND for an incident that does not exist", async () => {
     const { caller } = await setup();
     await expect(caller.byId({ id: "00000000-0000-4000-8000-00000000dead" })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
@@ -238,5 +268,63 @@ describe("incidents.byId (the evaluation card)", () => {
         code: "FORBIDDEN",
       });
     }
+  });
+});
+
+describe("incidents.notifyAuthority (FR-S5-05)", () => {
+  it("sends an SMS summary to the routed authority, logs it, and marks notification", async () => {
+    const { caller, send, sentSms } = await setup();
+    const stream = (await caller.onChange({}))[Symbol.asyncIterator]();
+    await stream.next(); // ready marker
+
+    const sent = await send(2);
+    if (sent.kind !== "alert") throw new Error("expected alert");
+    await stream.next(); // incident.created
+
+    const res = await caller.notifyAuthority({ incidentId: sent.incidentId });
+    expect(res).toMatchObject({
+      ok: true,
+      authority: "gendarmerie_nationale",
+      phone: "1055",
+      notifiedAt: expect.any(String),
+    });
+
+    // SMS sent via transport
+    expect(sentSms).toHaveLength(1);
+    expect(sentSms[0]?.to).toBe("1055");
+    expect(sentSms[0]?.body).toContain("SVX ALERTE");
+    expect(sentSms[0]?.incidentId).toBe(sent.incidentId);
+
+    // Card reflects notification
+    const card = await caller.byId({ id: sent.incidentId });
+    expect(card?.authorityNotification).toMatchObject({
+      authority: "gendarmerie_nationale",
+      phone: "1055",
+      notifiedAt: res.notifiedAt,
+    });
+
+    // Event emitted on bus
+    const eventItem = unwrap((await stream.next()).value);
+    expect(eventItem.event).toMatchObject({
+      type: "incident.updated",
+      incident: { id: sent.incidentId },
+    });
+    await stream.return?.(undefined);
+  });
+
+  it("refuses medics and hospital staff", async () => {
+    for (const role of ["medic", "hospital"] as const) {
+      const { caller } = await setup({ role });
+      await expect(caller.notifyAuthority({ incidentId: "00000000-0000-4000-8000-00000000dead" })).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+    }
+  });
+
+  it("fails with NOT_FOUND if incident does not exist", async () => {
+    const { caller } = await setup();
+    await expect(caller.notifyAuthority({ incidentId: "00000000-0000-4000-8000-00000000dead" })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
   });
 });

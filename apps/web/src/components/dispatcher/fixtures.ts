@@ -22,15 +22,17 @@ export const incident: IncidentDetail = {
   commune: "Alger",
   roadRef: null,
   version: 1,
-  emulated: false,
   reasons: [],
+  authorityReason: null,
   escalation: null,
+  authorityNotification: null,
   alerts: [
     {
       id: "00000000-0000-4000-8000-000000000002",
       incidentId: "00000000-0000-4000-8000-000000000001",
       source: "app_witness",
       channel: "sms",
+      rollover: null,
       receivedAt: "2026-10-30T10:00:00Z",
       eventAt: null,
       lat: 36.7,

@@ -8,4 +8,7 @@ import { ENV } from "./env.server";
 export const db = createDb(ENV);
 export const auth = createAuth(ENV, db);
 export const events = createEventBus();
-export const smsTransport = createTransport(ENV.SMS_TRANSPORT, { db });
+export const smsTransport = createTransport(ENV.SMS_TRANSPORT, {
+  db,
+  gateway: { url: ENV.GATEWAY_URL, secret: ENV.GATEWAY_SHARED_SECRET },
+});

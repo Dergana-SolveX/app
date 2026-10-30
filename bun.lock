@@ -18,13 +18,16 @@
     "apps/gateway": {
       "name": "gateway",
       "dependencies": {
+        "hono": "^4.13.7",
         "serialport": "^13.0.0",
+        "varlock": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
         "@solvex-dergana/config": "workspace:*",
         "@types/bun": "catalog:",
         "typescript": "^6.0.3",
+        "vitest": "^4.0.0",
       },
     },
     "apps/native": {
@@ -93,6 +96,7 @@
         "@solvex-dergana/shared": "workspace:*",
         "@trpc/server": "catalog:",
         "better-auth": "catalog:",
+        "drizzle-orm": "catalog:",
         "hono": "^4.13.7",
         "varlock": "catalog:",
         "zod": "catalog:",

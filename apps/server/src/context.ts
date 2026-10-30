@@ -1,6 +1,7 @@
 import type { Context as ApiContext } from "@solvex-dergana/api/context";
 import type { Context as HonoContext } from "hono";
 
+import { ENV } from "./env.server";
 import { auth, db, events, smsTransport } from "./services";
 
 export type CreateContextOptions = {
@@ -21,6 +22,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     db,
     events,
     smsTransport,
+    // The simulated chip talks to this server's own device endpoints; the secret stays on the server.
+    chip: { masterDeviceSecret: ENV.MASTER_DEVICE_SECRET, baseUrl: ENV.BETTER_AUTH_URL },
     session,
     appUser,
   };

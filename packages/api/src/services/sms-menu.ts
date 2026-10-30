@@ -1,10 +1,10 @@
-import { masterIncidents, smsLog, smsMenuSessions } from "@solvex-dergana/db/schema/index";
+import { smsLog, smsMenuSessions } from "@solvex-dergana/db/schema/index";
 import type { SmsMenuAnswers } from "@solvex-dergana/db/schema/comms";
 import { decodeSvx, geocodeLocation } from "@solvex-dergana/shared";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
-import { placeAlert } from "./clustering";
+import { fileReport } from "./report";
 import type { InboundSms } from "./ingest";
 import { ackFor } from "./ingest";
 import type { SmsFlowDeps } from "./sms-flow";
@@ -39,6 +39,16 @@ const isKeyword = (body: string) => START_KEYWORDS.has(body.trim().toLowerCase()
 
 /** Arabic phones type ٠-٩; read them as 0-9. */
 const asciiDigits = (text: string) => text.replace(/[٠-٩]/g, (digit) => `${digit.charCodeAt(0) - 0x0660}`);
+
+/**
+ * The caller types HOW MANY are conscious; the alert (and triage) speak the SVX protocol: 0 = nobody, 1 = everybody,
+ * 2 = not everybody / unknown. "2 of 3" must never read as "everybody is conscious".
+ */
+function protocolConscious(victims: number | undefined, conscious: number | undefined): 0 | 1 | 2 | null {
+  if (victims === undefined || conscious === undefined) return null;
+  if (conscious === 0) return 0;
+  return conscious >= victims ? 1 : 2;
+}
 
 /** A conversation left unanswered this long is forgotten: a late "3" is then just an SMS, not an answer. */
 const SESSION_TTL_MS = 15 * 60_000;
@@ -127,7 +137,7 @@ export async function handleMenuSms(deps: SmsFlowDeps, sms: InboundSms): Promise
   if (claimed.length === 0) return replies;
 
   try {
-    const placement = await placeAlert(db, {
+    const incident = await fileReport(deps, {
       alertRow: {
         source: "ussd",
         channel: "sms",
@@ -137,7 +147,7 @@ export async function handleMenuSms(deps: SmsFlowDeps, sms: InboundSms): Promise
         lng: place.lng,
         accuracyM: place.uncertaintyM,
         victims: answers.victims ?? null,
-        conscious: answers.conscious ?? null,
+        conscious: protocolConscious(answers.victims, answers.conscious),
         fire: answers.fire ?? null,
         trapped: answers.trapped ?? null,
         rawPayload: sms.body,
@@ -148,23 +158,12 @@ export async function handleMenuSms(deps: SmsFlowDeps, sms: InboundSms): Promise
       },
       position: { lat: place.lat, lng: place.lng, accuracyM: place.uncertaintyM },
       eventAt: receivedAt,
+      said: { commune: place.commune, roadRef: place.roadRef, pk: place.pk },
     });
-    if (placement.kind === "duplicate") return replies;
+    if (!incident) return replies;
 
-    const [incident] = await db
-      .update(masterIncidents)
-      .set({
-        // An incident that already says where it is keeps that.
-        commune: sql`coalesce(${masterIncidents.commune}, ${place.commune ?? null})`,
-        roadRef: sql`coalesce(${masterIncidents.roadRef}, ${place.roadRef ?? null})`,
-        pkMarker: sql`coalesce(${masterIncidents.pkMarker}, ${place.pk === undefined ? null : `PK ${place.pk}`})`,
-      })
-      .where(eq(masterIncidents.id, placement.incident.id))
-      .returning();
-    deps.events.publish({ type: placement.kind === "created" ? "incident.created" : "incident.updated", incident: incident! });
-
-    await db.update(smsLog).set({ incidentId: incident!.id }).where(eq(smsLog.id, logged!.id));
-    await reply(ackFor(incident!.id), { incidentId: incident!.id });
+    await db.update(smsLog).set({ incidentId: incident.id }).where(eq(smsLog.id, logged!.id));
+    await reply(ackFor(incident.id), { incidentId: incident.id });
     return replies;
   } catch (error) {
     // Keep the conversation so the phone can answer again, and keep the SMS on record as failed.

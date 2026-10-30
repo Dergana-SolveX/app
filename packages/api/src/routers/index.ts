@@ -1,5 +1,6 @@
 import { protectedProcedure, publicProcedure, router } from "../index";
 import { assessmentsRouter } from "./assessments";
+import { chipRouter } from "./chip";
 import { dispatchRouter } from "./dispatch";
 import { gsmRouter } from "./gsm";
 import { handoversRouter } from "./handovers";
@@ -9,6 +10,7 @@ import { statsRouter } from "./stats";
 
 export const appRouter = router({
   assessments: assessmentsRouter,
+  chip: chipRouter,
   dispatch: dispatchRouter,
   gsm: gsmRouter,
   handovers: handoversRouter,

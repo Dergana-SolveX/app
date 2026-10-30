@@ -2,17 +2,15 @@ import { TRPCError, tracked } from "@trpc/server";
 import { z } from "zod";
 
 import { roleProcedure, router } from "../index";
+import { markFalseAlarm, mergeIncidents, splitIncident } from "../services/incident-corrections";
 import {
+  getEvaluation,
   getIncident,
   getIncidentProfiles,
   getMapLayers,
   listIncidents,
+  notifyAuthority,
 } from "../services/incidents";
-import {
-  markFalseAlarm,
-  mergeIncidents,
-  splitIncident,
-} from "../services/incident-corrections";
 
 const dispatcherAccess = roleProcedure("dispatcher", "admin");
 
@@ -73,22 +71,27 @@ export const incidentsRouter = router({
     .query(({ ctx, input }) =>
       getIncidentProfiles(ctx.db, input.id, ctx.appUser),
     ),
+  /** The snapshot the dispatcher queue starts from (and refetches on `ready` / `resync`). */
+  list: dispatcherAccess.query(({ ctx }) => listIncidents(ctx.db)),
 
-  /** One incident with its raw alerts, journal, and recommendation: the evaluation card. Throws NOT_FOUND if unknown. */
+  /**
+   * One incident for both dispatcher screens: the evaluation card (reasons, escalation, authority) and the detail
+   * panel (raw alerts, journal). NOT_FOUND when it does not exist.
+   */
   byId: dispatcherAccess
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const incident = await getIncident(ctx.db, input.id);
-      if (!incident)
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Incident introuvable",
-        });
-      return incident;
+      const [evaluation, detail] = await Promise.all([getEvaluation(ctx.db, input.id), getIncident(ctx.db, input.id)]);
+      if (!evaluation || !detail) throw new TRPCError({ code: "NOT_FOUND", message: "Incident introuvable" });
+      return { ...evaluation, alerts: detail.alerts, journal: detail.journal };
     }),
 
-  /** The snapshot the dispatcher queue starts from (and refetches on `ready` / `resync`). */
-  list: dispatcherAccess.query(({ ctx }) => listIncidents(ctx.db)),
+  /** Notifies the relevant authority (Police / Gendarmerie) by SMS summary and logs it (FR-S5-05). */
+  notifyAuthority: dispatcherAccess
+    .input(z.object({ incidentId: z.string().uuid() }))
+    .mutation(({ ctx, input }) =>
+      notifyAuthority(ctx.db, ctx.smsTransport, ctx.events, ctx.appUser!, input.incidentId),
+    ),
 
   /** Live stream of dispatcher events over SSE. `lastEventId` is filled in by the client on reconnect. */
   onChange: dispatcherAccess
