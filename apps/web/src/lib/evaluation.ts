@@ -5,7 +5,7 @@ type PrefillItem = { value: boolean | number | string; source: "iot" | "app" | "
 /** The fields of `incidents.byId` the card reads. */
 export type EvaluationInput = {
   recSeverity: Severity;
-  recUnits: { type: string; count: number }[] | null;
+  recUnits: { type: string; count: number; reason?: string }[] | null;
   recAuthority: "surete_nationale" | "gendarmerie_nationale" | null;
   reasons: { fr: string; ar: string }[];
   vittelPrefill: Partial<Record<"l1" | "l2" | "l3" | "l4" | "l5", Record<string, PrefillItem>>> | null;
@@ -40,7 +40,7 @@ export function evaluationView(card: EvaluationInput) {
     reasons: card.reasons,
     units: (card.recUnits ?? []).map((unit) => {
       const name = UNIT_NAMES[unit.type] ?? unit.type;
-      return unit.count > 1 ? `${name} × ${unit.count}` : name;
+      return { name: unit.count > 1 ? `${name} × ${unit.count}` : name, reason: unit.reason ?? null };
     }),
     authority: card.recAuthority ? AUTHORITIES[card.recAuthority] : null,
     vittel: Object.entries(card.vittelPrefill ?? {}).flatMap(([level, items]) =>

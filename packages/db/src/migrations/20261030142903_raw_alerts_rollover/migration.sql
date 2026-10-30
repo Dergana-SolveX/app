@@ -1,0 +1,1 @@
+ALTER TABLE "raw_alerts" ADD COLUMN "rollover" boolean;

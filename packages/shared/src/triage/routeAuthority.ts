@@ -1,7 +1,9 @@
+import { pointInPolygon, type GeoJsonPolygon } from "../geo/polygon";
+
 export type UrbanZone = {
   name: string;
   /** GeoJSON polygon, coordinates in [lng, lat] order. */
-  polygon: { type: "Polygon"; coordinates: number[][][] };
+  polygon: GeoJsonPolygon;
 };
 
 export type AuthorityRoute = {
@@ -9,17 +11,6 @@ export type AuthorityRoute = {
   phones: string[];
   reason: string;
 };
-
-/** Ray casting on the outer ring; `x` is longitude and `y` latitude. */
-function insideRing(lat: number, lng: number, ring: number[][]): boolean {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i]!;
-    const [xj, yj] = ring[j]!;
-    if (yi! > lat !== yj! > lat && lng < ((xj! - xi!) * (lat - yi!)) / (yj! - yi!) + xi!) inside = !inside;
-  }
-  return inside;
-}
 
 /**
  * Inside an urban perimeter the Sûreté Nationale answers, anywhere else (rural roads, national
@@ -34,7 +25,7 @@ export function routeAuthority(
 ): AuthorityRoute | null {
   if (lat == null || lng == null) return null;
 
-  const zone = zones.find((z) => insideRing(lat, lng, z.polygon.coordinates[0] ?? []));
+  const zone = zones.find((z) => pointInPolygon(lat, lng, z.polygon));
   if (zone) {
     return {
       authority: "surete_nationale",

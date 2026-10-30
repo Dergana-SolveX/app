@@ -8,9 +8,12 @@ import { createEventBus, type DispatcherEvent } from "../services/events";
 import { ingestSms } from "../services/ingest";
 import { incidentsRouter } from "./incidents";
 
-const makeAlert = (victims: number): SvxAlert => ({
+// Each report comes from a different, far-away place, so each one opens its own incident.
+const PLACES = ["snd2bmtf", "snd2brmy", "snd1jdg6", "snd2vrp3"];
+
+const makeAlert = (victims: number, place = victims): SvxAlert => ({
   layer: 2,
-  geohash: "sn2j5x7k",
+  geohash: PLACES[place % PLACES.length]!,
   eventMinutes: 29889180,
   peakG: null,
   rollover: null,
@@ -41,10 +44,10 @@ async function setup(options: { bufferSize?: number; role?: AppUserContext["role
     appUser: appUser(options.role ?? "dispatcher"),
   } as unknown as Context;
   const caller = t.createCallerFactory(incidentsRouter)(ctx);
-  const send = (n: number) =>
+  const send = (n: number, place = n) =>
     ingestSms(
       { db, events },
-      { from: `+21355000000${n}`, body: encodeSvx(makeAlert(n)), emulated: true },
+      { from: `+21355000000${n}`, body: encodeSvx(makeAlert(n, place)), emulated: true },
     );
   return { db, events, caller, send };
 }
@@ -126,6 +129,26 @@ describe("incidents.onChange (the dispatcher live stream)", () => {
 
     const [first] = (await take(await caller.onChange({ lastEventId }), 1)).map(unwrap);
     expect(first?.event).toEqual({ type: "resync" });
+  });
+});
+
+describe("incidents.onChange: merged alerts", () => {
+  it("announces an alert that joins an existing incident as an update, with the new count", async () => {
+    const { caller, send } = await setup();
+    const stream = (await caller.onChange({}))[Symbol.asyncIterator]();
+    await stream.next(); // ready
+
+    const first = await send(1, 0);
+    await stream.next(); // incident.created
+    const second = await send(2, 0); // the same place and time: the same crash
+    if (first.kind !== "alert" || second.kind !== "alert") throw new Error("expected alerts");
+
+    const update = unwrap((await stream.next()).value);
+    expect(update.event).toMatchObject({
+      type: "incident.updated",
+      incident: { id: first.incidentId, alertCount: 2 },
+    });
+    await stream.return?.(undefined);
   });
 });
 

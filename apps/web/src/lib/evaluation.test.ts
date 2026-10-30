@@ -5,9 +5,9 @@ import { evaluationView, type EvaluationInput } from "./evaluation";
 const base: EvaluationInput = {
   recSeverity: "red",
   recUnits: [
-    { type: "ambulance_medicalisee", count: 1 },
+    { type: "ambulance_medicalisee", count: 1, reason: "Incendie signalé" },
     { type: "desincarceration", count: 1 },
-    { type: "vsav_standard", count: 2 },
+    { type: "vsav_standard", count: 2, reason: "Priorité basse" },
   ],
   recAuthority: "gendarmerie_nationale",
   reasons: [{ fr: "Incendie signalé", ar: "تم الإبلاغ عن حريق" }],
@@ -18,11 +18,11 @@ const base: EvaluationInput = {
 };
 
 describe("evaluationView (what the dispatcher reads on the card)", () => {
-  it("names the units in French with their count", () => {
+  it("names the units in French with their count and the rule that asked for each", () => {
     expect(evaluationView(base).units).toEqual([
-      "Ambulance médicalisée",
-      "Désincarcération",
-      "VSAV × 2",
+      { name: "Ambulance médicalisée", reason: "Incendie signalé" },
+      { name: "Désincarcération", reason: null },
+      { name: "VSAV × 2", reason: "Priorité basse" },
     ]);
   });
 

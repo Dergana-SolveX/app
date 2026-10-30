@@ -7,13 +7,13 @@ import {
   zones,
 } from "@solvex-dergana/db/schema/index";
 import { createTestDb } from "@solvex-dergana/db/testing";
-import { decodeGeohash, encodeSvx, type SvxAlert } from "@solvex-dergana/shared";
+import { geohashDecode, encodeSvx, type SvxAlert } from "@solvex-dergana/shared";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { DispatcherEvent, EventBus } from "./events";
 import { createEventBus } from "./events";
-import { getIncident } from "./incidents";
+import { getEvaluation, getIncident } from "./incidents";
 import { ingestSms } from "./ingest";
 import { retriageIncident } from "./triage";
 
@@ -38,7 +38,7 @@ const witnessAlert: SvxAlert = {
 
 /** An urban perimeter around the test geohash, so the authority is the Sûreté Nationale. */
 async function seedZoneAround(db: Database, geohash: string) {
-  const { lat, lng } = decodeGeohash(geohash)!;
+  const { lat, lng } = geohashDecode(geohash);
   const [w, e, s, n] = [lng - 0.01, lng + 0.01, lat - 0.01, lat + 0.01];
   await db.insert(zones).values({
     name: "Zone d'essai",
@@ -87,6 +87,33 @@ describe("a new alert is triaged automatically (FR-S3-06, FR-S5-02)", () => {
     const incidentId = await ingestWitness(db, recordingBus().bus);
 
     expect((await getIncident(db, incidentId))?.recAuthority).toBe("gendarmerie_nationale");
+  });
+});
+
+describe("re-triage when a second SMS merges into the incident (FR-S3-06)", () => {
+  it("a worse second alert for the same crash raises the recommendation before any dispatch", async () => {
+    const db = await createTestDb();
+    const { bus, published } = recordingBus();
+    const incidentId = await ingestWitness(db, bus); // bleeding: YELLOW
+
+    const second = await ingestWitness(db, bus, { ...witnessAlert, bleeding: false, fire: true });
+
+    expect(second).toBe(incidentId); // merged, not a new incident
+    expect((await getIncident(db, incidentId))?.recSeverity).toBe("red");
+    expect(published.map((e) => e.type)).toEqual(["incident.created", "incident.updated"]);
+  });
+
+  it("after a dispatch the second alert only suggests an escalation, and the card can read it back", async () => {
+    const db = await createTestDb();
+    const { bus, published } = recordingBus();
+    const incidentId = await ingestWitness(db, bus); // YELLOW
+    await db.update(masterIncidents).set({ status: "dispatched" }).where(eq(masterIncidents.id, incidentId));
+
+    await ingestWitness(db, bus, { ...witnessAlert, bleeding: false, fire: true });
+
+    expect((await getIncident(db, incidentId))?.recSeverity).toBe("yellow");
+    expect(published.map((e) => e.type)).toContain("incident.escalation_suggested");
+    expect((await getEvaluation(db, incidentId))?.escalation).toMatchObject({ from: "yellow", to: "red" });
   });
 });
 
@@ -151,6 +178,23 @@ describe("re-triage when more information arrives", () => {
 
       expect(published.map((e) => e.type)).not.toContain("incident.escalation_suggested");
     }
+  });
+
+  it("a rollover reported by SMS asks for désincarcération and prefills 'tonneaux'", async () => {
+    const db = await createTestDb();
+    const incidentId = await ingestWitness(db, recordingBus().bus, {
+      ...witnessAlert,
+      bleeding: false,
+      rollover: true,
+      peakG: 5,
+      deltaVKmh: 40,
+      conscious: 0,
+    });
+
+    const incident = await getIncident(db, incidentId);
+    expect(incident?.recSeverity).toBe("red");
+    expect(incident?.recUnits?.map((u) => u.type)).toContain("desincarceration");
+    expect(incident?.vittelPrefill?.l2?.tonneaux).toEqual({ value: true, source: "app" });
   });
 
   it("an SMS carrying a known profile code links that profile, so its risk counts", async () => {

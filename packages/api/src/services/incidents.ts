@@ -9,6 +9,8 @@ export async function listIncidents(db: Database) {
       ...getTableColumns(masterIncidents),
       /** True when any of its alerts came through the emulated network: the UI must badge it (NFR-P5). */
       emulated: sql<boolean>`coalesce((select bool_or(${rawAlerts.emulated}) from ${rawAlerts} where ${rawAlerts.incidentId} = ${masterIncidents.id}), false)`,
+      /** True when an alert joined it only thanks to the location-uncertainty allowance: to be confirmed. */
+      tentative: sql<boolean>`coalesce((select bool_or(${rawAlerts.mergeTentative}) from ${rawAlerts} where ${rawAlerts.incidentId} = ${masterIncidents.id}), false)`,
     })
     .from(masterIncidents)
     .orderBy(desc(masterIncidents.lastAlertAt));
@@ -40,7 +42,18 @@ export async function getEvaluation(db: Database, id: string) {
     .orderBy(desc(incidentEvents.at))
     .limit(1);
   const reasons = (latest?.payload.reasons ?? []) as { fr: string; ar: string }[];
-  return { ...incident, reasons };
+
+  // A severity increase suggested after the dispatch (nothing was changed): the card keeps showing it on reload.
+  const [suggested] = await db
+    .select({ payload: incidentEvents.payload })
+    .from(incidentEvents)
+    .where(and(eq(incidentEvents.incidentId, id), eq(incidentEvents.type, "incident.escalation_suggested")))
+    .orderBy(desc(incidentEvents.at))
+    .limit(1);
+  const escalation = suggested
+    ? (suggested.payload as { from: string; to: "yellow" | "red"; reasons: { fr: string; ar: string }[] })
+    : null;
+  return { ...incident, reasons, escalation };
 }
 
 /** Raw alerts that belong to no incident (e.g. text that was not an SVX alert), newest first. */

@@ -13,14 +13,7 @@ const SEVERITY_WORD = { red: "rouge", yellow: "jaune", green: "vert", unknown: "
  * The dispatcher's evaluation card (FR-S5-02): severity, the reasons behind it, the recommended units
  * and authority. Everything here is a recommendation; the dispatch decision is a separate human action.
  */
-export default function EvaluationCard({
-  incidentId,
-  escalationTo,
-}: {
-  incidentId: string;
-  /** Set when new information after the dispatch raised the severity (suggestion only, nothing changed). */
-  escalationTo?: "yellow" | "red" | null;
-}) {
+export default function EvaluationCard({ incidentId }: { incidentId: string }) {
   const query = useQuery(trpc.incidents.byId.queryOptions({ id: incidentId }));
 
   if (query.isPending) return <Skeleton className="h-48 w-full" aria-hidden="true" />;
@@ -37,6 +30,8 @@ export default function EvaluationCard({
   }
 
   const view = evaluationView(query.data);
+  // New information after the dispatch raised the severity: a suggestion only, nothing was changed.
+  const escalationTo = query.data.escalation?.to ?? null;
 
   return (
     <article aria-label={`Évaluation, gravité ${SEVERITY_WORD[view.severity]}`} className="space-y-4 rounded-lg border bg-card p-4">
@@ -83,7 +78,10 @@ export default function EvaluationCard({
           {view.units.length > 0 ? (
             <ul className="list-disc ps-5 text-sm">
               {view.units.map((unit) => (
-                <li key={unit}>{unit}</li>
+                <li key={unit.name}>
+                  {unit.name}
+                  {unit.reason && <span className="text-muted-foreground"> — {unit.reason}</span>}
+                </li>
               ))}
             </ul>
           ) : (

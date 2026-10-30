@@ -78,6 +78,17 @@ describe("triage severity and units (FR-S2-15, FR-S2-16)", () => {
     }
   });
 
+  it("each unit says which rule asked for it, and a GREEN VSAV is marked low priority", () => {
+    const fire = triage({ fire: true, trapped: true, victims: 3 });
+    const reasonOf = (type: string) => fire.units.find((u) => u.type === type)?.reason;
+    expect(reasonOf("ambulance_medicalisee")).toBe("Incendie signalé");
+    expect(reasonOf("desincarceration")).toBe("Victime incarcérée");
+    expect(reasonOf("vsav_standard")).toBe("3 victimes ou plus");
+
+    const green = triage({ gForce: 1.5, victims: 1, conscious: 1 });
+    expect(green.units).toEqual([expect.objectContaining({ type: "vsav_standard", reason: "Priorité basse" })]);
+  });
+
   it("every reason carries an Arabic label", () => {
     const result = triage({ fire: true, trapped: true, gForce: 9, victims: 3, conscious: 0 });
 

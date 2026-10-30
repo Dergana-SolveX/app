@@ -7,7 +7,7 @@ import {
   zones,
 } from "@solvex-dergana/db/schema/index";
 import {
-  decodeGeohash,
+  geohashDecode,
   profileRisk,
   routeAuthority,
   triage,
@@ -37,7 +37,7 @@ function factsFrom(alerts: Alert[], risk: "high" | null): TriageFacts {
     fire: anyOf(alerts.map((a) => a.fire)),
     trapped: anyOf(alerts.map((a) => a.trapped)),
     bleeding: anyOf(alerts.map((a) => a.bleeding)),
-    rollover: alerts.some((a) => (a.rolloverDeg ?? 0) > 90) || null,
+    rollover: alerts.some((a) => a.rollover === true || (a.rolloverDeg ?? 0) > 90) || null,
     gForce: maxOf(alerts.map((a) => a.gForce)),
     deltaVKmh: maxOf(alerts.map((a) => a.deltaVKmh)),
     victims: maxOf(alerts.map((a) => a.victims)),
@@ -75,7 +75,7 @@ export async function retriageIncident(
   const prefill = vittelPrefill(facts, source);
 
   const geohash = incident.geohash8 ?? alerts.find((a) => a.geohash)?.geohash ?? null;
-  const point = incident.lat !== null && incident.lng !== null ? { lat: incident.lat, lng: incident.lng } : geohash ? decodeGeohash(geohash) : null;
+  const point = incident.lat !== null && incident.lng !== null ? { lat: incident.lat, lng: incident.lng } : geohash ? geohashDecode(geohash) : null;
   const urbanZones = await db.select().from(zones);
   const authority = routeAuthority(point?.lat, point?.lng, urbanZones, incident.roadRef)?.authority ?? null;
 

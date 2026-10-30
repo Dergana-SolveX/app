@@ -10,7 +10,7 @@ export type DispatcherEvent =
   /** The server cannot replay what the client missed: fetch the incident list again. */
   | { type: "resync" }
   | { type: "incident.created"; incident: Incident }
-  /** The automatic recommendation changed (only before a dispatcher has acted). */
+  /** An alert merged into an existing incident, or its automatic recommendation changed (count, confidence, position, triage). */
   | { type: "incident.updated"; incident: Incident }
   /** New data raises the severity of an incident already dispatched: a human decides what to do. */
   | {

@@ -81,8 +81,15 @@ export function triage(facts: TriageFacts): TriageResult {
   }
 
   const units: RecommendedUnit[] = [];
-  if (medicalReasons.length > 0) units.push({ type: "ambulance_medicalisee", count: 1 });
-  if (facts.trapped || facts.rollover) units.push({ type: "desincarceration", count: 1 });
-  if (massCasualty || severity === "yellow" || severity === "green") units.push({ type: "vsav_standard", count: 1 });
+  if (medicalReasons.length > 0) {
+    units.push({ type: "ambulance_medicalisee", count: 1, reason: medicalReasons[0]!.fr });
+  }
+  if (facts.trapped || facts.rollover) {
+    units.push({ type: "desincarceration", count: 1, reason: facts.trapped ? "Victime incarcérée" : "Tonneaux" });
+  }
+  if (massCasualty || severity === "yellow" || severity === "green") {
+    const reason = massCasualty ? redReasons[redReasons.length - 1]!.fr : reasons[0]!.fr;
+    units.push({ type: "vsav_standard", count: 1, reason: severity === "green" ? "Priorité basse" : reason });
+  }
   return { severity, units, reasons };
 }

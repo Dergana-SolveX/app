@@ -69,6 +69,8 @@ export const rawAlerts = pgTable(
     gForce: doublePrecision("g_force"),
     deltaVKmh: doublePrecision("delta_v_kmh"),
     rolloverDeg: doublePrecision("rollover_deg"),
+    /** Yes/no rollover as reported (an SVX SMS carries no angle). */
+    rollover: boolean("rollover"),
     fire: boolean("fire"),
     victims: integer("victims"),
     conscious: integer("conscious"),
@@ -86,6 +88,8 @@ export const rawAlerts = pgTable(
     /** sha1(raw_payload + sender) for SMS, device_id + event_at for IoT, client key for apps. */
     dedupeKey: text("dedupe_key").unique(),
     emulated: boolean("emulated").notNull().default(false),
+    /** The merge into the incident relied on the location-uncertainty allowance: the dispatcher should confirm. */
+    mergeTentative: boolean("merge_tentative").notNull().default(false),
     traceInjected: boolean("trace_injected").notNull().default(false),
     impacts: integer("impacts"),
     saturated: boolean("saturated"),

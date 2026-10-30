@@ -1,10 +1,17 @@
 import type { Database } from "@solvex-dergana/db";
-import { masterIncidents, medicalProfiles, rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
+import { medicalProfiles, rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
+import {
+  decodeSvx,
+  GEOHASH8_ACCURACY_M,
+  geohashDecode,
+  trustedEventTime,
+} from "@solvex-dergana/shared";
+import { eq } from "drizzle-orm";
+import { createHash } from "node:crypto";
+
+import { placeAlert, type Placement } from "./clustering";
 import type { EventBus } from "./events";
 import { retriageIncident } from "./triage";
-import { decodeSvx } from "@solvex-dergana/shared";
-import { eq, TransactionRollbackError } from "drizzle-orm";
-import { createHash } from "node:crypto";
 
 export type InboundSms = {
   /** Sender phone number (E.164). Only a hash of it is stored. */
@@ -23,6 +30,8 @@ export type IngestResult =
       ack: string;
       /** True when this exact SMS had already been ingested. */
       duplicate: boolean;
+      /** True when the alert joined an incident that already existed. */
+      merged: boolean;
     }
   /** Not an SVX alert: kept on record, no incident, no reply. */
   | { kind: "ignored"; reason: "not_svx" };
@@ -76,6 +85,14 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       ? await db.select({ id: medicalProfiles.id }).from(medicalProfiles).where(eq(medicalProfiles.shortCode, alert.profileCode))
       : [];
 
+    // Where and when it happened. A late SMS keeps its true time, a wrong device clock is ignored.
+    const cell = alert.geohash ? geohashDecode(alert.geohash) : null;
+    const position = cell ? { lat: cell.lat, lng: cell.lng, accuracyM: GEOHASH8_ACCURACY_M } : null;
+    const eventAt = trustedEventTime(
+      alert.eventMinutes === null ? null : new Date(alert.eventMinutes * 60_000),
+      receivedAt,
+    );
+
     // The stored alert, the same for a recognised SVX message and for plain text.
     const alertRow = {
       profileId: profile?.id ?? null,
@@ -84,6 +101,7 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       receivedAt,
       geohash: alert.geohash,
       gForce: alert.peakG,
+      rollover: alert.rollover,
       deltaVKmh: alert.deltaVKmh,
       fire: alert.fire,
       victims: alert.victims,
@@ -95,6 +113,10 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       senderMsisdnHash: senderHash,
       dedupeKey,
       emulated: sms.emulated,
+      lat: position?.lat ?? null,
+      lng: position?.lng ?? null,
+      accuracyM: position?.accuracyM ?? null,
+      eventAt,
     };
     const result = {
       recognized: decoded.recognized,
@@ -118,59 +140,48 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       return { kind: "ignored", reason: "not_svx" };
     }
 
-    // Open an incident for this alert. If an identical SMS won a race and already stored the alert,
-    // the unique key makes our insert a no-op: roll our incident back and use the winner's.
-    const created =
+    // Attach it to the incident it belongs to, or open a new one (see clustering.ts).
+    // A retry of an SMS we already stored needs no clustering (and no lock).
+    const placement: Placement =
       seen?.incidentId != null
-        ? null
-        : await db
-            .transaction(async (tx) => {
-              const [incident] = await tx
-                .insert(masterIncidents)
-                .values({
-                  geohash8: alert.geohash,
-                  firstAlertAt: receivedAt,
-                  lastAlertAt: receivedAt,
-                  alertCount: 1,
-                  estimatedVictims: alert.victims,
-                })
-                .returning();
-              const stored = await tx
-                .insert(rawAlerts)
-                .values({ ...alertRow, incidentId: incident!.id })
-                .onConflictDoNothing({ target: rawAlerts.dedupeKey })
-                .returning({ id: rawAlerts.id });
-              if (stored.length === 0) tx.rollback();
-              return incident!;
-            })
-            .catch((error) => {
-              if (error instanceof TransactionRollbackError) return null;
-              throw error;
-            });
+        ? { kind: "duplicate" }
+        : await placeAlert(db, { alertRow, position, eventAt });
+    const duplicate = placement.kind === "duplicate";
 
-    const duplicate = created === null;
-    const incidentId = created
-      ? created.id
-      : (seen?.incidentId ??
-        (
-          await db
-            .select({ incidentId: rawAlerts.incidentId })
-            .from(rawAlerts)
-            .where(eq(rawAlerts.dedupeKey, dedupeKey))
-        )[0]!.incidentId!);
+    // Told to dispatchers as soon as the incident is committed: a failure to write the SMS log below
+    // must never hide a distress signal from them (NFR-P6).
+    // Triage first, so what dispatchers see already carries the recommendation. If triage itself fails,
+    // announce the incident as it is: the signal still gets through.
+    if (placement.kind === "created" || placement.kind === "merged") {
+      const triaged = await retriageIncident({ db, events }, placement.incident.id, { announce: false }).catch(
+        () => null,
+      );
+      const incident = triaged ?? placement.incident;
+      events.publish({ type: placement.kind === "created" ? "incident.created" : "incident.updated", incident });
+    }
+    const incidentId =
+      placement.kind !== "duplicate"
+        ? placement.incident.id
+        : (seen?.incidentId ??
+          (
+            await db
+              .select({ incidentId: rawAlerts.incidentId })
+              .from(rawAlerts)
+              .where(eq(rawAlerts.dedupeKey, dedupeKey))
+          )[0]!.incidentId!);
 
     await db
       .update(smsLog)
       .set({ incidentId, result: { ...result, ...(duplicate ? { duplicate: true } : {}) } })
       .where(eq(smsLog.id, logged!.id));
 
-    if (created) {
-      // Triage before announcing, so the first thing dispatchers see already carries the recommendation.
-      const triaged = await retriageIncident({ db, events }, created.id, { announce: false });
-      events.publish({ type: "incident.created", incident: triaged ?? created });
-    }
-
-    return { kind: "alert", incidentId, ack: ackFor(incidentId), duplicate };
+    return {
+      kind: "alert",
+      incidentId,
+      ack: ackFor(incidentId),
+      duplicate,
+      merged: placement.kind === "merged",
+    };
   } catch (error) {
     // Keep the record, mark it failed, and let the caller see the error (the gateway can retry).
     await db
