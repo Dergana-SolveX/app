@@ -12,6 +12,26 @@ export const THRESHOLDS = {
   vittelL2HighEnergy: { peakG: 4, deltaVKmh: 30 },
   /** Rollover: roll or pitch beyond `angleDeg`, held for `minDurationS`. */
   rollover: { angleDeg: 90, minDurationS: 2 },
+  /**
+   * Simulated crash chip (PRD FR-S2-30, FR-S8-02..06). `saturationG`: the ADXL375 reads at most +-200 g.
+   * `bootMs`: self-test time at power-up. `confirmS`: time to cancel a false alarm. `ackTimeoutS`: wait for the server's
+   * answer before counting a send as failed. `backoffS`: wait before each new send attempt, then `maxBackoffS`;
+   * after `smsAfterFailures` failed web sends the chip switches to SMS. `fireDebounceS`: smoke (above `fireSmokeAbove`) and flame must
+   * hold this long. `orientationAlpha`: weight of the gyro in the complementary filter (the rest is the accelerometer).
+   * The backoff and channel-switch numbers are tunable placeholders: the PRD gives none.
+   */
+  chipSim: {
+    saturationG: 200,
+    bootMs: 1000,
+    confirmS: 10,
+    ackTimeoutS: 10,
+    backoffS: [3, 6, 12],
+    maxBackoffS: 30,
+    smsAfterFailures: 2,
+    fireDebounceS: 3,
+    fireSmokeAbove: 0.5,
+    orientationAlpha: 0.98,
+  },
   /** Clustering: sliding time window and distance (plus location uncertainty, capped). */
   cluster: { windowMin: 10, baseDistanceM: 200, uncertaintyCapM: 3000 },
   /**

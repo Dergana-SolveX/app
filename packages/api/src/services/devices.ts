@@ -1,5 +1,6 @@
 import type { Database } from "@solvex-dergana/db";
 import { rawAlerts, vehicles } from "@solvex-dergana/db/schema/index";
+import { trustedEventTime } from "@solvex-dergana/shared";
 import { eq } from "drizzle-orm";
 
 import { placeAlert } from "./clustering";
@@ -83,14 +84,18 @@ export async function ingestDeviceEvent(
     const lng = (data["lng"] as number) ?? (gps["lng"] as number) ?? null;
     const accuracyM = (data["accuracyM"] as number) ?? (gps["accuracyM"] as number) ?? 15;
     const position = lat !== null && lng !== null ? { lat, lng, accuracyM } : null;
-    const dedupeKey = `device:${deviceId}:${event.t ?? timestamp.getTime()}`;
+    // The crash time rides in the body (`t` only has to match the request time, for the replay check): a retry
+    // sent minutes later keeps the true time, and the same crash sent twice is one alert.
+    const declaredAt = typeof data["eventAt"] === "number" ? (data["eventAt"] as number) : null;
+    const eventAt = trustedEventTime(declaredAt === null ? null : new Date(declaredAt), timestamp);
+    const dedupeKey = `device:${deviceId}:${declaredAt ?? event.t ?? timestamp.getTime()}`;
 
     const alertRow = {
       incidentId: null,
       source: "iot" as const,
       channel: "internet" as const,
       receivedAt: new Date(),
-      eventAt: timestamp,
+      eventAt,
       lat,
       lng,
       geohash: (data["geohash"] as string) ?? null,
@@ -99,6 +104,8 @@ export async function ingestDeviceEvent(
       deltaVKmh: (data["deltaVKmh"] as number) ?? (data["deltaV"] as number) ?? null,
       rolloverDeg: (data["rolloverDeg"] as number) ?? (data["roll"] as number) ?? null,
       rollover: (data["rollover"] as boolean) ?? null,
+      impacts: (data["impacts"] as number) ?? null,
+      saturated: (data["saturated"] as boolean) ?? null,
       fire: (data["fire"] as boolean) ?? null,
       victims: (data["victims"] as number) ?? null,
       conscious: (data["conscious"] as number) ?? null,
@@ -113,7 +120,7 @@ export async function ingestDeviceEvent(
       authenticated: true,
     };
 
-    const placement = await placeAlert(db, { alertRow, position, eventAt: timestamp });
+    const placement = await placeAlert(db, { alertRow, position, eventAt });
 
     if (placement.kind === "created" || placement.kind === "merged") {
       const triaged = await retriageIncident(
