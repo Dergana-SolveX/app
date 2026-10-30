@@ -1,3 +1,4 @@
+import { useLocale } from "@/contexts/locale-context";
 import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   Alert,
@@ -22,15 +23,17 @@ import {
   buildWitnessSvxString,
   type DangerType,
   WITNESS_TEXT,
+  getLabels,
 } from "@solvex-dergana/shared";
 import { trpc } from "@/utils/trpc";
 import { CrashCountdownOverlay } from "@/components/crash-countdown-overlay";
 
 export function WitnessReport() {
+  const { locale, setLocale } = useLocale();
   const [state, dispatch] = useReducer(
     flowReducer,
     undefined,
-    () => createWitnessFlowState(),
+    () => flowReducer(createWitnessFlowState(), { type: "SET_LANG", lang: locale }),
   );
 
   const [crashState, crashDispatch] = useReducer(
@@ -40,7 +43,7 @@ export function WitnessReport() {
   );
   const filterRef = useRef(createPhoneTriggerFilter());
 
-  const t = WITNESS_TEXT[state.lang];
+  const t = { ...WITNESS_TEXT[state.lang], ...getLabels(state.lang, "victim") };
   const isRtl = state.lang === "ar";
 
   // Mutations
@@ -52,13 +55,13 @@ export function WitnessReport() {
         }
         dispatch({ type: "SUBMISSION_SUCCESS", result: res });
       },
-      onError: (err) => {
+      onError: () => {
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
         }
         dispatch({
           type: "SUBMISSION_ERROR",
-          error: err.message || "Erreur de transmission",
+          error: t.transmissionError,
         });
       },
     }),
@@ -87,17 +90,17 @@ export function WitnessReport() {
         } else {
           dispatch({
             type: "SUBMISSION_ERROR",
-            error: "Format SMS non reconnu",
+            error: t.smsFormat,
           });
         }
       },
-      onError: (err) => {
+      onError: () => {
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
         }
         dispatch({
           type: "SUBMISSION_ERROR",
-          error: err.message || "Erreur de transmission SMS",
+          error: t.transmissionError,
         });
       },
     }),
@@ -182,10 +185,10 @@ export function WitnessReport() {
               },
             });
           },
-          onError: (err) => {
+          onError: () => {
             crashDispatch({
               type: "ALERT_ERROR",
-              payload: { error: err.message || "Erreur d'envoi automatique" },
+              payload: { error: t.transmissionError },
             });
           },
         },
@@ -328,12 +331,7 @@ export function WitnessReport() {
 
   const handleManualLocationSubmit = () => {
     if (!commune.trim() && !pkMarker.trim()) {
-      Alert.alert(
-        state.lang === "ar" ? "تنبيه" : "Champ requis",
-        state.lang === "ar"
-          ? "يرجى إدخال البلدية أو النقطة الكيلومترية"
-          : "Veuillez renseigner la commune ou le repère routier (PK).",
-      );
+      Alert.alert(t.required, t.locationRequired);
       return;
     }
 
@@ -363,12 +361,14 @@ export function WitnessReport() {
     setPkMarker("");
     setSmsAck(null);
     dispatch({ type: "RESET" });
+    dispatch({ type: "SET_LANG", lang: state.lang });
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, direction: isRtl ? "rtl" : "ltr" }}>
       <CrashCountdownOverlay
         state={crashState}
+        locale={state.lang}
         onCancel={() => crashDispatch({ type: "CANCEL" })}
         onReset={() => crashDispatch({ type: "RESET" })}
       />
@@ -379,13 +379,13 @@ export function WitnessReport() {
       >
         {/* Top Banner with Language Toggle & Hidden Simulation Trigger */}
         <View
-          className={`items-center justify-between mb-4 pb-3 border-b border-slate-800 ${
-            isRtl ? "flex-row-reverse" : "flex-row"
+          className={`flex-wrap gap-3 items-center justify-between mb-4 pb-3 border-b border-slate-800 ${
+            "flex-row"
           }`}
         >
           <View
             className={`items-center gap-2 ${
-              isRtl ? "flex-row-reverse" : "flex-row"
+              "flex-row"
             }`}
           >
             <View className="size-8 rounded-lg bg-red-600 items-center justify-center">
@@ -399,7 +399,7 @@ export function WitnessReport() {
                 {t.title}
               </Text>
               <Text className="text-red-400 text-[10px] font-bold">
-                14 / 154 URGENCE
+                <Text style={{ writingDirection: "ltr" }}>14 / 154</Text> {t.emergency}
               </Text>
             </View>
           </View>
@@ -407,8 +407,9 @@ export function WitnessReport() {
           <View className="flex-row items-center gap-2">
             {/* Hidden 'simuler un choc' button (FR-S4-01 / Issue #21) */}
             <Pressable
+                accessibilityRole="button"
               testID="simulate-impact-button"
-              accessibilityLabel="Simuler un choc"
+              accessibilityLabel={t.simulate}
               onPress={() => {
                 const res = filterRef.current.triggerSimulated(Date.now());
                 crashDispatch({
@@ -425,13 +426,15 @@ export function WitnessReport() {
               className="bg-slate-900 border border-slate-800 rounded px-2 py-1 active:opacity-100"
             >
               <Text className="text-[10px] text-slate-400 font-medium">
-                simuler un choc
+                {t.simulate}
               </Text>
             </Pressable>
 
             <View className="flex-row bg-slate-800 rounded-full p-0.5 border border-slate-700">
               <Pressable
-                onPress={() => dispatch({ type: "SET_LANG", lang: "fr" })}
+                accessibilityRole="button"
+                accessibilityState={{ selected: state.lang === "fr" }}
+                onPress={() => { setLocale("fr"); dispatch({ type: "SET_LANG", lang: "fr" }); }}
                 className={`px-3 py-1 rounded-full ${
                   state.lang === "fr" ? "bg-red-600" : "bg-transparent"
                 }`}
@@ -445,7 +448,9 @@ export function WitnessReport() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => dispatch({ type: "SET_LANG", lang: "ar" })}
+                accessibilityRole="button"
+                accessibilityState={{ selected: state.lang === "ar" }}
+                onPress={() => { setLocale("ar"); dispatch({ type: "SET_LANG", lang: "ar" }); }}
                 className={`px-3 py-1 rounded-full ${
                   state.lang === "ar" ? "bg-red-600" : "bg-transparent"
                 }`}
@@ -484,7 +489,7 @@ export function WitnessReport() {
             <>
               <Ionicons name="time-outline" size={16} color="#38bdf8" />
               <Text className="text-sky-400 text-xs font-medium">
-                {t.gps_searching} ({20 - state.gpsSecondsElapsed}s)
+                {t.gps_searching} ({20 - state.gpsSecondsElapsed}{t.seconds})
               </Text>
             </>
           )}
@@ -494,6 +499,7 @@ export function WitnessReport() {
       {/* Forced SMS Toggle & Preview (FR-S4-06) */}
       <View className="mb-3">
         <Pressable
+                accessibilityRole="button"
           testID="force-sms-toggle"
           onPress={() => setForcedSms((prev) => !prev)}
           className={`p-2.5 rounded-xl border flex-row items-center justify-between ${
@@ -513,7 +519,7 @@ export function WitnessReport() {
                 forcedSms ? "text-purple-300" : "text-slate-400"
               }`}
             >
-              Forcer canal SMS (démo)
+              {t.forceSms}
             </Text>
           </View>
           <Text
@@ -523,7 +529,7 @@ export function WitnessReport() {
                 : "bg-slate-800 text-slate-500"
             }`}
           >
-            {forcedSms ? "ACTIF" : "OFF"}
+            {forcedSms ? t.active : t.off}
           </Text>
         </Pressable>
 
@@ -534,16 +540,16 @@ export function WitnessReport() {
           >
             <View className="flex-row justify-between items-center mb-1.5">
               <Text className="text-[10px] font-bold text-purple-300 uppercase">
-                RAW SMS SVX v1 (FR-S4-06)
+                {t.rawSms}
               </Text>
               <Text
                 testID="sms-char-counter"
                 className="font-mono text-[10px] text-purple-200"
               >
-                {svxResult.charCount} / 160 car.
+                {svxResult.charCount} / 160 {t.chars}
               </Text>
             </View>
-            <Text className="font-mono text-xs text-white bg-slate-900/90 p-2 rounded-lg border border-purple-700/40">
+            <Text style={{ writingDirection: "ltr", textAlign: "left" }} className="font-mono text-xs text-white bg-slate-900/90 p-2 rounded-lg border border-purple-700/40">
               {svxResult.svx}
             </Text>
           </View>
@@ -591,8 +597,9 @@ export function WitnessReport() {
 
             <View className="gap-3.5">
               <Pressable
+                accessibilityRole="button"
                 onPress={() => handleVictims(1)}
-                className="h-20 bg-slate-900 border-2 border-slate-700 active:border-red-500 rounded-2xl flex-row items-center justify-between px-5"
+                className="min-h-20 py-3 bg-slate-900 border-2 border-slate-700 active:border-red-500 rounded-2xl flex-row items-center justify-between px-5"
               >
                 <View className="flex-row items-center gap-3">
                   <View className="size-10 rounded-xl bg-slate-800 items-center justify-center">
@@ -605,8 +612,9 @@ export function WitnessReport() {
               </Pressable>
 
               <Pressable
+                accessibilityRole="button"
                 onPress={() => handleVictims(2)}
-                className="h-20 bg-slate-900 border-2 border-slate-700 active:border-red-500 rounded-2xl flex-row items-center justify-between px-5"
+                className="min-h-20 py-3 bg-slate-900 border-2 border-slate-700 active:border-red-500 rounded-2xl flex-row items-center justify-between px-5"
               >
                 <View className="flex-row items-center gap-3">
                   <View className="size-10 rounded-xl bg-slate-800 items-center justify-center">
@@ -619,8 +627,9 @@ export function WitnessReport() {
               </Pressable>
 
               <Pressable
+                accessibilityRole="button"
                 onPress={() => handleVictims(3)}
-                className="h-20 bg-slate-900 border-2 border-slate-700 active:border-red-500 rounded-2xl flex-row items-center justify-between px-5"
+                className="min-h-20 py-3 bg-slate-900 border-2 border-slate-700 active:border-red-500 rounded-2xl flex-row items-center justify-between px-5"
               >
                 <View className="flex-row items-center gap-3">
                   <View className="size-10 rounded-xl bg-slate-800 items-center justify-center">
@@ -649,8 +658,9 @@ export function WitnessReport() {
 
             <View className="gap-3.5">
               <Pressable
+                accessibilityRole="button"
                 onPress={() => handleConscious(1)}
-                className="h-20 bg-slate-900 border-2 border-slate-700 active:border-emerald-500 rounded-2xl flex-row items-center justify-between px-5"
+                className="min-h-20 py-3 bg-slate-900 border-2 border-slate-700 active:border-emerald-500 rounded-2xl flex-row items-center justify-between px-5"
               >
                 <View className="flex-row items-center gap-3">
                   <Ionicons name="checkmark-circle" size={28} color="#34d399" />
@@ -661,8 +671,9 @@ export function WitnessReport() {
               </Pressable>
 
               <Pressable
+                accessibilityRole="button"
                 onPress={() => handleConscious(0)}
-                className="h-20 bg-slate-900 border-2 border-slate-700 active:border-red-500 rounded-2xl flex-row items-center justify-between px-5"
+                className="min-h-20 py-3 bg-slate-900 border-2 border-slate-700 active:border-red-500 rounded-2xl flex-row items-center justify-between px-5"
               >
                 <View className="flex-row items-center gap-3">
                   <Ionicons name="close-circle" size={28} color="#f87171" />
@@ -673,8 +684,9 @@ export function WitnessReport() {
               </Pressable>
 
               <Pressable
+                accessibilityRole="button"
                 onPress={() => handleConscious(2)}
-                className="h-20 bg-slate-900 border-2 border-slate-700 active:border-amber-500 rounded-2xl flex-row items-center justify-between px-5"
+                className="min-h-20 py-3 bg-slate-900 border-2 border-slate-700 active:border-amber-500 rounded-2xl flex-row items-center justify-between px-5"
               >
                 <View className="flex-row items-center gap-3">
                   <Ionicons name="help-circle" size={28} color="#fbbf24" />
@@ -701,6 +713,7 @@ export function WitnessReport() {
 
             <View className="flex-row flex-wrap gap-2.5 mb-6">
               <Pressable
+                accessibilityRole="button"
                 onPress={() => handleDanger("fire")}
                 className={`w-[48%] p-4 rounded-xl border-2 items-center justify-center gap-2 ${
                   state.dangers.includes("fire")
@@ -719,6 +732,7 @@ export function WitnessReport() {
               </Pressable>
 
               <Pressable
+                accessibilityRole="button"
                 onPress={() => handleDanger("trapped")}
                 className={`w-[48%] p-4 rounded-xl border-2 items-center justify-center gap-2 ${
                   state.dangers.includes("trapped")
@@ -739,6 +753,7 @@ export function WitnessReport() {
               </Pressable>
 
               <Pressable
+                accessibilityRole="button"
                 onPress={() => handleDanger("bleeding")}
                 className={`w-[48%] p-4 rounded-xl border-2 items-center justify-center gap-2 ${
                   state.dangers.includes("bleeding")
@@ -759,6 +774,7 @@ export function WitnessReport() {
               </Pressable>
 
               <Pressable
+                accessibilityRole="button"
                 onPress={() => handleDanger("none")}
                 className={`w-[48%] p-4 rounded-xl border-2 items-center justify-center gap-2 ${
                   state.dangers.includes("none")
@@ -779,15 +795,16 @@ export function WitnessReport() {
           </View>
 
           <Pressable
+                accessibilityRole="button"
             onPress={handleSubmit}
             disabled={isSubmitting}
-            className="w-full h-16 rounded-2xl bg-red-600 active:bg-red-500 items-center justify-center shadow-lg"
+            className="w-full min-h-16 py-3 rounded-2xl bg-red-600 active:bg-red-500 items-center justify-center shadow-lg"
           >
             <Text className="text-white font-black text-base uppercase tracking-wider">
               {isSubmitting
                 ? t.submitting
                 : forcedSms
-                  ? "Envoyer par SMS (Émulé)"
+                  ? t.sendSms
                   : t.submit_button}
             </Text>
           </Pressable>
@@ -811,6 +828,8 @@ export function WitnessReport() {
                   {t.commune_label}
                 </Text>
                 <TextInput
+                  accessibilityLabel={t.commune_label}
+                  style={{ textAlign: isRtl ? "right" : "left", writingDirection: isRtl ? "rtl" : "ltr" }}
                   value={commune}
                   onChangeText={setCommune}
                   placeholder={t.commune_placeholder}
@@ -824,6 +843,8 @@ export function WitnessReport() {
                   {t.pk_label}
                 </Text>
                 <TextInput
+                  accessibilityLabel={t.pk_label}
+                  style={{ textAlign: isRtl ? "right" : "left", writingDirection: isRtl ? "rtl" : "ltr" }}
                   value={pkMarker}
                   onChangeText={setPkMarker}
                   placeholder={t.pk_placeholder}
@@ -835,21 +856,41 @@ export function WitnessReport() {
           </View>
 
           <Pressable
+                accessibilityRole="button"
             onPress={handleManualLocationSubmit}
             disabled={isSubmitting}
-            className="w-full h-16 rounded-2xl bg-red-600 active:bg-red-500 items-center justify-center shadow-lg mt-6"
+            className="w-full min-h-16 py-3 rounded-2xl bg-red-600 active:bg-red-500 items-center justify-center shadow-lg mt-6"
           >
             <Text className="text-white font-black text-sm uppercase tracking-wider">
               {isSubmitting
                 ? t.submitting
                 : forcedSms
-                  ? "Envoyer par SMS (Émulé)"
+                  ? t.sendSms
                   : t.confirm_location_button}
             </Text>
           </Pressable>
         </View>
       )}
 
+
+      {state.step === "submitting" && (
+        <View accessibilityLiveRegion="polite" className="items-center py-6">
+          <Text className="text-white text-center font-bold">{t.submitting}</Text>
+          <Text className="text-slate-300 text-center">{t.sendingHelp}</Text>
+        </View>
+      )}
+      {state.step === "error" && (
+        <View accessibilityLiveRegion="assertive" className="items-center py-6 gap-4">
+          <Text className="text-white text-center font-bold">{t.error_title}</Text>
+          <Text className="text-slate-300 text-center">{t.transmissionError}</Text>
+          <Pressable accessibilityRole="button" onPress={handleSubmit} className="bg-red-600 rounded-xl p-4">
+            <Text className="text-white font-bold">{t.retry_button}</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={handleReset} className="bg-slate-800 rounded-xl p-4">
+            <Text className="text-white font-bold">{t.new_report}</Text>
+          </Pressable>
+        </View>
+      )}
       {/* Success screen */}
       {state.step === "submitted" && (
         <View className="flex-1 items-center justify-center py-6">
@@ -867,7 +908,7 @@ export function WitnessReport() {
             <Text className="text-xs text-slate-400 mb-1">
               {t.success_incident_id}
             </Text>
-            <Text className="text-emerald-400 font-mono font-bold text-base">
+            <Text style={{ writingDirection: "ltr", textAlign: "left" }} className="text-emerald-400 font-mono font-bold text-base">
               #{state.submissionResult?.incidentId.slice(0, 8).toUpperCase()}
             </Text>
           </View>
@@ -877,21 +918,22 @@ export function WitnessReport() {
             <View className="w-full bg-purple-950/40 border border-purple-800 rounded-2xl p-4 mb-4">
               <View className="flex-row justify-between items-center mb-1">
                 <Text className="text-xs text-purple-300 font-bold">
-                  Accusé de réception (SMS)
+                  {t.smsAck}
                 </Text>
                 <Text className="text-[10px] text-purple-200 bg-purple-900/60 px-2 py-0.5 rounded">
-                  Émulé
+                  {t.emulated}
                 </Text>
               </View>
-              <Text className="text-white font-mono font-bold text-sm bg-slate-900 p-2.5 rounded-lg border border-purple-700/50">
+              <Text style={{ writingDirection: "ltr", textAlign: "left" }} className="text-white font-mono font-bold text-sm bg-slate-900 p-2.5 rounded-lg border border-purple-700/50">
                 {smsAck}
               </Text>
             </View>
           )}
 
           <Pressable
+                accessibilityRole="button"
             onPress={handleReset}
-            className="w-full h-14 bg-slate-800 active:bg-slate-700 rounded-xl items-center justify-center"
+            className="w-full min-h-14 py-3 bg-slate-800 active:bg-slate-700 rounded-xl items-center justify-center"
           >
             <Text className="text-white font-bold text-sm uppercase">
               {t.new_report}

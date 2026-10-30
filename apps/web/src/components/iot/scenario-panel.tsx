@@ -64,7 +64,7 @@ export function ScenarioPanel({
         </Button>
         <Button type="button" size="lg" variant="outline" onClick={() => onPress("reset")}>
           <RotateCcwIcon aria-hidden="true" />
-          Reset <Kbd>R</Kbd>
+          Réinitialiser <Kbd>R</Kbd>
         </Button>
       </div>
 

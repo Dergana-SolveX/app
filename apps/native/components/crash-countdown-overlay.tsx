@@ -1,18 +1,21 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Pressable, StyleSheet, Text, Vibration, View } from "react-native";
-import { type CrashCountdownState } from "@solvex-dergana/shared";
+import { Animated, Pressable, StyleSheet, ScrollView, Text, Vibration, View } from "react-native";
+import { getLabels, type Locale, type CrashCountdownState } from "@solvex-dergana/shared";
 
 interface CrashCountdownOverlayProps {
   state: CrashCountdownState;
+  locale?: Locale;
   onCancel: () => void;
   onReset: () => void;
 }
 
 export function CrashCountdownOverlay({
   state,
+  locale = "fr",
   onCancel,
   onReset,
 }: CrashCountdownOverlayProps) {
+  const t = getLabels(locale, "crash");
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Pulse animation and vibration loop during active countdown
@@ -58,7 +61,7 @@ export function CrashCountdownOverlay({
   const isExpired = state.status === "expired";
 
   return (
-    <View style={styles.overlay} testID="crash-countdown-overlay">
+    <View style={[styles.overlay, { direction: locale === "ar" ? "rtl" : "ltr" }]} testID="crash-countdown-overlay">
       {/* Background warning tint */}
       <View
         style={[
@@ -71,18 +74,14 @@ export function CrashCountdownOverlay({
         ]}
       />
 
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container}>
         {isCountdown && (
           <>
             <View style={styles.headerBadge}>
               <Text style={styles.headerBadgeText}>
-                ⚠️ IMPACT DÉTECTÉ · ALERTE AUTOMATIQUE
+                {t.detected}
               </Text>
             </View>
-
-            <Text style={styles.arabicHeader}>
-              تم رصد اصطدام قوي · سيتم إرسال الإنذار
-            </Text>
 
             <Animated.View
               style={[
@@ -93,7 +92,7 @@ export function CrashCountdownOverlay({
               ]}
             >
               <Text style={styles.timerNumber}>{state.secondsRemaining}</Text>
-              <Text style={styles.timerUnit}>SECONDES</Text>
+              <Text style={styles.timerUnit}>{t.seconds}</Text>
             </Animated.View>
 
             <Text style={styles.helperText}>
@@ -104,7 +103,7 @@ export function CrashCountdownOverlay({
             {/* Giant Cancel Button (PRD FR-S4-01: JE VAIS BIEN — ANNULER) */}
             <Pressable
               testID="cancel-crash-button"
-              accessibilityLabel="Annuler l'alerte"
+              accessibilityLabel={t.cancelLabel}
               accessibilityRole="button"
               onPress={onCancel}
               style={({ pressed }) => [
@@ -114,14 +113,13 @@ export function CrashCountdownOverlay({
             >
               <Text style={styles.cancelButtonIcon}>✋</Text>
               <Text style={styles.cancelButtonMainText}>
-                JE VAIS BIEN — ANNULER
+                {t.cancel}
               </Text>
-              <Text style={styles.cancelButtonSubText}>أنا بخير — إلغاء</Text>
             </Pressable>
 
             {state.simulated && (
               <View style={styles.simulatedTag}>
-                <Text style={styles.simulatedTagText}>TEST SIMULÉ (DÉMO)</Text>
+                <Text style={styles.simulatedTagText}>{t.simulated}</Text>
               </View>
             )}
           </>
@@ -130,19 +128,15 @@ export function CrashCountdownOverlay({
         {isCancelled && (
           <View style={styles.resultCard}>
             <Text style={styles.resultIcon}>✅</Text>
-            <Text style={styles.resultTitle}>ALERTE ANNULÉE</Text>
-            <Text style={styles.resultArabic}>تم إلغاء الإنذار بنجاح</Text>
-            <Text style={styles.resultDescription}>
-              Vous avez indiqué aller bien. Aucun appel ni message d&apos;urgence
-              n&apos;a été envoyé. L&apos;événement a été consigné dans le journal
-              local.
-            </Text>
+            <Text style={styles.resultTitle}>{t.cancelled}</Text>
+            <Text style={styles.resultDescription}>{t.cancelledHelp}</Text>
             <Pressable
+              accessibilityRole="button"
               testID="close-cancelled-button"
               onPress={onReset}
               style={styles.returnButton}
             >
-              <Text style={styles.returnButtonText}>Retour à l&apos;accueil</Text>
+              <Text style={styles.returnButtonText}>{t.home}</Text>
             </Pressable>
           </View>
         )}
@@ -150,34 +144,37 @@ export function CrashCountdownOverlay({
         {(isSending || isExpired) && (
           <View style={styles.resultCard}>
             <Text style={styles.resultIcon}>📡</Text>
-            <Text style={styles.resultTitle}>ENVOI DE L&apos;ALERTE...</Text>
-            <Text style={styles.resultArabic}>جارٍ إرسال نداء الاستغاثة...</Text>
-            <Text style={styles.resultDescription}>
-              Transmission prioritaire des coordonnées GPS et du profil médical
-              aux centres de secours 14 / 154.
-            </Text>
+            <Text style={styles.resultTitle}>{t.sending}</Text>
+            <Text style={styles.resultDescription}>{t.sendingHelp}</Text>
+          </View>
+        )}
+
+        {state.status === "error" && (
+          <View style={styles.resultCard} accessibilityLiveRegion="assertive">
+            <Text style={styles.resultTitle}>{t.error}</Text>
+            <Text style={styles.resultDescription}>{t.errorHelp}</Text>
+            <Pressable accessibilityRole="button" onPress={onReset} style={styles.returnButton}>
+              <Text style={styles.returnButtonText}>{t.home}</Text>
+            </Pressable>
           </View>
         )}
 
         {isSent && (
           <View style={styles.resultCard}>
             <Text style={styles.resultIcon}>🚨</Text>
-            <Text style={styles.resultTitle}>SECOURS ALERTÉS</Text>
-            <Text style={styles.resultArabic}>تم إخطار الحماية المدنية</Text>
-            <Text style={styles.resultDescription}>
-              Dossier d&apos;urgence créé auprès de la Protection Civile. Restez
-              calme et en sécurité si possible.
-            </Text>
+            <Text style={styles.resultTitle}>{t.sent}</Text>
+            <Text style={styles.resultDescription}>{t.sentHelp}</Text>
             <Pressable
+              accessibilityRole="button"
               testID="close-sent-button"
               onPress={onReset}
               style={styles.returnButton}
             >
-              <Text style={styles.returnButtonText}>Terminer</Text>
+              <Text style={styles.returnButtonText}>{t.done}</Text>
             </Pressable>
           </View>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -201,7 +198,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(19, 78, 74, 0.96)", // dark teal
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingVertical: 48,
     justifyContent: "center",

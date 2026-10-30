@@ -1,6 +1,13 @@
 /** "à l'instant", "il y a 3 min", "il y a 2 h", "il y a 4 j" (French, for dense lists). */
-export function timeAgo(from: Date | string, now: Date = new Date()): string {
+export function timeAgo(from: Date | string, now: Date = new Date(), locale: "fr" | "ar" = "fr"): string {
   const seconds = Math.max(0, Math.round((now.getTime() - new Date(from).getTime()) / 1000));
+  if (locale === "ar") {
+    const relative = new Intl.RelativeTimeFormat("ar", { numeric: "auto" });
+    if (seconds < 30) return relative.format(0, "second");
+    if (seconds < 3600) return relative.format(-Math.max(1, Math.round(seconds / 60)), "minute");
+    if (seconds < 86400) return relative.format(-Math.round(seconds / 3600), "hour");
+    return relative.format(-Math.round(seconds / 86400), "day");
+  }
   if (seconds < 30) return "à l'instant";
   if (seconds < 3600) return `il y a ${Math.max(1, Math.round(seconds / 60))} min`;
   if (seconds < 86400) return `il y a ${Math.round(seconds / 3600)} h`;

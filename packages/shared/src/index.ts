@@ -38,3 +38,5 @@ export * from "./witness/i18n";
 export * from "./crash/phoneTrigger";
 export * from "./crash/countdown";
 export * from "./outbox/manager";
+
+export * from "./i18n/labels";

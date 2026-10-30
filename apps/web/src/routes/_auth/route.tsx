@@ -1,3 +1,5 @@
+import { LocaleProvider } from "@/components/locale-provider";
+import { useLocation } from "@tanstack/react-router";
 import { landingPathFor } from "@solvex-dergana/shared";
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { ShieldOffIcon } from "lucide-react";
@@ -22,6 +24,7 @@ export const Route = createFileRoute("/_auth")({
 });
 
 function AuthLayout() {
+  const pathname = useLocation({ select: location => location.pathname });
   const { session, appUser } = Route.useRouteContext();
 
   if (!appUser || !landingPathFor(appUser)) {
@@ -41,8 +44,8 @@ function AuthLayout() {
   }
 
   return (
-    <AppShell user={session.data!.user} appUser={appUser}>
+    <LocaleProvider key={pathname}><AppShell user={session.data!.user} appUser={appUser}>
       <Outlet />
-    </AppShell>
+    </AppShell></LocaleProvider>
   );
 }

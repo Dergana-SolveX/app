@@ -70,7 +70,7 @@ export default function IotShowcase() {
     <div ref={root} className="dark min-h-[calc(100dvh-4rem)] bg-background p-4 text-foreground md:p-6">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight md:text-2xl">IoT Showcase</h1>
+          <h1 className="text-xl font-extrabold tracking-tight md:text-2xl">Démonstration IoT</h1>
           <p className="text-sm text-muted-foreground">
             Mode <strong className="text-foreground">Puce simulée</strong> : la puce tourne ici en temps réel, ses alertes sont reçues par le vrai serveur.
           </p>
@@ -117,7 +117,7 @@ export default function IotShowcase() {
             )}
           </section>
           <p className="text-xs text-muted-foreground">
-            Touches : <kbd className="font-mono">1</kbd>–<kbd className="font-mono">5</kbd> scénarios · <kbd className="font-mono">Espace</kbd> annuler · <kbd className="font-mono">R</kbd> reset · <kbd className="font-mono">F</kbd> plein écran
+            Touches : <kbd className="font-mono">1</kbd>–<kbd className="font-mono">5</kbd> scénarios · <kbd className="font-mono">Espace</kbd> annuler · <kbd className="font-mono">R</kbd> réinitialiser · <kbd className="font-mono">F</kbd> plein écran
           </p>
         </div>
       </div>
