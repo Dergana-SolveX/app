@@ -1,5 +1,6 @@
 import {
   createChip,
+  createOrientationFilter,
   customTrace,
   generateTrace,
   TRACE_LABEL,
@@ -32,6 +33,8 @@ export type Transmission = {
   /** The exact SVX message, when it went by SMS. */
   sms: string | null;
   error: string | null;
+  sentAtMs?: number;
+  ackedAtMs?: number | null;
 };
 
 export type Snapshot = {
@@ -49,6 +52,9 @@ export type Snapshot = {
   /** A scenario is running or the alert is still going out: the scenario buttons wait. */
   busy: boolean;
   forceSms: boolean;
+  orientation: { rollDeg: number; pitchDeg: number };
+  lastImpactMs: number | null;
+  isImpacting: boolean;
 };
 
 const CHART_WINDOW_MS = 6000;
@@ -65,6 +71,11 @@ function createEngine() {
   let forceSms = false;
   let chip = createChip({ forceSms });
   chip.reset(0);
+
+  let orientationFilter = createOrientationFilter();
+  let angles = { rollDeg: 0, pitchDeg: 0 };
+  let lastSampleClock = -1;
+  let lastImpactMs: number | null = null;
 
   let trace: Trace | null = null;
   let traceStartMs = 0;
@@ -106,7 +117,19 @@ function createEngine() {
     const packet = record.data.packet as Packet;
     const attempt = record.data.attempt as number;
     const channel = record.type === "sms_sent" ? "sms" : "http";
-    const tx: Transmission = { id: ++transmissionId, attempt, channel, status: "pending", packet, incidentId: null, ack: null, sms: null, error: null };
+    const tx: Transmission = {
+      id: ++transmissionId,
+      attempt,
+      channel,
+      status: "pending",
+      packet,
+      incidentId: null,
+      ack: null,
+      sms: null,
+      error: null,
+      sentAtMs: clock,
+      ackedAtMs: null,
+    };
     transmissions.push(tx);
     void trpcClient.chip.transmit
       .mutate({
@@ -117,7 +140,14 @@ function createEngine() {
         eventAt: Math.round(Date.now() - (clock - packet.eventMs)),
       })
       .then((answer) => {
-        Object.assign(tx, { status: "ok", incidentId: answer.incidentId, ack: answer.ack, sms: answer.sms });
+        const ackClock = performance.now() - startedAt;
+        Object.assign(tx, {
+          status: "ok",
+          incidentId: answer.incidentId,
+          ack: answer.ack,
+          sms: answer.sms,
+          ackedAtMs: ackClock,
+        });
         responses.push({ ok: true, attempt });
       })
       .catch((error: Error) => {
@@ -132,10 +162,17 @@ function createEngine() {
     for (const record of batch) {
       records.push(record);
       if (record.type === "impact_rejected") rejected = String(record.data.reason);
-      if (record.type === "impact_detected" && !record.data.merged) rejected = null;
+      if (record.type === "impact_detected") {
+        lastImpactMs = clock;
+        if (!record.data.merged) rejected = null;
+      }
       if (record.type === "state_change" && record.data.to === "BOOT") {
         transmissions.length = 0;
         rejected = null;
+        lastImpactMs = null;
+        orientationFilter = createOrientationFilter();
+        angles = { rollDeg: 0, pitchDeg: 0 };
+        lastSampleClock = -1;
       }
       if (record.type === "http_sent" || record.type === "sms_sent") transmit(record, clock);
     }
@@ -153,6 +190,10 @@ function createEngine() {
         chip = createChip({ forceSms });
       }
       last = null;
+      orientationFilter = createOrientationFilter();
+      angles = { rollDeg: 0, pitchDeg: 0 };
+      lastSampleClock = -1;
+      lastImpactMs = null;
       out.push(...chip.reset(clock));
       return;
     }
@@ -178,6 +219,10 @@ function createEngine() {
         trace = null;
         playing = null;
         pending = null;
+        orientationFilter = createOrientationFilter();
+        angles = { rollDeg: 0, pitchDeg: 0 };
+        lastSampleClock = -1;
+        lastImpactMs = null;
         out.push(...chip.reset(clock));
       } else {
         out.push(...chip.press(button, clock));
@@ -194,6 +239,11 @@ function createEngine() {
         const sample = { ...trace.samples[index]!, tMs: traceStartMs + trace.samples[index]!.tMs };
         out.push(...chip.sample(sample));
         pushChart(sample.tMs, Math.hypot(sample.ax, sample.ay, sample.az));
+
+        const dtS = lastSampleClock >= 0 ? Math.max(0.001, (sample.tMs - lastSampleClock) / 1000) : 0.02;
+        lastSampleClock = sample.tMs;
+        angles = orientationFilter.update(sample, dtS);
+
         last = sample;
         index += 1;
       }
@@ -206,6 +256,10 @@ function createEngine() {
       const rest: SensorSample = { tMs: clock, ax: 0, ay: last?.ay ?? 0, az: last?.az ?? 1, gx: 0, gy: 0, gz: 0, smoke: 0, flame: false };
       out.push(...chip.sample(rest));
       pushChart(clock, Math.hypot(rest.ax, rest.ay, rest.az));
+
+      const dtS = lastSampleClock >= 0 ? Math.max(0.001, (clock - lastSampleClock) / 1000) : 0.02;
+      lastSampleClock = clock;
+      angles = orientationFilter.update(rest, dtS);
     }
     out.push(...chip.advance(clock));
     absorb(out, clock);
@@ -221,6 +275,7 @@ function createEngine() {
   function snapshot(): Snapshot {
     const clock = performance.now() - startedAt;
     const state = chip.state;
+    const isImpacting = state === "IMPACT" || (lastImpactMs !== null && clock - lastImpactMs < 800);
     return {
       state,
       confirmRemainingMs: chip.confirmRemainingMs(clock),
@@ -232,6 +287,9 @@ function createEngine() {
       rejected,
       busy: Boolean(trace) || state === "CONFIRM" || state === "SEND" || state === "AWAIT_ACK",
       forceSms,
+      orientation: { ...angles },
+      lastImpactMs,
+      isImpacting,
     };
   }
 
