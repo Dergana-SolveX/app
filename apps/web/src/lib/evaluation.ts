@@ -7,6 +7,8 @@ export type EvaluationInput = {
   recSeverity: Severity;
   recUnits: { type: string; count: number; reason?: string }[] | null;
   recAuthority: "surete_nationale" | "gendarmerie_nationale" | null;
+  authorityReason?: string | null;
+  authorityNotification?: { notifiedAt: string; phone: string; authority: string } | null;
   reasons: { fr: string; ar: string }[];
   vittelPrefill: Partial<Record<"l1" | "l2" | "l3" | "l4" | "l5", Record<string, PrefillItem>>> | null;
 };
@@ -42,7 +44,13 @@ export function evaluationView(card: EvaluationInput) {
       const name = UNIT_NAMES[unit.type] ?? unit.type;
       return { name: unit.count > 1 ? `${name} × ${unit.count}` : name, reason: unit.reason ?? null };
     }),
-    authority: card.recAuthority ? AUTHORITIES[card.recAuthority] : null,
+    authority: card.recAuthority
+      ? {
+          ...AUTHORITIES[card.recAuthority],
+          reason: card.authorityReason ?? null,
+          notification: card.authorityNotification ?? null,
+        }
+      : null,
     vittel: Object.entries(card.vittelPrefill ?? {}).flatMap(([level, items]) =>
       Object.entries(items ?? {}).map(([label, item]) => ({
         level: `Niveau ${level.slice(1)}`,

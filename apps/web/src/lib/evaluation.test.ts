@@ -27,10 +27,32 @@ describe("evaluationView (what the dispatcher reads on the card)", () => {
   });
 
   it("names the authority with the numbers to call", () => {
-    expect(evaluationView(base).authority).toEqual({ name: "Gendarmerie Nationale", phones: "1055" });
-    expect(evaluationView({ ...base, recAuthority: "surete_nationale" }).authority).toEqual({
+    expect(evaluationView(base).authority).toMatchObject({ name: "Gendarmerie Nationale", phones: "1055" });
+    expect(evaluationView({ ...base, recAuthority: "surete_nationale" }).authority).toMatchObject({
       name: "Sûreté Nationale",
       phones: "17 / 1548",
+    });
+  });
+
+  it("includes the routing reason and notification status on the authority", () => {
+    const view = evaluationView({
+      ...base,
+      authorityReason: "Hors périmètre urbain (A1)",
+      authorityNotification: {
+        notifiedAt: "2026-10-30T19:00:00.000Z",
+        phone: "1055",
+        authority: "gendarmerie_nationale",
+      },
+    });
+    expect(view.authority).toEqual({
+      name: "Gendarmerie Nationale",
+      phones: "1055",
+      reason: "Hors périmètre urbain (A1)",
+      notification: {
+        notifiedAt: "2026-10-30T19:00:00.000Z",
+        phone: "1055",
+        authority: "gendarmerie_nationale",
+      },
     });
   });
 
