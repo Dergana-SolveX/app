@@ -29,7 +29,8 @@
     "react-dom": "^19.3.0",
     "sonner": "catalog:",
     "varlock": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@solvex-dergana/shared": "workspace:*"
   },
   "devDependencies": {
     "@solvex-dergana/config": "workspace:*",

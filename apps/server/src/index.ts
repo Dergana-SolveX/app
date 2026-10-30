@@ -38,4 +38,8 @@ app.get("/", (c) => {
   return c.text("OK");
 });
 
-export default app;
+// The API listens on the port of BETTER_AUTH_URL (default 3000), so changing one value moves it.
+export default {
+  port: Number(new URL(ENV.BETTER_AUTH_URL).port) || 3000,
+  fetch: app.fetch,
+};

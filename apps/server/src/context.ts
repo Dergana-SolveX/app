@@ -12,9 +12,16 @@ export async function createContext({ context }: CreateContextOptions): Promise<
   const session = await auth.api.getSession({
     headers: context.req.raw.headers,
   });
+  const appUser = session
+    ? ((await db.query.appUsers.findFirst({
+        where: { authUserId: session.user.id },
+        columns: { id: true, role: true, unitId: true, hospitalId: true },
+      })) ?? null)
+    : null;
   return {
     db,
     session,
+    appUser,
   };
 }
 
