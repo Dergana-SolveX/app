@@ -38,8 +38,8 @@ const QUESTIONS = [
 ];
 
 const ONE_TO = (max: number) => (answer: string) => /^[1-9]$/.test(answer) && Number(answer) <= max;
-/** Does this answer fit question number `step`? The place question takes any text. */
-const FITS = [ONE_TO(3), ONE_TO(3), ONE_TO(4), (answer: string) => answer.trim() !== "", ONE_TO(2)];
+/** Does this answer fit question number `step`? The place question takes any text (an empty one skips it). */
+const FITS = [ONE_TO(3), ONE_TO(3), ONE_TO(4), () => true, ONE_TO(2)];
 
 /** The answers given so far that fit their question, and whether an answer that did not fit was given. */
 function readAnswers(text: string) {
@@ -60,7 +60,7 @@ function factsFrom([victims, conscious, danger, place]: string[]) {
     fire: danger === undefined ? null : danger === "1",
     trapped: danger === undefined ? null : danger === "2",
     bleeding: danger === undefined ? null : danger === "3",
-    typedPlace: place === undefined || place === "0" ? null : place,
+    typedPlace: place === undefined || place.trim() === "" || place === "0" ? null : place,
   };
 }
 
@@ -69,6 +69,10 @@ function parseCellId(cellId: string | null) {
   const match = /^(\d+)-(\d+)-(\d+)-(\d+)$/.exec(cellId ?? "");
   return match ? { mcc: +match[1]!, mnc: +match[2]!, lac: +match[3]!, cid: +match[4]! } : null;
 }
+
+/** The answer to a request on a session that is already over: a repeat of the last one, or a caller who comes back late. */
+const closed = (session: { incidentId: string | null }): UssdResponse =>
+  session.incidentId ? { type: "END", message: sentMessage(session.incidentId) } : { type: "END", message: "Session terminee." };
 
 const sentMessage = (incidentId: string) => `Alerte envoyee aux secours. Reference : ${ackFor(incidentId).replace("SVXACK#", "")}`;
 
@@ -112,8 +116,8 @@ async function fileSession({ db, events }: Deps, session: Session, at: Date) {
         trapped: facts.trapped,
         bleeding: facts.bleeding,
         rawPayload: session.text,
-        // Saved on a timeout or a wrong key: not every question was answered.
-        parseErrors: valid.length < FITS.length - 1 ? ["partial"] : [],
+        // Saved on a timeout or a wrong key: the caller did not get to the end (including the confirmation).
+        parseErrors: valid.length < FITS.length ? ["partial"] : [],
         senderMsisdnHash: session.msisdnHash,
         dedupeKey: sha("sha1", `ussd${session.sessionId}`),
         emulated: session.emulated,
@@ -136,15 +140,17 @@ async function fileSession({ db, events }: Deps, session: Session, at: Date) {
  */
 export async function handleUssd(
   deps: Deps,
-  request: UssdRequest,
+  incoming: UssdRequest,
   { emulated, now = new Date() }: { emulated: boolean; now?: Date },
 ): Promise<UssdResponse> {
   const { db } = deps;
+  // An emulator and a real operator may pick the same session id: they are different sessions.
+  const request = { ...incoming, sessionId: `${emulated ? "emu" : "op"}:${incoming.sessionId}` };
   const [known] = await db.select().from(ussdSessions).where(eq(ussdSessions.sessionId, request.sessionId));
-  if (known?.status === "done") {
-    // A repeat of the last request, or the caller coming back after the session was closed on a timeout.
-    return known.incidentId ? { type: "END", message: sentMessage(known.incidentId) } : { type: "END", message: "Session terminee." };
+  if (known && known.msisdnHash !== sha("sha256", request.phoneNumber)) {
+    return { type: "END", message: "Session invalide." };
   }
+  if (known?.status === "done") return closed(known);
 
   const [session] = await db
     .insert(ussdSessions)
@@ -160,12 +166,17 @@ export async function handleUssd(
       target: ussdSessions.sessionId,
       // The operator may supply the cell only on some requests: keep the one we already know.
       set: { text: request.text, updatedAt: now, ...(request.cellId ? { cellId: request.cellId } : {}) },
+      setWhere: eq(ussdSessions.status, "open"), // the sweeper may have just closed it
     })
     .returning();
+  if (!session) {
+    const [late] = await db.select().from(ussdSessions).where(eq(ussdSessions.sessionId, request.sessionId));
+    return closed(late ?? { incidentId: null });
+  }
 
   const { valid, refused } = readAnswers(request.text);
   if (refused) {
-    await fileSession(deps, session!, now); // what was answered before the wrong key is not lost
+    await fileSession(deps, session, now); // what was answered before the wrong key is not lost
     return { type: "END", message: "Choix invalide. Recomposez *140#." };
   }
   if (valid.length < FITS.length) return { type: "CON", message: QUESTIONS[valid.length]! };
@@ -174,7 +185,7 @@ export async function handleUssd(
     await db.update(ussdSessions).set({ status: "done" }).where(eq(ussdSessions.sessionId, request.sessionId));
     return { type: "END", message: "Alerte annulee." };
   }
-  const incident = await fileSession(deps, session!, now);
+  const incident = await fileSession(deps, session, now);
   return { type: "END", message: incident ? sentMessage(incident.id) : "Alerte envoyee aux secours." };
 }
 
@@ -191,7 +202,12 @@ export async function sweepUssdSessions(deps: Deps, now = new Date()): Promise<n
   let filed = 0;
   for (const session of quiet) {
     // The alert is dated when the caller last spoke, not when we noticed the silence.
-    if (await fileSession(deps, session, session.updatedAt)) filed++;
+    try {
+      if (await fileSession(deps, session, session.updatedAt)) filed++;
+    } catch (error) {
+      // It stays open and is tried again at the next sweep; the sessions behind it are not held back.
+      console.error(`[ussd] could not save session ${session.sessionId}`, error);
+    }
   }
   return filed;
 }

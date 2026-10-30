@@ -61,6 +61,22 @@ describe("POST /webhooks/ussd (the aggregator callback)", () => {
     expect((await call(fields, { authorization: "Bearer nope" })).status).toBe(401);
   });
 
+  it("answers a caller in plain text, never a raw error, when the service itself fails", async () => {
+    const broken = createUssdApp({ secret: SECRET, db: {} as never, events: createEventBus() });
+    const quiet = console.error;
+    console.error = () => {};
+
+    const response = await broken.request("/webhooks/ussd", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
+      body: JSON.stringify({ sessionId: "X", serviceCode: "*140#", phoneNumber: "+213550000042", text: "" }),
+    });
+    console.error = quiet;
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toMatch(/^END .*(indisponible|reessayez)/i);
+  });
+
   it("refuses a request that lacks a session or a phone number", async () => {
     const { call } = await setup();
     expect((await call({ serviceCode: "*140#", text: "" })).status).toBe(400);

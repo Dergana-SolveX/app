@@ -40,8 +40,14 @@ export function createUssdApp({ secret, db, events }: { secret: string; db: Data
     if (!parsed.success) return c.json({ error: "invalid_body" }, 400);
 
     // A real operator is not our emulator: its alerts are not flagged emulated.
-    const { type, message } = await handleUssd({ db, events }, parsed.data, { emulated: false });
-    return c.text(`${type} ${message}`);
+    try {
+      const { type, message } = await handleUssd({ db, events }, parsed.data, { emulated: false });
+      return c.text(`${type} ${message}`);
+    } catch (error) {
+      // The caller's phone shows whatever we answer: a readable END, not an error page.
+      console.error("[ussd] request failed", error);
+      return c.text("END Service indisponible, reessayez plus tard.");
+    }
   });
 
   return app;

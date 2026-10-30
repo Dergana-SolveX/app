@@ -42,22 +42,28 @@ export default function UssdPhone({ from }: { from: string }) {
     }),
   );
 
+  /** Sends one request; resolves to whether it worked (a failure has already been shown as a toast). */
   const send = async (sessionId: string, inputs: string[]) => {
-    const screen = await dial.mutateAsync({
-      sessionId,
-      phoneNumber: from,
-      text: inputs.join("*"),
-      near: { lat: point.lat, lng: point.lng },
-    });
-    setSession({ id: sessionId, inputs, screen });
+    try {
+      const screen = await dial.mutateAsync({
+        sessionId,
+        phoneNumber: from,
+        text: inputs.join("*"),
+        near: { lat: point.lat, lng: point.lng },
+      });
+      setSession({ id: sessionId, inputs, screen });
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const start = () => void send(crypto.randomUUID(), []);
   const reply = () => {
     if (!session || answer.trim() === "") return;
     const inputs = [...session.inputs, answer.trim()];
-    setAnswer("");
-    void send(session.id, inputs);
+    // The answer stays in the box until the request has gone through, so a failure does not lose it.
+    void send(session.id, inputs).then((sent) => sent && setAnswer(""));
   };
 
   const ended = session?.screen.type === "END";

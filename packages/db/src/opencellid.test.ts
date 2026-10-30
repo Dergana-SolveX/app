@@ -43,6 +43,22 @@ describe("importOpenCellId", () => {
     expect(towers[0]).toMatchObject({ lat: 36.73, lng: 3.19, rangeM: 800 });
   });
 
+  it("skips truncated lines instead of reading empty fields as zero, and never claims a precision it does not have", async () => {
+    const db = await createTestDb();
+
+    const result = await importOpenCellId(db, [
+      HEADER,
+      "GSM,603,,,,0,3.1,36.7,", // empty fields are not zeros
+      "GSM,603,1,100,5,0,3.1,36.7,", // no range
+      row("GSM", 603, 1, 0, 6, 3.1, 36.7, 1000), // area 0 is a placeholder, not a real area
+      row("GSM", 603, 1, 100, 7, 3.1836, 36.7255, 0), // an unknown (0) range must not become a 1 m fix
+    ]);
+
+    expect(result).toEqual({ imported: 1, skipped: 3 });
+    const [tower] = await db.select().from(cellTowers);
+    expect(tower).toMatchObject({ cid: 7, rangeM: 500 }); // no cell covers less than a few hundred metres
+  });
+
   it("copes with the same tower listed twice in one file (the last line wins)", async () => {
     const db = await createTestDb();
 

@@ -188,3 +188,64 @@ describe("USSD: a session that goes quiet (120 s)", () => {
     expect(await incidents()).toHaveLength(1);
   });
 });
+
+describe("USSD: hardening", () => {
+  it("marks an alert as partial when the caller never confirmed (the line dropped at the last question)", async () => {
+    const { dial, deps, incidents, db } = await setup();
+    for (const text of ["", "2", "2*1", "2*1*1", "2*1*1*0"]) await dial(text);
+
+    await sweepUssdSessions(deps, after(200));
+
+    const [incident] = await incidents();
+    expect((await getIncident(db, incident!.id))!.alerts[0]!.parseErrors).toEqual(["partial"]);
+  });
+
+  it("does not mark an alert partial when the caller confirmed it", async () => {
+    const { dial, incidents, db } = await setup();
+    for (const text of ["", "2", "2*1", "2*1*1", "2*1*1*0", "2*1*1*0*1"]) await dial(text);
+
+    const [incident] = await incidents();
+    expect((await getIncident(db, incident!.id))!.alerts[0]!.parseErrors).toEqual([]);
+  });
+
+  it("takes an empty answer to the place question as 'skip'", async () => {
+    const { dial, incidents } = await setup();
+    for (const text of ["", "2", "2*1", "2*1*1"]) await dial(text);
+
+    expect(await dial("2*1*1*")).toMatchObject({ type: "CON", message: expect.stringMatching(/envoyer/i) });
+    expect((await dial("2*1*1**1")).type).toBe("END");
+    expect(await incidents()).toHaveLength(1);
+  });
+
+  it("keeps a real operator's session apart from an emulated one with the same session id", async () => {
+    const real = await setup({ emulated: false });
+    const { handleUssd: handle } = await import("./ussd");
+    const asEmulator = (text: string) =>
+      handle(real.deps, { sessionId: "S1", serviceCode: "*140#", phoneNumber: PHONE, text }, { emulated: true, now: T0 });
+    for (const text of ["", "2", "2*1", "2*1*1", "2*1*1*0"]) await real.dial(text);
+
+    for (const text of ["", "1", "1*1", "1*1*4", "1*1*4*0", "1*1*4*0*1"]) await asEmulator(text); // same id, other operator
+    await real.dial("2*1*1*0*1");
+
+    const incidents = await real.incidents();
+    expect(incidents.map((i) => [i.emulated, i.estimatedVictims]).sort()).toEqual([[false, 2], [true, 1]]);
+  });
+
+  it("keeps saving the other quiet sessions when one of them fails", async () => {
+    const world = await setup();
+    for (const session of ["A", "B"]) for (const text of ["", "2"]) await world.dial(text, { session });
+    let first = true;
+    const flaky = {
+      ...world.deps,
+      events: { ...world.deps.events, publish: (event: never) => {
+        if (first) { first = false; throw new Error("boom"); }
+        return world.deps.events.publish(event);
+      } },
+    };
+
+    const filed = await sweepUssdSessions(flaky as typeof world.deps, after(200));
+
+    expect(filed).toBeGreaterThanOrEqual(1); // the second session was not held back by the first
+    expect((await world.incidents()).length).toBeGreaterThanOrEqual(1);
+  });
+});

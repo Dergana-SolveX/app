@@ -7,6 +7,8 @@ import { cellTowers } from "./schema";
 const ALGERIA_MCC = 603;
 const BATCH = 1_000;
 const MAX_INT32 = 2_147_483_647;
+/** No cell covers less than this, whatever the file says (0 means "unknown"): never claim a 1 m fix. */
+const MIN_RANGE_M = 500;
 
 type Row = typeof cellTowers.$inferInsert;
 
@@ -15,13 +17,16 @@ type Row = typeof cellTowers.$inferInsert;
  * Returns null for another country, a header, or anything we cannot trust.
  */
 function parseLine(line: string): Row | null {
-  const [, mcc, net, area, cell, , lon, lat, range] = line.split(",");
-  const [mccN, mnc, lac, cid, lng, latN, rangeM] = [mcc, net, area, cell, lon, lat, range].map(Number);
-  if (mccN !== ALGERIA_MCC) return null;
-  const whole = [mnc, lac, cid].every((n) => Number.isInteger(n) && n! >= 0 && n! <= MAX_INT32);
-  if (!whole || !Number.isFinite(lng) || !Number.isFinite(latN) || !Number.isFinite(rangeM)) return null;
-  if (Math.abs(latN!) > 90 || Math.abs(lng!) > 180) return null;
-  return { mcc: ALGERIA_MCC, mnc: mnc!, lac: lac!, cid: cid!, lat: latN!, lng: lng!, rangeM: Math.max(1, Math.round(rangeM!)), source: "opencellid" };
+  const [, mcc, net, area, cell, , lon, lat, range] = line.split(",").map((field) => field.trim());
+  const whole = (field: string | undefined) => (field !== undefined && /^\d+$/.test(field) ? Number(field) : null);
+  const decimal = (field: string | undefined) => (field !== undefined && /^-?\d+(\.\d+)?$/.test(field) ? Number(field) : null);
+
+  if (whole(mcc) !== ALGERIA_MCC) return null;
+  const [mnc, lac, cid, rangeM, lng, latN] = [whole(net), whole(area), whole(cell), whole(range), decimal(lon), decimal(lat)];
+  if (mnc === null || lac === null || cid === null || rangeM === null || lng === null || latN === null) return null;
+  if (lac === 0 || cid === 0) return null; // placeholders, not real cells
+  if ([mnc, lac, cid].some((n) => n > MAX_INT32) || Math.abs(latN) > 90 || Math.abs(lng) > 180) return null;
+  return { mcc: ALGERIA_MCC, mnc, lac, cid, lat: latN, lng, rangeM: Math.max(MIN_RANGE_M, rangeM), source: "opencellid" };
 }
 
 /**

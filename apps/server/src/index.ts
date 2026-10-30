@@ -57,8 +57,13 @@ app.route(
 app.route("/", createUssdApp({ secret: ENV.GATEWAY_SHARED_SECRET, db, events }));
 
 // A USSD session that goes quiet is never announced by the operator: save what it answered after 120 s of silence.
+let sweeping = false;
 setInterval(() => {
-  sweepUssdSessions({ db, events }).catch((error) => console.error("[ussd] sweep failed", error));
+  if (sweeping) return; // a slow sweep must not be started a second time
+  sweeping = true;
+  sweepUssdSessions({ db, events })
+    .catch((error) => console.error("[ussd] sweep failed", error))
+    .finally(() => (sweeping = false));
 }, 15_000);
 
 // Device REST endpoints (heartbeat, events) for B2B IoT crash chips
