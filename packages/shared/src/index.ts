@@ -14,3 +14,7 @@ export * from "./routing/polyline";
 export * from "./routing/build";
 export * from "./routing/route";
 export * from "./routing/fallback";
+export * from "./clinical/shock-index";
+export * from "./clinical/vittel";
+export * from "./clinical/assemble";
+export * from "./clinical/assess";

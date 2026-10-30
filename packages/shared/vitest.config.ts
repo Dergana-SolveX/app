@@ -9,11 +9,12 @@ export default defineConfig({
         "src/cluster/**/*.ts",
         "src/geo/**/*.ts",
         "src/routing/**/*.ts",
+        "src/clinical/**/*.ts",
         "src/triage/**/*.ts",
         "src/thresholds.ts",
       ],
       exclude: ["**/*.test.ts", "src/routing/testing/**"],
-      // PRD NFR-S2-1: at least 90% on the SMS, cluster, geo, routing and triage code.
+      // PRD NFR-S2-1: at least 90% on the SMS, cluster, geo, routing, clinical and triage code.
       thresholds: { statements: 90, branches: 90, functions: 90, lines: 90 },
     },
   },
