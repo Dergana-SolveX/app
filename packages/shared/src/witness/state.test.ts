@@ -152,4 +152,11 @@ describe("Witness 3-Tap Flow State Machine (Seam 2)", () => {
     const payload = state.toSubmissionPayload();
     expect(payload.profileCode).toBe("TESTCODE");
   });
+
+  it("RESET preserves active profileCode so subsequent alerts remain linked", () => {
+    let state = createWitnessFlowState("key-1", "SAVED001");
+    state = flowReducer(state, { type: "RESET", idempotencyKey: "key-2" });
+    expect(state.profileCode).toBe("SAVED001");
+    expect(state.toSubmissionPayload().profileCode).toBe("SAVED001");
+  });
 });

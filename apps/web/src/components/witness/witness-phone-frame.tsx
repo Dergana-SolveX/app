@@ -961,6 +961,7 @@ export default function WitnessPhoneFrame({
               onClose={() => setIsProfileModalOpen(false)}
               currentShortCode={profileCode}
               onProfileSaved={handleProfileSaved}
+              lang={state.lang}
             />
           </div>
         </div>

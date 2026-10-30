@@ -246,11 +246,16 @@ export async function getIncidentProfiles(
       shortCode: p.shortCode,
       bloodType: p.bloodType,
       allergies: p.allergies,
-      anticoagulant: (p.medications as any[]).some((m) => m?.class === "anticoagulant"),
-      unreliableShockIndex: (p.medications as any[]).some(
-        (m) => m?.class === "beta_blocker",
-      ),
-      insulin: (p.medications as any[]).some((m) => m?.class === "insulin"),
+      chronicConditions: p.chronicConditions ?? [],
+      anticoagulant:
+        (p.medications as any[]).some((m) => m?.class === "anticoagulant") ||
+        (p.chronicConditions ?? []).some((c) => /anticoag|avk|fibrillation/i.test(c)),
+      unreliableShockIndex:
+        (p.medications as any[]).some((m) => m?.class === "beta_blocker") ||
+        (p.chronicConditions ?? []).some((c) => /bêtabloquant|betabloquant|hypertension/i.test(c)),
+      insulin:
+        (p.medications as any[]).some((m) => m?.class === "insulin") ||
+        (p.chronicConditions ?? []).some((c) => /diab[èe]te|insulin/i.test(c)),
     }));
   });
 }

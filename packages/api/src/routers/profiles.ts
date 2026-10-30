@@ -1,5 +1,5 @@
-import crypto from "node:crypto";
-import { incidentEvents, medicalProfiles } from "@solvex-dergana/db/schema/index";
+import { incidentEvents, medicalProfiles, type Medication } from "@solvex-dergana/db/schema/index";
+import { generateShortCode } from "@solvex-dergana/shared";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -7,18 +7,6 @@ import { z } from "zod";
 import { publicProcedure, roleProcedure, router } from "../index";
 
 const authorizedAccess = roleProcedure("dispatcher", "medic", "hospital", "admin");
-
-// Unambiguous uppercase charset (32 chars)
-const CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-
-function generateShortCode(): string {
-  const bytes = crypto.randomBytes(8);
-  let result = "";
-  for (let i = 0; i < 8; i++) {
-    result += CODE_CHARS[bytes[i]! % CODE_CHARS.length];
-  }
-  return result;
-}
 
 export const profilesRouter = router({
   register: publicProcedure
@@ -51,6 +39,21 @@ export const profilesRouter = router({
         shortCode = generateShortCode();
       }
 
+      // Infer clinical medication classes from chronic conditions for dispatcher risk rules (FR-S3-07 / FR-S4-07)
+      const medications: Medication[] = [];
+      for (const cond of input.chronicConditions) {
+        const c = cond.toLowerCase();
+        if (c.includes("diab") || c.includes("insulin")) {
+          medications.push({ name: cond, class: "insulin" });
+        }
+        if (c.includes("hypertens") || c.includes("bêtabloqu") || c.includes("betabloqu")) {
+          medications.push({ name: cond, class: "beta_blocker" });
+        }
+        if (c.includes("anticoag") || c.includes("avk") || c.includes("fibrill")) {
+          medications.push({ name: cond, class: "anticoagulant" });
+        }
+      }
+
       const [created] = await ctx.db
         .insert(medicalProfiles)
         .values({
@@ -60,7 +63,8 @@ export const profilesRouter = router({
           sex: input.sex,
           bloodType: input.bloodType ?? null,
           chronicConditions: input.chronicConditions,
-          allergies: input.allergies,
+          allergies: input.allergies ?? [],
+          medications,
           emergencyContact: input.phone,
           consentAt: now,
         })

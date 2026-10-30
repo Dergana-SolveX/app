@@ -8,6 +8,7 @@ type Props = {
   onClose: () => void;
   currentShortCode: string | null;
   onProfileSaved: (shortCode: string | null) => void;
+  lang?: "fr" | "ar";
 };
 
 export function MedicalProfileModal({
@@ -15,7 +16,9 @@ export function MedicalProfileModal({
   onClose,
   currentShortCode,
   onProfileSaved,
+  lang = "fr",
 }: Props) {
+  const isAr = lang === "ar";
   const [fullName, setFullName] = useState("");
   const [sex, setSex] = useState<"male" | "female">("male");
   const [phone, setPhone] = useState("");
@@ -38,7 +41,7 @@ export function MedicalProfileModal({
         setErrorMsg(null);
       },
       onError: (err) => {
-        setErrorMsg(err.message || "Erreur lors de l'enregistrement");
+        setErrorMsg(err.message || (isAr ? "خطأ أثناء التسجيل" : "Erreur lors de l'enregistrement"));
       },
     }),
   );
@@ -50,12 +53,20 @@ export function MedicalProfileModal({
     setErrorMsg(null);
 
     if (!consent) {
-      setErrorMsg("Le consentement explicite Loi 18-07 est obligatoire.");
+      setErrorMsg(
+        isAr
+          ? "الموافقة الصريحة وفقاً للقانون 18-07 إلزامية."
+          : "Le consentement explicite Loi 18-07 est obligatoire.",
+      );
       return;
     }
 
     if (!fullName.trim() || !phone.trim()) {
-      setErrorMsg("Veuillez renseigner votre nom et votre numéro de téléphone.");
+      setErrorMsg(
+        isAr
+          ? "يرجى ملء الاسم ورقم الهاتف."
+          : "Veuillez renseigner votre nom et votre numéro de téléphone.",
+      );
       return;
     }
 
@@ -96,6 +107,7 @@ export function MedicalProfileModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="profile-modal-title"
+      dir={isAr ? "rtl" : "ltr"}
       className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm"
     >
       <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm max-h-[90%] overflow-y-auto p-5 text-white shadow-2xl">
@@ -103,14 +115,14 @@ export function MedicalProfileModal({
           <div className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-red-500 fill-red-500/20" />
             <h2 id="profile-modal-title" className="font-semibold text-lg">
-              Profil d'urgence
+              {isAr ? "الملف الطبي للطوارئ" : "Profil d'urgence"}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-            aria-label="Fermer"
+            aria-label={isAr ? "إغلاق" : "Fermer"}
           >
             <X className="w-5 h-5" />
           </button>
@@ -122,7 +134,7 @@ export function MedicalProfileModal({
             <div className="bg-emerald-950/40 border border-emerald-600/30 rounded-xl p-4 text-center">
               <ShieldCheck className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
               <p className="text-xs text-emerald-300 font-medium uppercase tracking-wider mb-1">
-                Votre code d'urgence (UID)
+                {isAr ? "رمز الطوارئ الخاص بك (UID)" : "Votre code d'urgence (UID)"}
               </p>
               <div
                 data-testid="profile-short-code-display"
@@ -131,8 +143,9 @@ export function MedicalProfileModal({
                 {generatedCode}
               </div>
               <p className="text-[11px] text-slate-400 mt-2">
-                Ce code est rattaché automatiquement à vos signalements pour alerter
-                les secours de vos antécédents médicaux.
+                {isAr
+                  ? "يتم إرفاق هذا الرمز تلقائيًا بإنذاراتك لإخطار الإسعاف بتاريخك الطبي."
+                  : "Ce code est rattaché automatiquement à vos signalements pour alerter les secours de vos antécédents médicaux."}
               </p>
 
               <button
@@ -141,7 +154,7 @@ export function MedicalProfileModal({
                 className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 text-xs font-medium transition"
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? "Copié !" : "Copier le code"}
+                {copied ? (isAr ? "تم النسخ !" : "Copié !") : isAr ? "نسخ الرمز" : "Copier le code"}
               </button>
             </div>
 
@@ -152,22 +165,26 @@ export function MedicalProfileModal({
                 className="flex-1 py-2 px-3 rounded-xl border border-red-900/50 bg-red-950/20 text-red-300 text-xs hover:bg-red-900/40 flex items-center justify-center gap-1.5 transition"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Supprimer de cet appareil
+                {isAr ? "حذف من هذا الجهاز" : "Supprimer de cet appareil"}
               </button>
               <button
                 type="button"
                 onClick={onClose}
                 className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium transition"
               >
-                Terminer
+                {isAr ? "إنهاء" : "Terminer"}
               </button>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="bg-slate-800/60 rounded-lg p-2.5 text-[11px] text-slate-300 border border-slate-700/60">
-              <span className="font-semibold text-amber-400">Optionnel — Aucun compte requis.</span>{" "}
-              Ce profil permet aux secours régulateurs d'accéder à vos informations vitales dès la réception de l'alerte.
+              <span className="font-semibold text-amber-400">
+                {isAr ? "اختياري — لا يلزم وجود حساب." : "Optionnel — Aucun compte requis."}
+              </span>{" "}
+              {isAr
+                ? "يتيح هذا الملف لفرق النجدة الاطلاع على معلوماتك الحيوية فور تلقي البلاغ."
+                : "Ce profil permet aux secours régulateurs d'accéder à vos informations vitales dès la réception de l'alerte."}
             </div>
 
             {errorMsg && (
@@ -178,14 +195,14 @@ export function MedicalProfileModal({
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Nom & Prénom *
+                {isAr ? "الاسم واللقب *" : "Nom & Prénom *"}
               </label>
               <input
                 type="text"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="Ex. Amina Benali"
+                placeholder={isAr ? "مثال: أمينة بن علي" : "Ex. Amina Benali"}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
               />
             </div>
@@ -193,21 +210,21 @@ export function MedicalProfileModal({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Sexe *
+                  {isAr ? "الجنس *" : "Sexe *"}
                 </label>
                 <select
                   value={sex}
                   onChange={(e) => setSex(e.target.value as any)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
                 >
-                  <option value="male">Homme</option>
-                  <option value="female">Femme</option>
+                  <option value="male">{isAr ? "ذكر" : "Homme"}</option>
+                  <option value="female">{isAr ? "أنثى" : "Femme"}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Groupe sanguin
+                  {isAr ? "فصيلة الدم" : "Groupe sanguin"}
                 </label>
                 <select
                   value={bloodType}
@@ -228,27 +245,27 @@ export function MedicalProfileModal({
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Numéro de téléphone *
+                {isAr ? "رقم الهاتف *" : "Numéro de téléphone *"}
               </label>
               <input
                 type="tel"
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="Ex. 0555 12 34 56"
+                placeholder={isAr ? "مثال: 0555123456" : "Ex. 0555 12 34 56"}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Maladies chroniques (séparées par virgule)
+                {isAr ? "الأمراض المزمنة (مفصولة بفواصل)" : "Maladies chroniques (séparées par virgule)"}
               </label>
               <input
                 type="text"
                 value={chronicInput}
                 onChange={(e) => setChronicInput(e.target.value)}
-                placeholder="Ex. diabète, asthme, hypertension"
+                placeholder={isAr ? "مثال: سكري، ربو، ضغط الدم" : "Ex. diabète, asthme, hypertension"}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
               />
             </div>
@@ -264,7 +281,12 @@ export function MedicalProfileModal({
                   className="mt-0.5 rounded border-slate-700 bg-slate-800 text-red-500 focus:ring-0"
                 />
                 <span className="text-[10px] text-slate-300 leading-tight">
-                  <strong className="text-white">Consentement Loi 18-07 :</strong> J'accepte que ces données médicales soient transmises de façon chiffrée et utilisées exclusivement par les services de secours en cas d'accident.
+                  <strong className="text-white">
+                    {isAr ? "الموافقة وفق القانون 18-07: " : "Consentement Loi 18-07 : "}
+                  </strong>
+                  {isAr
+                    ? "أوافق على نقل هذه البيانات الطبية بصورة مشفرة واستخدامها حصريًا من قبل مصالح الإسعاف عند وقوع حادث."
+                    : "J'accepte que ces données médicales soient transmises de façon chiffrée et utilisées exclusivement par les services de secours en cas d'accident."}
                 </span>
               </label>
             </div>
@@ -275,14 +297,20 @@ export function MedicalProfileModal({
                 onClick={onClose}
                 className="flex-1 py-2 px-3 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 transition"
               >
-                Annuler
+                {isAr ? "إلغاء" : "Annuler"}
               </button>
               <button
                 type="submit"
                 disabled={registerMutation.isPending || !consent}
                 className="flex-1 py-2 px-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-red-600/30 transition"
               >
-                {registerMutation.isPending ? "Enregistrement..." : "Obtenir mon UID"}
+                {registerMutation.isPending
+                  ? isAr
+                    ? "جاري التسجيل..."
+                    : "Enregistrement..."
+                  : isAr
+                    ? "الحصول على UID"
+                    : "Obtenir mon UID"}
               </button>
             </div>
           </form>
