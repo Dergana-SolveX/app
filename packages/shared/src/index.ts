@@ -32,3 +32,4 @@ export * from "./chip-sim/fire";
 export * from "./chip-sim/machine";
 export * from "./chip-sim/scenario";
 export * from "./chip-sim/rng";
+export * from "./geo/towers";

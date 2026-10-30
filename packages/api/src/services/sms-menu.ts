@@ -1,10 +1,10 @@
-import { masterIncidents, smsLog, smsMenuSessions } from "@solvex-dergana/db/schema/index";
+import { smsLog, smsMenuSessions } from "@solvex-dergana/db/schema/index";
 import type { SmsMenuAnswers } from "@solvex-dergana/db/schema/comms";
 import { decodeSvx, geocodeLocation } from "@solvex-dergana/shared";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
-import { placeAlert } from "./clustering";
+import { fileReport } from "./report";
 import type { InboundSms } from "./ingest";
 import { ackFor } from "./ingest";
 import type { SmsFlowDeps } from "./sms-flow";
@@ -127,7 +127,7 @@ export async function handleMenuSms(deps: SmsFlowDeps, sms: InboundSms): Promise
   if (claimed.length === 0) return replies;
 
   try {
-    const placement = await placeAlert(db, {
+    const incident = await fileReport(deps, {
       alertRow: {
         source: "ussd",
         channel: "sms",
@@ -148,23 +148,12 @@ export async function handleMenuSms(deps: SmsFlowDeps, sms: InboundSms): Promise
       },
       position: { lat: place.lat, lng: place.lng, accuracyM: place.uncertaintyM },
       eventAt: receivedAt,
+      said: { commune: place.commune, roadRef: place.roadRef, pk: place.pk },
     });
-    if (placement.kind === "duplicate") return replies;
+    if (!incident) return replies;
 
-    const [incident] = await db
-      .update(masterIncidents)
-      .set({
-        // An incident that already says where it is keeps that.
-        commune: sql`coalesce(${masterIncidents.commune}, ${place.commune ?? null})`,
-        roadRef: sql`coalesce(${masterIncidents.roadRef}, ${place.roadRef ?? null})`,
-        pkMarker: sql`coalesce(${masterIncidents.pkMarker}, ${place.pk === undefined ? null : `PK ${place.pk}`})`,
-      })
-      .where(eq(masterIncidents.id, placement.incident.id))
-      .returning();
-    deps.events.publish({ type: placement.kind === "created" ? "incident.created" : "incident.updated", incident: incident! });
-
-    await db.update(smsLog).set({ incidentId: incident!.id }).where(eq(smsLog.id, logged!.id));
-    await reply(ackFor(incident!.id), { incidentId: incident!.id });
+    await db.update(smsLog).set({ incidentId: incident.id }).where(eq(smsLog.id, logged!.id));
+    await reply(ackFor(incident.id), { incidentId: incident.id });
     return replies;
   } catch (error) {
     // Keep the conversation so the phone can answer again, and keep the SMS on record as failed.

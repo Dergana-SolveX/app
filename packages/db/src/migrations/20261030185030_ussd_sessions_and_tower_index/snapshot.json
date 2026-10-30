@@ -1,0 +1,277 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "d63614dd-9f4b-4583-8a45-3ba57acf0698",
+  "prevIds": [
+    "ea1ce4af-4c4d-40ba-9e53-8ae98f9f4b41"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "ussd_sessions"
+      ],
+      "writes": [
+        "s|tbl|public.ussd_sessions",
+        "n|tbl|public.ussd_sessions",
+        "e|tbl|public.ussd_sessions",
+        "n|rel|public.ussd_sessions",
+        "n|type|public.ussd_sessions",
+        "n|rel|public.ussd_sessions_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "cell_towers",
+        "cell_towers_lat_lng_idx"
+      ],
+      "writes": [
+        "s|idx|public.cell_towers_lat_lng_idx",
+        "n|idx|public.cell_towers_lat_lng_idx",
+        "e|idx|public.cell_towers_lat_lng_idx",
+        "n|rel|public.cell_towers_lat_lng_idx"
+      ],
+      "reads": [
+        "n|tbl|public.cell_towers",
+        "n|sch|public",
+        "n|col|public.cell_towers.lat",
+        "n|col|public.cell_towers.lng"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "ussd_sessions"
+      ],
+      "writes": [
+        "s|fk|public.ussd_sessions.ussd_sessions_incident_id_master_incidents_id_fkey",
+        "n|fk|public.ussd_sessions.ussd_sessions_incident_id_master_incidents_id_fkey",
+        "e|fk|public.ussd_sessions.ussd_sessions_incident_id_master_incidents_id_fkey",
+        "n|con|public.ussd_sessions.ussd_sessions_incident_id_master_incidents_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.ussd_sessions",
+        "n|sch|public",
+        "n|tbl|public.master_incidents",
+        "n|sch|public",
+        "n|col|public.ussd_sessions.incident_id",
+        "n|col|public.master_incidents.id",
+        "e|uniqueness|public.master_incidents.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "ussd_sessions",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ussd_sessions",
+        "name": "session_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ussd_sessions",
+        "name": "msisdn_hash",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ussd_sessions",
+        "name": "text",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ussd_sessions",
+        "name": "cell_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ussd_sessions",
+        "name": "emulated",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ussd_sessions",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'open'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ussd_sessions",
+        "name": "incident_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ussd_sessions",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "cell_towers",
+        "name": "cell_towers_lat_lng_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "lat",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "lng",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ussd_sessions",
+        "name": "ussd_sessions_incident_id_master_incidents_id_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "incident_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "master_incidents",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ussd_sessions",
+        "name": "ussd_sessions_pkey",
+        "columns": [
+          "session_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
+}
