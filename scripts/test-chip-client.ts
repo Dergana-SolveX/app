@@ -4,7 +4,7 @@
  * Usage:
  *   bun scripts/test-chip-client.ts [deviceId] [serverUrl] [masterSecret]
  */
-import { createDeviceClient } from "../packages/api/src/services/device-client";
+import { createDeviceClient } from "@solvex-dergana/api/services/device-client";
 
 const deviceId = process.argv[2] || "SVX-CHIP-001";
 const baseUrl = process.argv[3] || process.env.SERVER_URL || "http://localhost:3000";

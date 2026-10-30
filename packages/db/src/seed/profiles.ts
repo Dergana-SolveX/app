@@ -86,6 +86,7 @@ export const vehicleRows: Omit<Vehicle, "deviceSecretHash">[] = [
   {
     id: "00000000-0000-4000-8000-000000000401",
     deviceId: "SVX-CHIP-001",
+    simMsisdn: "+213550000001",
     plate: "00123-116-16",
     makeModel: "Renault Symbol",
     fleetName: "Flotte démo",
@@ -94,6 +95,7 @@ export const vehicleRows: Omit<Vehicle, "deviceSecretHash">[] = [
   {
     id: "00000000-0000-4000-8000-000000000402",
     deviceId: "SVX-CHIP-002",
+    simMsisdn: "+213550000002",
     plate: "00456-117-16",
     makeModel: "Peugeot 301",
     fleetName: "Flotte démo",
@@ -102,6 +104,7 @@ export const vehicleRows: Omit<Vehicle, "deviceSecretHash">[] = [
   {
     id: "00000000-0000-4000-8000-000000000403",
     deviceId: "SVX-CHIP-003",
+    simMsisdn: "+213550000003",
     plate: "00789-124-16",
     makeModel: "Hyundai Accent",
     fleetName: "Flotte démo",

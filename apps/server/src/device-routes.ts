@@ -89,6 +89,15 @@ export function createDeviceApp({ masterDeviceSecret, db, events }: DeviceAppDep
       return c.json({ error: "replay_rejected", message: "timestamp outside +-5 min window" }, 401);
     }
 
+    // Bind body timestamp to header timestamp if present in body (prevents replay with modern header)
+    if (bodyJson && bodyJson["t"] !== undefined) {
+      const bodyT = Number(bodyJson["t"]);
+      const bodyMs = bodyT < 1e11 ? bodyT * 1000 : bodyT;
+      if (!isNaN(bodyMs) && Math.abs(bodyMs - tsMs) > MAX_DRIFT_MS) {
+        return c.json({ error: "replay_rejected", message: "body timestamp does not match header" }, 401);
+      }
+    }
+
     const deviceKey = await deriveDeviceKey(masterDeviceSecret, deviceId);
     const valid = await verifyDevicePayload(deviceKey, rawBody, signature);
     if (!valid) {

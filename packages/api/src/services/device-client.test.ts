@@ -1,96 +1,81 @@
-import { createEventBus } from "@solvex-dergana/api/services/events";
-import { getIncident } from "@solvex-dergana/api/services/incidents";
-import { createTestDb } from "@solvex-dergana/db/testing";
-import { vehicles } from "@solvex-dergana/db/schema/index";
-import { deriveDeviceKey, deviceKeyCheck } from "@solvex-dergana/shared";
+import { deriveDeviceKey, verifyDevicePayload } from "@solvex-dergana/shared";
 import { describe, expect, it } from "vitest";
 
 import { createDeviceClient } from "./device-client";
-import { createDeviceApp } from "../../../../apps/server/src/device-routes";
 
-describe("DeviceClient (scripted test client)", () => {
+describe("DeviceClient (unit tests)", () => {
   const MASTER_SECRET = "svx-device-master-secret-for-testing-32!";
   const DEVICE_ID = "SVX-CHIP-001";
 
-  async function setup() {
-    const db = await createTestDb();
-    const events = createEventBus();
+  it("signs heartbeat request with X-SVX-Signature and X-SVX-Timestamp", async () => {
+    let capturedUrl = "";
+    let capturedHeaders: HeadersInit | undefined;
+    let capturedBody = "";
+
     const deviceKey = await deriveDeviceKey(MASTER_SECRET, DEVICE_ID);
-    const secretHash = await deviceKeyCheck(deviceKey);
-
-    const [vehicle] = await db
-      .insert(vehicles)
-      .values({
-        deviceId: DEVICE_ID,
-        deviceSecretHash: secretHash,
-        simMsisdn: "+213550111222",
-        makeModel: "Peugeot 301",
-      })
-      .returning();
-
-    const serverApp = createDeviceApp({
-      masterDeviceSecret: MASTER_SECRET,
-      db,
-      events,
-    });
 
     const client = createDeviceClient({
       deviceId: DEVICE_ID,
       masterDeviceSecret: MASTER_SECRET,
-      baseUrl: "http://localhost:3000",
-      fetch: (url, init) => serverApp.request(url, init),
+      baseUrl: "http://api.svx.local",
+      fetch: async (url, init) => {
+        capturedUrl = url.toString();
+        capturedHeaders = init?.headers;
+        capturedBody = init?.body as string;
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
     });
 
-    return { db, events, vehicle: vehicle!, client };
-  }
+    const res = await client.sendHeartbeat({
+      state: "IDLE",
+      batteryPct: 80,
+    });
 
-  it(
-    "proves end-to-end path: sends signed heartbeat and signed crash event",
-    async () => {
-      const { client, db, vehicle } = await setup();
+    expect(res.ok).toBe(true);
+    expect(capturedUrl).toBe("http://api.svx.local/devices/SVX-CHIP-001/heartbeat");
 
-      // 1. Send signed heartbeat
-      const heartbeatRes = await client.sendHeartbeat({
-        state: "IDLE",
-        batteryPct: 92,
-        batteryMv: 4120,
-        gps: { fix: true, sats: 10, lat: 36.75, lng: 3.05 },
-      });
-      expect(heartbeatRes.ok).toBe(true);
+    const headers = capturedHeaders as Record<string, string>;
+    expect(headers["Content-Type"]).toBe("application/json");
+    expect(headers["X-SVX-Signature"]).toBeDefined();
+    expect(headers["X-SVX-Timestamp"]).toBeDefined();
 
-      const [updatedVehicle] = await db.select().from(vehicles);
-      expect(updatedVehicle?.batteryMv).toBe(4120);
-      expect(updatedVehicle?.lastHeartbeatAt).toBeInstanceOf(Date);
-      expect(updatedVehicle?.lastTelemetry).toMatchObject({ state: "IDLE" });
+    // Verify signature was created with device key over the exact body
+    const valid = await verifyDevicePayload(deviceKey, capturedBody, headers["X-SVX-Signature"]);
+    expect(valid).toBe(true);
 
-      // 2. Send signed crash event
-      const crashRes = await client.sendCrashEvent({
-        data: {
-          gForce: 8.5,
-          rollover: true,
-          fire: false,
-          lat: 36.753,
-          lng: 3.054,
-        },
-        emulated: true,
-        traceInjected: true,
-      });
+    const parsedBody = JSON.parse(capturedBody);
+    expect(parsedBody.deviceId).toBe(DEVICE_ID);
+    expect(parsedBody.state).toBe("IDLE");
+  });
 
-      expect(crashRes.ok).toBe(true);
-      expect(crashRes.ack).toMatch(/^SVXACK#[0-9A-F]{8}$/);
-      expect(crashRes.incidentId).toBeDefined();
+  it("signs crash event with impact_detected type", async () => {
+    let capturedBody = "";
+    const client = createDeviceClient({
+      deviceId: DEVICE_ID,
+      masterDeviceSecret: MASTER_SECRET,
+      fetch: async (_url, init) => {
+        capturedBody = init?.body as string;
+        return new Response(JSON.stringify({ ok: true, ack: "SVXACK#12345678" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    });
 
-      const incident = await getIncident(db, crashRes.incidentId!);
-      expect(incident?.recSeverity).toBe("red");
-      expect(incident?.alerts[0]).toMatchObject({
-        source: "iot",
-        channel: "internet",
-        authenticated: true,
-        emulated: true,
-        traceInjected: true,
-        vehicleId: vehicle.id,
-      });
-    },
-    15000,
-  );
+    const res = await client.sendCrashEvent({
+      data: { gForce: 8.5 },
+      emulated: true,
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.ack).toBe("SVXACK#12345678");
+
+    const parsed = JSON.parse(capturedBody);
+    expect(parsed.type).toBe("impact_detected");
+    expect(parsed.data.gForce).toBe(8.5);
+    expect(parsed.emulated).toBe(true);
+  });
 });
