@@ -90,7 +90,7 @@ export default function GsmPanel() {
                   key={preset.label}
                   type="button"
                   variant="outline"
-                  className="h-auto min-h-12 flex-col items-start gap-0.5 py-2 text-start"
+                  className="h-auto min-h-12 flex-col items-start gap-0.5 py-2 text-start whitespace-normal"
                   onClick={() => setBody(preset.build())}
                 >
                   <span>{preset.label}</span>
