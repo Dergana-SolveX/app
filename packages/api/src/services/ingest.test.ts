@@ -145,7 +145,7 @@ describe("ingestSms: duplicates", () => {
     expect(wire.filter((w) => w.result?.duplicate === true)).toHaveLength(1);
   });
 
-  it("treats the same text from a different sender as a separate report", async () => {
+  it("treats the same text from a different sender as a new alert about the same crash, not a duplicate", async () => {
     const db = await createTestDb();
     const body = encodeSvx(witnessAlert);
     const a = await ingestSms(
@@ -154,9 +154,12 @@ describe("ingestSms: duplicates", () => {
       { db, events: createEventBus() }, { from: "+213550000002", body, receivedAt: RECEIVED_AT, emulated: true });
     if (a.kind !== "alert" || b.kind !== "alert") throw new Error("expected alerts");
 
+    // A second person reporting the same crash is new evidence: it joins the incident.
     expect(b.duplicate).toBe(false);
-    expect(b.incidentId).not.toBe(a.incidentId);
-    expect(await listIncidents(db)).toHaveLength(2);
+    expect(b.merged).toBe(true);
+    expect(b.incidentId).toBe(a.incidentId);
+    expect(await listIncidents(db)).toHaveLength(1);
+    expect((await getIncident(db, a.incidentId))?.alerts).toHaveLength(2);
   });
 });
 
@@ -237,7 +240,9 @@ describe("incidents carry the honesty flag (NFR-P5)", () => {
     const events = createEventBus();
     const body = encodeSvx(witnessAlert);
     const emulated = await ingestSms({ db, events }, { from: SENDER, body, receivedAt: RECEIVED_AT, emulated: true });
-    const real = await ingestSms({ db, events }, { from: "+213550000002", body, receivedAt: RECEIVED_AT, emulated: false });
+    // Another crash, far away, reported through a real gateway.
+    const elsewhere = encodeSvx({ ...witnessAlert, geohash: "snd2brmy" });
+    const real = await ingestSms({ db, events }, { from: "+213550000002", body: elsewhere, receivedAt: RECEIVED_AT, emulated: false });
     if (emulated.kind !== "alert" || real.kind !== "alert") throw new Error("expected alerts");
 
     const byId = new Map((await listIncidents(db)).map((i) => [i.id, i]));

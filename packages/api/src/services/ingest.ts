@@ -1,9 +1,11 @@
 import type { Database } from "@solvex-dergana/db";
-import { masterIncidents, rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
-import type { EventBus } from "./events";
-import { decodeSvx } from "@solvex-dergana/shared";
-import { eq, TransactionRollbackError } from "drizzle-orm";
+import { rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
+import { decodeSvx, geohashDecode, trustedEventTime } from "@solvex-dergana/shared";
+import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
+
+import { placeAlert } from "./clustering";
+import type { EventBus } from "./events";
 
 export type InboundSms = {
   /** Sender phone number (E.164). Only a hash of it is stored. */
@@ -22,9 +24,14 @@ export type IngestResult =
       ack: string;
       /** True when this exact SMS had already been ingested. */
       duplicate: boolean;
+      /** True when the alert joined an incident that already existed. */
+      merged: boolean;
     }
   /** Not an SVX alert: kept on record, no incident, no reply. */
   | { kind: "ignored"; reason: "not_svx" };
+
+/** A geohash of 8 characters pins a position to about this many metres. */
+const GEOHASH8_ACCURACY_M = 19;
 
 export type IngestDeps = { db: Database; events: EventBus };
 
@@ -70,6 +77,14 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       .from(rawAlerts)
       .where(eq(rawAlerts.dedupeKey, dedupeKey));
 
+    // Where and when it happened. A late SMS keeps its true time, a wrong device clock is ignored.
+    const cell = alert.geohash ? geohashDecode(alert.geohash) : null;
+    const position = cell ? { lat: cell.lat, lng: cell.lng, accuracyM: GEOHASH8_ACCURACY_M } : null;
+    const eventAt = trustedEventTime(
+      alert.eventMinutes === null ? null : new Date(alert.eventMinutes * 60_000),
+      receivedAt,
+    );
+
     // The stored alert, the same for a recognised SVX message and for plain text.
     const alertRow = {
       source: sourceOf(alert.layer, alert.peakG),
@@ -88,6 +103,10 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       senderMsisdnHash: senderHash,
       dedupeKey,
       emulated: sms.emulated,
+      lat: position?.lat ?? null,
+      lng: position?.lng ?? null,
+      accuracyM: position?.accuracyM ?? null,
+      eventAt,
     };
     const result = {
       recognized: decoded.recognized,
@@ -111,55 +130,35 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       return { kind: "ignored", reason: "not_svx" };
     }
 
-    // Open an incident for this alert. If an identical SMS won a race and already stored the alert,
-    // the unique key makes our insert a no-op: roll our incident back and use the winner's.
-    const created =
-      seen?.incidentId != null
-        ? null
-        : await db
-            .transaction(async (tx) => {
-              const [incident] = await tx
-                .insert(masterIncidents)
-                .values({
-                  geohash8: alert.geohash,
-                  firstAlertAt: receivedAt,
-                  lastAlertAt: receivedAt,
-                  alertCount: 1,
-                  estimatedVictims: alert.victims,
-                })
-                .returning();
-              const stored = await tx
-                .insert(rawAlerts)
-                .values({ ...alertRow, incidentId: incident!.id })
-                .onConflictDoNothing({ target: rawAlerts.dedupeKey })
-                .returning({ id: rawAlerts.id });
-              if (stored.length === 0) tx.rollback();
-              return incident!;
-            })
-            .catch((error) => {
-              if (error instanceof TransactionRollbackError) return null;
-              throw error;
-            });
-
-    const duplicate = created === null;
-    const incidentId = created
-      ? created.id
-      : (seen?.incidentId ??
-        (
-          await db
-            .select({ incidentId: rawAlerts.incidentId })
-            .from(rawAlerts)
-            .where(eq(rawAlerts.dedupeKey, dedupeKey))
-        )[0]!.incidentId!);
+    // Attach it to the incident it belongs to, or open a new one (see clustering.ts).
+    const placement = await placeAlert(db, { alertRow, position, eventAt });
+    const duplicate = placement.kind === "duplicate";
+    const incidentId =
+      placement.kind !== "duplicate"
+        ? placement.incident.id
+        : (seen?.incidentId ??
+          (
+            await db
+              .select({ incidentId: rawAlerts.incidentId })
+              .from(rawAlerts)
+              .where(eq(rawAlerts.dedupeKey, dedupeKey))
+          )[0]!.incidentId!);
 
     await db
       .update(smsLog)
       .set({ incidentId, result: { ...result, ...(duplicate ? { duplicate: true } : {}) } })
       .where(eq(smsLog.id, logged!.id));
 
-    if (created) events.publish({ type: "incident.created", incident: created });
+    if (placement.kind === "created") events.publish({ type: "incident.created", incident: placement.incident });
+    if (placement.kind === "merged") events.publish({ type: "incident.updated", incident: placement.incident });
 
-    return { kind: "alert", incidentId, ack: ackFor(incidentId), duplicate };
+    return {
+      kind: "alert",
+      incidentId,
+      ack: ackFor(incidentId),
+      duplicate,
+      merged: placement.kind === "merged",
+    };
   } catch (error) {
     // Keep the record, mark it failed, and let the caller see the error (the gateway can retry).
     await db

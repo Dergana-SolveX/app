@@ -6,7 +6,7 @@ import { cn } from "@solvex-dergana/ui/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { InboxIcon, MapPinIcon, UsersIcon } from "lucide-react";
+import { GitMergeIcon, InboxIcon, MapPinIcon, UsersIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import LiveStatus from "@/components/live-status";
@@ -15,6 +15,29 @@ import { trpc } from "@/utils/trpc";
 
 /** A new incident stays highlighted for this long. */
 const FRESH_MS = 15_000;
+
+/** How much to trust the incident, as a bar and as a number (never the bar alone). */
+function ConfidenceMeter({ score }: { score: number }) {
+  const percent = Math.round(score * 100);
+  return (
+    <div className="flex items-center gap-2" title="Confiance dans l'incident, selon le nombre et le type d'alertes">
+      <div
+        role="meter"
+        aria-label="Confiance"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        aria-valuetext={`${percent} %`}
+        className="h-1.5 w-20 overflow-hidden rounded-full bg-muted"
+      >
+        <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+      </div>
+      <span className="tabular font-mono text-xs text-muted-foreground">
+        Confiance {percent} %
+      </span>
+    </div>
+  );
+}
 
 function useNow(intervalMs: number) {
   const [now, setNow] = useState(() => new Date());
@@ -132,6 +155,16 @@ export default function IncidentQueue({ canOpenConsole }: { canOpenConsole: bool
                   </span>
                 )}
                 {/* Honesty rule: an incident born from the emulated GSM network must say so. */}
+                <ConfidenceMeter score={Number(incident.confidenceScore)} />
+                {incident.tentative && (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-md border border-sev-yellow/40 bg-sev-yellow-soft px-2 py-0.5 text-xs font-bold text-sev-yellow"
+                    title="Une alerte a été rattachée à cet incident par proximité approximative. À confirmer."
+                  >
+                    <GitMergeIcon className="size-3.5" aria-hidden="true" />
+                    Fusion à confirmer
+                  </span>
+                )}
                 {incident.emulated && <EmulationBadge />}
                 <span className="rounded-md border px-2 py-0.5 text-xs font-semibold text-muted-foreground uppercase">
                   Ouvert

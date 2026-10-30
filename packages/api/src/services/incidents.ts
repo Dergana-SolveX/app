@@ -9,6 +9,8 @@ export async function listIncidents(db: Database) {
       ...getTableColumns(masterIncidents),
       /** True when any of its alerts came through the emulated network: the UI must badge it (NFR-P5). */
       emulated: sql<boolean>`coalesce((select bool_or(${rawAlerts.emulated}) from ${rawAlerts} where ${rawAlerts.incidentId} = ${masterIncidents.id}), false)`,
+      /** True when an alert joined it only thanks to the location-uncertainty allowance: to be confirmed. */
+      tentative: sql<boolean>`coalesce((select bool_or(${rawAlerts.mergeTentative}) from ${rawAlerts} where ${rawAlerts.incidentId} = ${masterIncidents.id}), false)`,
     })
     .from(masterIncidents)
     .orderBy(desc(masterIncidents.lastAlertAt));

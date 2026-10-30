@@ -1,0 +1,1 @@
+ALTER TABLE "raw_alerts" ADD COLUMN "merge_tentative" boolean DEFAULT false NOT NULL;

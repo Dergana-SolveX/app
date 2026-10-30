@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "04663adf-b78f-44ee-9d63-83b322408764",
+  "prevIds": [
+    "01562e27-caa7-4617-87f8-ad28b8edbc59"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "raw_alerts",
+        "merge_tentative"
+      ],
+      "writes": [
+        "s|col|public.raw_alerts.merge_tentative",
+        "n|col|public.raw_alerts.merge_tentative",
+        "e|col|public.raw_alerts.merge_tentative"
+      ],
+      "reads": [
+        "n|tbl|public.raw_alerts",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "raw_alerts",
+        "name": "merge_tentative",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

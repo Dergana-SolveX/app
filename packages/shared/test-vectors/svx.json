@@ -231,7 +231,7 @@
     }
   ],
   "thresholds": {
-    "$comment": "Values from docs/PRD.md section 7.1 (FR-S2-01) and FR-S2-27. matcher penalties are tunable placeholders chosen for the demo; every detector (phone, chip, server) must read the same numbers.",
+    "$comment": "Values from docs/PRD.md section 7.1 (FR-S2-01) and FR-S2-27. matcher penalties are tunable placeholders chosen for the demo; every detector (phone, chip, server) must read the same numbers. Confidence weights are PRD FR-S2-09; independentBonus (+0.1 when the alerts come from at least two different layers), max and downgradeFactor (bad CRC or failed signature halves an alert's weight) are tunable placeholders agreed for the demo. eventTime.maxSkewHours is FR-S2-10.",
     "phoneTrigger": {
       "peakG": 4,
       "speedBeforeKmh": 25,
@@ -259,6 +259,20 @@
     "matcher": {
       "missingCapabilityPenaltyMin": 30,
       "divertPenaltyMin": 60
+    },
+    "confidence": {
+      "weights": {
+        "iot": 0.6,
+        "app_auto": 0.45,
+        "app_witness": 0.4,
+        "ussd": 0.3
+      },
+      "independentBonus": 0.1,
+      "max": 0.99,
+      "downgradeFactor": 0.5
+    },
+    "eventTime": {
+      "maxSkewHours": 24
     }
   }
 }
