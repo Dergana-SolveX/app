@@ -34,3 +34,5 @@ export * from "./chip-sim/scenario";
 export * from "./chip-sim/rng";
 export * from "./witness/state";
 export * from "./witness/i18n";
+export * from "./crash/phoneTrigger";
+export * from "./crash/countdown";

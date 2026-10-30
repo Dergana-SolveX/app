@@ -206,4 +206,36 @@ describe("alertsRouter.submitOnline (Seam 1)", () => {
     const updatedEvent = published.find((e) => e.type === "incident.updated");
     expect(updatedEvent).toBeDefined();
   });
+
+  it("creates a raw_alert with source 'app_auto' when submitted by automatic phone crash detection", async () => {
+    const db = await createTestDb();
+    testDatabases.push(db);
+    const bus = createEventBus();
+    const caller = makeCaller(db, bus);
+
+    const idempotencyKey = "phone-auto-crash-999";
+    const res = await caller.alerts.submitOnline({
+      idempotencyKey,
+      source: "app_auto",
+      victims: 1,
+      conscious: null,
+      fire: false,
+      trapped: false,
+      bleeding: false,
+      lat: 36.75,
+      lng: 3.05,
+      accuracyM: 8,
+    });
+
+    expect(res.alertId).toBeDefined();
+    expect(res.incidentId).toBeDefined();
+
+    const [alert] = await db
+      .select()
+      .from(rawAlerts)
+      .where(eq(rawAlerts.id, res.alertId));
+    expect(alert).toBeDefined();
+    expect(alert!.source).toBe("app_auto");
+  });
 });
+

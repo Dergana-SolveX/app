@@ -16,6 +16,8 @@ import {
 import {
   createWitnessFlowState,
   flowReducer,
+  createCrashCountdownState,
+  countdownReducer,
   type Coords,
   type DangerType,
   WITNESS_TEXT,
@@ -75,6 +77,61 @@ export default function WitnessPhoneFrame({
 
     return () => clearInterval(timer);
   }, [autoGps, state.gpsStatus]);
+
+  // Crash detection countdown state machine (FR-S4-01 / Issue #21)
+  const [crashState, crashDispatch] = useReducer(
+    countdownReducer,
+    undefined,
+    createCrashCountdownState,
+  );
+
+  // 1-second countdown tick interval
+  useEffect(() => {
+    if (crashState.status !== "countdown") return;
+    const interval = setInterval(() => {
+      crashDispatch({ type: "TICK" });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [crashState.status]);
+
+  // Handle countdown expiration -> submit automatic crash alert
+  useEffect(() => {
+    if (crashState.status === "expired") {
+      crashDispatch({ type: "SENDING_ALERT" });
+      const payload = {
+        idempotencyKey: `auto-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        source: "app_auto" as const,
+        victims: 1,
+        conscious: null,
+        fire: false,
+        trapped: false,
+        bleeding: false,
+        lat: state.coords?.lat ?? null,
+        lng: state.coords?.lng ?? null,
+        accuracyM: state.coords?.accuracyM ?? null,
+        commune: null,
+        pkMarker: null,
+      };
+      submitMutation.mutate(payload, {
+        onSuccess: (res) => {
+          crashDispatch({
+            type: "ALERT_SENT",
+            payload: {
+              alertId: res.alertId,
+              incidentId: res.incidentId,
+              timestamp: Date.now(),
+            },
+          });
+        },
+        onError: (err) => {
+          crashDispatch({
+            type: "ALERT_ERROR",
+            payload: { error: err.message || "Erreur d'envoi automatique" },
+          });
+        },
+      });
+    }
+  }, [crashState.status]);
 
   // Manual location state
   const [communeInput, setCommuneInput] = useState(state.manualCommune);
@@ -165,6 +222,24 @@ export default function WitnessPhoneFrame({
           className="rounded-md bg-amber-500/10 px-2.5 py-1 font-medium text-amber-400 hover:bg-amber-500/20 active:scale-95 transition"
         >
           Simuler timeout GPS (20s)
+        </button>
+        <button
+          type="button"
+          data-testid="simulate-impact-button"
+          onClick={() => {
+            crashDispatch({
+              type: "TRIGGER_CRASH",
+              payload: {
+                peakG: 6.2,
+                speedBeforeKmh: 65,
+                simulated: true,
+                timestamp: Date.now(),
+              },
+            });
+          }}
+          className="rounded-md bg-red-500/15 px-2.5 py-1 font-semibold text-red-400 hover:bg-red-500/25 border border-red-500/30 active:scale-95 transition flex items-center gap-1"
+        >
+          <span>💥</span> Simuler un choc
         </button>
         <button
           type="button"
@@ -716,6 +791,124 @@ export default function WitnessPhoneFrame({
                   <RotateCcw className="size-4" />
                   {t.retry_button}
                 </button>
+              </div>
+            )}
+
+            {/* Crash Countdown Overlay (FR-S4-01 / Issue #21) */}
+            {crashState.status !== "idle" && (
+              <div
+                data-testid="crash-countdown-overlay"
+                className={`absolute inset-0 z-50 flex flex-col justify-between p-6 ${
+                  crashState.status === "cancelled"
+                    ? "bg-slate-950/95"
+                    : crashState.status === "sent"
+                      ? "bg-teal-950/95"
+                      : "bg-red-950/95"
+                } backdrop-blur-md transition-colors animate-in fade-in duration-200`}
+              >
+                {crashState.status === "countdown" && (
+                  <div className="flex flex-col items-center justify-between h-full py-4 text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="px-3 py-1 rounded-full bg-red-600 text-white font-black text-[11px] tracking-wider uppercase border border-red-400 animate-pulse shadow-lg mb-2">
+                        ⚠️ CHOC DÉTECTÉ · ALERTE AUTOMATIQUE
+                      </span>
+                      <p className="text-sm font-bold text-red-200">
+                        تم رصد اصطدام قوي · سيتم إرسال الإنذار
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col items-center my-6">
+                      <div className="relative size-44 rounded-full bg-red-700/80 border-4 border-white flex flex-col items-center justify-center shadow-2xl animate-pulse">
+                        <span
+                          data-testid="countdown-timer-value"
+                          className="text-7xl font-black text-white tracking-tighter leading-none"
+                        >
+                          {crashState.secondsRemaining}
+                        </span>
+                        <span className="text-[11px] font-black text-red-200 uppercase tracking-widest mt-1">
+                          SECONDES
+                        </span>
+                      </div>
+                      <p className="text-xs text-red-200 mt-4 max-w-[280px]">
+                        Une alerte géolocalisée sera transmise aux secours dans{" "}
+                        <strong className="text-white font-bold">{crashState.secondsRemaining} s</strong>.
+                      </p>
+                    </div>
+
+                    {/* Giant Cancel Button (PRD FR-S4-01: "JE VAIS BIEN — ANNULER") */}
+                    <div className="w-full flex flex-col items-center gap-3">
+                      <button
+                        type="button"
+                        data-testid="cancel-crash-button"
+                        onClick={() => crashDispatch({ type: "CANCEL" })}
+                        className="w-full py-5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-red-700 font-black text-xl tracking-tight shadow-2xl active:scale-95 transition border-2 border-red-300 flex flex-col items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <span className="text-2xl leading-none">✋</span>
+                        <span>JE VAIS BIEN — ANNULER</span>
+                        <span className="text-sm font-bold text-red-600">أنا بخير — إلغاء</span>
+                      </button>
+
+                      {crashState.simulated && (
+                        <span className="text-[10px] text-red-400/80 font-medium bg-black/30 px-2.5 py-0.5 rounded-md">
+                          TEST SIMULÉ (DÉMO)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {crashState.status === "cancelled" && (
+                  <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                    <div className="size-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-3xl mb-4">
+                      ✅
+                    </div>
+                    <h3 className="text-xl font-black text-white mb-1">ALERTE ANNULÉE</h3>
+                    <p className="text-sm font-semibold text-slate-400 mb-4">تم إلغاء الإنذار بنجاح</p>
+                    <p className="text-xs text-slate-300 max-w-[280px] leading-relaxed mb-6">
+                      Vous avez indiqué aller bien. Aucun appel ni message d&apos;urgence n&apos;a été envoyé. L&apos;événement a été consigné dans le journal local.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => crashDispatch({ type: "RESET" })}
+                      className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition cursor-pointer"
+                    >
+                      Retour à l&apos;accueil
+                    </button>
+                  </div>
+                )}
+
+                {(crashState.status === "sending" || crashState.status === "expired") && (
+                  <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                    <div className="size-16 rounded-full bg-red-600/20 border-2 border-red-400 flex items-center justify-center text-3xl mb-4 animate-bounce">
+                      📡
+                    </div>
+                    <h3 className="text-xl font-black text-white mb-1">ENVOI DE L&apos;ALERTE...</h3>
+                    <p className="text-sm font-semibold text-red-300 mb-4">جارٍ إرسال نداء الاستغاثة...</p>
+                    <p className="text-xs text-slate-300 max-w-[280px] leading-relaxed">
+                      Transmission prioritaire des coordonnées GPS et du profil médical aux centres de secours 14 / 154.
+                    </p>
+                  </div>
+                )}
+
+                {crashState.status === "sent" && (
+                  <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                    <div className="size-16 rounded-full bg-teal-500/20 border-2 border-teal-400 flex items-center justify-center text-3xl mb-4">
+                      🚨
+                    </div>
+                    <h3 className="text-xl font-black text-white mb-1">SECOURS ALERTÉS</h3>
+                    <p className="text-sm font-semibold text-teal-300 mb-4">تم إخطار الحماية المدنية</p>
+                    <p className="text-xs text-slate-300 max-w-[280px] leading-relaxed mb-6">
+                      Dossier d&apos;urgence créé auprès de la Protection Civile. Restez calme et en sécurité.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => crashDispatch({ type: "RESET" })}
+                      className="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition cursor-pointer"
+                    >
+                      Terminer
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

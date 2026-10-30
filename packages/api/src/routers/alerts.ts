@@ -12,6 +12,7 @@ export const alertsRouter = router({
     .input(
       z.object({
         idempotencyKey: z.string().trim().min(1).max(128),
+        source: z.enum(["app_witness", "app_auto"]).default("app_witness"),
         victims: z.number().int().min(1).max(50),
         conscious: z.number().int().min(0).max(2).nullable().default(null),
         fire: z.boolean().default(false),
@@ -25,7 +26,7 @@ export const alertsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const dedupeKey = `witness:${input.idempotencyKey}`;
+      const dedupeKey = `${input.source}:${input.idempotencyKey}`;
       const now = new Date();
 
       // Check if this report was already ingested
@@ -50,7 +51,7 @@ export const alertsRouter = router({
         : null;
 
       const alertRow = {
-        source: "app_witness" as const,
+        source: input.source,
         channel: "internet" as const,
         receivedAt: now,
         eventAt: now,
@@ -67,7 +68,7 @@ export const alertsRouter = router({
         emulated: false,
         authenticated: null,
         rawPayload: JSON.stringify({
-          source: "app_witness",
+          source: input.source,
           victims: input.victims,
           conscious: input.conscious,
           fire: input.fire,
