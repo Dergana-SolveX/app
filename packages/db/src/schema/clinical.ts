@@ -14,11 +14,16 @@ import { ambulanceUnits, hospitalsMatrix } from "./hospitals";
 import { dispatches, masterIncidents, type VittelState } from "./incidents";
 import { medicalProfiles } from "./profiles";
 
+/** The ranking the server computed for a bilan, best first (PRD FR-S2-27). */
 export type HospitalRanking = {
   hospitalId: string;
   etaMin: number;
+  etaSource: "road" | "straight_line";
   matched: string[];
   missing: string[];
+  diverting: string[];
+  score: number;
+  scoreBreakdown: { etaMin: number; missingPenaltyMin: number; divertPenaltyMin: number };
   flags?: string[];
 }[];
 

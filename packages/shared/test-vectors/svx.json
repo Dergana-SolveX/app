@@ -258,7 +258,8 @@
     },
     "matcher": {
       "missingCapabilityPenaltyMin": 30,
-      "divertPenaltyMin": 60
+      "divertPenaltyMin": 60,
+      "stabiliseFirstEtaMin": 45
     },
     "confidence": {
       "weights": {
@@ -273,6 +274,7 @@
     },
     "shockIndex": {"elevatedAbove": 0.9, "criticalFrom": 1.3, "childUnderYears": 12, "elderlyOverYears": 65},
     "vittel": {"gcsBelow": 13, "sbpBelow": 90, "spo2Below": 90, "fallAboveM": 6, "fluidsAboveMl": 1000, "ageAbove": 65},
+    "needs": {"gcsAtMost": 13, "pediatricUnderYears": 15},
     "eventTime": {
       "maxSkewHours": 24
     },
