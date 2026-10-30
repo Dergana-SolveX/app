@@ -1,5 +1,6 @@
 import type { EventBus } from "@solvex-dergana/api/services/events";
 import { receiveSms } from "@solvex-dergana/api/services/sms-flow";
+import { applyDeliveryReport } from "@solvex-dergana/api/services/wire";
 import type { SmsTransport } from "@solvex-dergana/api/sms/transport";
 import type { Database } from "@solvex-dergana/db";
 import { Hono } from "hono";
@@ -13,6 +14,9 @@ const inboundSchema = z.object({
   /** A real gateway leaves this false; the emulated GSM network sets it to true. */
   emulated: z.boolean().default(false),
 });
+
+/** What the network finally did with a text the modem sent (from the gateway, see apps/gateway). */
+const deliveryReportSchema = z.object({ ref: z.number().int(), status: z.enum(["delivered", "failed"]) });
 
 const MIN_SECRET_LENGTH = 16;
 
@@ -57,8 +61,19 @@ export function createInternalSmsApp({
     const result = await receiveSms({ db, events, transport, masterDeviceSecret }, parsed.data);
     const texts =
       result.kind === "alert" ? [result.ack] : result.kind === "menu" ? result.replies : [];
-    const replies = texts.map((body) => ({ to: parsed.data.from, body }));
+    // The modem transport has already texted them through the gateway: returning them too would text the phone twice.
+    const replies = transport.kind === "modem" ? [] : texts.map((body) => ({ to: parsed.data.from, body }));
     return c.json({ result, replies });
+  });
+
+  app.post("/internal/sms/status", async (c) => {
+    if (!isAuthorized(c.req.header("authorization"), secret)) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const parsed = deliveryReportSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "invalid_body" }, 400);
+
+    return c.json({ updated: await applyDeliveryReport(db, parsed.data) });
   });
 
   return app;

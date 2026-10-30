@@ -138,3 +138,98 @@ describe("createInternalSmsApp: gateway secret", () => {
     expect(() => createInternalSmsApp({ secret: "short", db, transport, events })).toThrow(/secret/i);
   });
 });
+
+describe("POST /internal/sms/status (delivery reports from the gateway)", () => {
+  /** A server whose transport is the modem, with a fake gateway that hands out the given references in order. */
+  async function modemSetup(refs: number[]) {
+    const db = await createTestDb();
+    const queue = [...refs];
+    const transport = createTransport("modem", {
+      db,
+      gateway: {
+        url: "http://gateway.test",
+        secret: SECRET,
+        fetch: (async () => Response.json({ ref: queue.shift() })) as unknown as typeof fetch,
+      },
+    });
+    const app = createInternalSmsApp({ secret: SECRET, db, transport, events: createEventBus() });
+    const report = (body: unknown, headers: Record<string, string> = { authorization: `Bearer ${SECRET}` }) =>
+      app.request("/internal/sms/status", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      });
+    const statuses = async () => (await listOutbox(db)).map((m) => [m.body, m.status]).sort();
+    return { transport, report, statuses };
+  }
+
+  it("marks a sent text delivered or failed, found by the reference the network gave it", async () => {
+    const { transport, report, statuses } = await modemSetup([12, 13]);
+    await transport.send("+213550000001", "a");
+    await transport.send("+213550000002", "b");
+
+    const delivered = await report({ ref: 12, status: "delivered" });
+    const failed = await report({ ref: 13, status: "failed" });
+
+    expect(delivered.status).toBe(200);
+    expect(await delivered.json()).toEqual({ updated: true });
+    expect(await failed.json()).toEqual({ updated: true });
+    expect(await statuses()).toEqual([["a", "delivered"], ["b", "failed"]]);
+  });
+
+  it("applies a report to the most recent text with that reference (the modem reuses numbers)", async () => {
+    const { transport, report, statuses } = await modemSetup([5, 5]);
+    await transport.send("+213550000001", "old");
+    await report({ ref: 5, status: "delivered" });
+    await transport.send("+213550000001", "new"); // the counter wrapped: reference 5 again
+
+    await report({ ref: 5, status: "failed" });
+
+    expect(await statuses()).toEqual([["new", "failed"], ["old", "delivered"]]);
+  });
+
+  it("says nothing was updated for a reference it does not know", async () => {
+    const { report } = await modemSetup([]);
+    const response = await report({ ref: 99, status: "delivered" });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ updated: false });
+  });
+
+  it("is for the gateway only, and refuses a malformed report", async () => {
+    const { report } = await modemSetup([]);
+    expect((await report({ ref: 1, status: "delivered" }, {})).status).toBe(401);
+    expect((await report({ ref: 1, status: "delivered" }, { authorization: "Bearer nope" })).status).toBe(401);
+    expect((await report({ ref: "x", status: "delivered" })).status).toBe(400);
+    expect((await report({ ref: 1, status: "pending" })).status).toBe(400);
+  });
+});
+
+describe("POST /internal/sms when the server texts through the modem", () => {
+  it("texts the phone once: the server sends through the gateway, so it must not also return the same text as a reply", async () => {
+    const db = await createTestDb();
+    const sent: { to: string; body: string }[] = [];
+    const transport = createTransport("modem", {
+      db,
+      gateway: {
+        url: "http://gateway.test",
+        secret: SECRET,
+        fetch: (async (_url: unknown, init?: RequestInit) => {
+          sent.push(JSON.parse(String(init?.body)));
+          return Response.json({ ref: sent.length });
+        }) as unknown as typeof fetch,
+      },
+    });
+    const app = createInternalSmsApp({ secret: SECRET, db, transport, events: createEventBus() });
+
+    const response = await app.request("/internal/sms", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
+      body: JSON.stringify({ from: "+213550000009", body: "ACCIDENT" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(sent).toHaveLength(1); // the menu question, sent once through the gateway
+    expect(sent[0]).toMatchObject({ to: "+213550000009" });
+    expect(((await response.json()) as { replies: unknown[] }).replies).toEqual([]);
+  });
+});
