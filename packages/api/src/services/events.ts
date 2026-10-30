@@ -24,7 +24,22 @@ export type DispatcherEvent =
       reasons: { fr: string; ar: string }[];
     };
 
-/** Events sent to one ambulance's tablet (`unit:{id}`). */
+/** What a hospital board hears (PRD FR-S7-01, FR-S7-02, FR-S7-03). */
+export type HospitalEvent =
+  | Ready
+  | Resync
+  | { type: "handover.incoming"; handover: HandoverSummary }
+  | { type: "hospital.status_updated"; hospitalId: string; status: Record<string, "accept" | "divert"> }
+  | {
+      type: "handover.vitals_updated";
+      handoverId: string;
+      assessmentId: string;
+      vitals: Record<string, unknown>;
+      shockIndex: Record<string, unknown> | null;
+      updatedAt: string;
+    };
+
+/** What an ambulance tablet hears: mission assignments (PRD FR-S6-01) and hospital handover answers (PRD FR-S6-05). */
 export type UnitEvent =
   | Ready
   | Resync
@@ -38,25 +53,58 @@ export type UnitEvent =
       unitIds: string[];
       notes: string | null;
       at: string;
+    }
+  | {
+      type: "handover.updated";
+      handoverId: string;
+      hospitalId: string;
+      status: "pending" | "accepted" | "diverted";
+      divertSpecialty: string | null;
+      respondedAt: string | null;
     };
 
-type Published<E> = Exclude<E, Ready | Resync>;
-type Stored<E> = { id: string; seq: number; event: Published<E> };
-
-type Channel<E> = {
-  publish(event: Published<E>): void;
-  stream(lastEventId?: string, signal?: AbortSignal): AsyncGenerator<{ id: string; event: E }>;
+/** A handover as the hospital board shows it. */
+export type HandoverSummary = {
+  id: string;
+  hospitalId: string;
+  incidentId: string;
+  assessmentId: string;
+  status: "pending" | "accepted" | "diverted";
+  /** The frozen AT-MIST snapshot. */
+  atmist: Record<string, unknown>;
+  /** The ambulance's estimated minutes to the hospital when it was sent. */
+  etaMin: number | null;
+  createdAt: string;
+  smsFallbackSentAt?: string | null;
 };
 
+/** Who is listening: the dispatchers, one ambulance, or one hospital. */
+export type Channel = "dispatcher" | `unit:${string}` | `hospital:${string}`;
+
+type Marker = { type: "ready" } | { type: "resync" };
+type EventOf<C extends Channel> = C extends "dispatcher"
+  ? DispatcherEvent
+  : C extends `hospital:${string}`
+    ? HospitalEvent
+    : UnitEvent;
+type Published<C extends Channel> = Exclude<EventOf<C>, Marker>;
+type Stored = { id: string; seq: number; channel: Channel; event: unknown };
+
 export type EventBus = {
-  publish(event: Published<DispatcherEvent>): void;
+  /** `channel` defaults to the dispatchers. */
+  publish<C extends Channel = "dispatcher">(event: Published<C>, channel?: C): void;
   /**
-   * Events for one dispatcher subscriber. Without `lastEventId`: a `ready` marker, then live events.
-   * With it: what the client missed (or `resync` if that is no longer possible), then live events.
+   * Events for one subscriber of a channel (the dispatchers by default). Without `lastEventId`: a `ready` marker,
+   * then live events. With it: what the client missed on this channel (or `resync` if that is no longer
+   * possible), then live events. Ids are shared by all channels, so an id means the same moment everywhere.
    */
-  stream(lastEventId?: string, signal?: AbortSignal): AsyncGenerator<{ id: string; event: DispatcherEvent }>;
+  stream<C extends Channel = "dispatcher">(
+    lastEventId?: string,
+    signal?: AbortSignal,
+    channel?: C,
+  ): AsyncGenerator<{ id: string; event: EventOf<C> }>;
   /** Tells one ambulance. Nobody else hears it. */
-  publishToUnit(unitId: string, event: Published<UnitEvent>): void;
+  publishToUnit(unitId: string, event: Exclude<UnitEvent, Ready | Resync>): void;
   /** The same replay rules as `stream`, for one ambulance. */
   streamUnit(
     unitId: string,
@@ -66,33 +114,32 @@ export type EventBus = {
 };
 
 /**
- * One in-process channel (one server instance). Event ids are `<bootId>:<counter>`: an id from
- * another run of the server, or one older than the last `bufferSize` events, forces a resync.
+ * Event bus with shared sequencing and isolated channels (dispatcher, unit:{id}, hospital:{id}).
+ * Event ids are `<bootId>:<counter>`: an id from another run of the server, or one older than the
+ * last `bufferSize` events, forces a resync.
  */
-function createChannel<E extends Ready | Resync | { type: string }>({
-  bufferSize,
-  bootId,
-}: {
-  bufferSize: number;
-  bootId: string;
-}): Channel<E> {
+export function createEventBus({
+  bufferSize = 500,
+  bootId = randomUUID(),
+}: { bufferSize?: number; bootId?: string } = {}): EventBus {
   let seq = 0;
-  const buffer: Stored<E>[] = [];
-  const listeners = new Set<(item: Stored<E>) => void>();
+  const buffer: Stored[] = [];
+  const listeners = new Set<(item: Stored) => void>();
   const idOf = (n: number) => `${bootId}:${n}`;
 
   return {
-    publish(event) {
-      const item: Stored<E> = { id: idOf(++seq), seq, event };
+    publish(event, channel = "dispatcher" as never) {
+      const item: Stored = { id: idOf(++seq), seq, channel, event };
       buffer.push(item);
       if (buffer.length > bufferSize) buffer.shift();
       for (const listener of listeners) listener(item);
     },
 
-    async *stream(lastEventId, signal) {
-      const queue: Stored<E>[] = [];
+    async *stream(lastEventId, signal, channel = "dispatcher" as never) {
+      const queue: Stored[] = [];
       let wake: (() => void) | null = null;
-      const listener = (item: Stored<E>) => {
+      const listener = (item: Stored) => {
+        if (item.channel !== channel) return;
         queue.push(item);
         wake?.();
       };
@@ -101,18 +148,18 @@ function createChannel<E extends Ready | Resync | { type: string }>({
       try {
         let delivered = seq;
         if (lastEventId === undefined) {
-          yield { id: idOf(seq), event: { type: "ready" } as E };
+          yield { id: idOf(seq), event: { type: "ready" } } as never;
         } else {
           const [boot, n] = lastEventId.split(":");
           const last = Number(n);
           const oldestKept = buffer[0]?.seq ?? seq + 1;
           if (boot !== bootId || !Number.isInteger(last) || last > seq || last + 1 < oldestKept) {
-            yield { id: idOf(seq), event: { type: "resync" } as E };
+            yield { id: idOf(seq), event: { type: "resync" } } as never;
           } else {
             delivered = last;
             for (const item of buffer.filter((b) => b.seq > last && b.channel === channel)) {
               delivered = item.seq;
-              yield { id: item.id, event: item.event as E };
+              yield { id: item.id, event: item.event } as never;
             }
           }
         }
@@ -122,7 +169,7 @@ function createChannel<E extends Ready | Resync | { type: string }>({
           if (item) {
             if (item.seq > delivered) {
               delivered = item.seq;
-              yield { id: item.id, event: item.event as E };
+              yield { id: item.id, event: item.event } as never;
             }
             continue;
           }
@@ -141,29 +188,13 @@ function createChannel<E extends Ready | Resync | { type: string }>({
         listeners.delete(listener);
       }
     },
-  };
-}
 
-/** The dispatchers' channel plus one channel per ambulance. */
-export function createEventBus({
-  bufferSize = 500,
-  bootId = randomUUID(),
-}: { bufferSize?: number; bootId?: string } = {}): EventBus {
-  const dispatchers = createChannel<DispatcherEvent>({ bufferSize, bootId });
-  const units = new Map<string, Channel<UnitEvent>>();
-  const unit = (unitId: string) => {
-    let channel = units.get(unitId);
-    if (!channel) {
-      channel = createChannel<UnitEvent>({ bufferSize, bootId });
-      units.set(unitId, channel);
-    }
-    return channel;
-  };
+    publishToUnit(unitId, event) {
+      this.publish(event as never, `unit:${unitId}` as never);
+    },
 
-  return {
-    publish: (event) => dispatchers.publish(event),
-    stream: (lastEventId, signal) => dispatchers.stream(lastEventId, signal),
-    publishToUnit: (unitId, event) => unit(unitId).publish(event),
-    streamUnit: (unitId, lastEventId, signal) => unit(unitId).stream(lastEventId, signal),
+    streamUnit(unitId, lastEventId, signal) {
+      return this.stream(lastEventId, signal, `unit:${unitId}` as never);
+    },
   };
 }

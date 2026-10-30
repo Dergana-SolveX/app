@@ -196,6 +196,7 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
       <div className="max-w-4xl">
         <BilanForm
           key={active}
+          assessmentId={assessmentId}
           draft={draft}
           onChange={update}
           profiles={mission.data.profiles}

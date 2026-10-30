@@ -2,6 +2,7 @@ import type { Database } from "@solvex-dergana/db";
 import {
   ambulanceUnits,
   handovers,
+  hospitalsMatrix,
   incidentEvents,
   masterIncidents,
   medicalProfiles,
@@ -20,15 +21,16 @@ import {
   type VittelState,
 } from "@solvex-dergana/shared";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lte, notInArray } from "drizzle-orm";
 
 import type { AppUserContext } from "../context";
 import type { EventBus, HandoverSummary } from "./events";
+import type { SmsTransport } from "../sms/transport";
 
 type Deps = { db: Database; events: EventBus };
 type HandoverRow = typeof handovers.$inferSelect;
 
-const summaryOf = (row: HandoverRow, incidentId: string): HandoverSummary => ({
+export const summaryOf = (row: HandoverRow, incidentId: string): HandoverSummary => ({
   id: row.id,
   hospitalId: row.hospitalId,
   incidentId,
@@ -37,6 +39,7 @@ const summaryOf = (row: HandoverRow, incidentId: string): HandoverSummary => ({
   atmist: row.atmist,
   etaMin: (row.atmist as { etaMin?: number | null }).etaMin ?? null,
   createdAt: row.createdAt.toISOString(),
+  smsFallbackSentAt: row.smsFallbackSentAt ? row.smsFallbackSentAt.toISOString() : null,
 });
 
 /** A medic may act on their own ambulance's bilans; the admin (demo operator) on any. */
@@ -171,6 +174,20 @@ export async function respondToHandover(
       .where(and(eq(handovers.id, input.handoverId), eq(handovers.status, "pending")))
       .returning();
     if (!row) return null;
+
+    // Divert automatically updates the hospital's specialty status to divert (PLAN.md 7.3)
+    if (divertSpecialty) {
+      const [hosp] = await tx.select().from(hospitalsMatrix).where(eq(hospitalsMatrix.id, row.hospitalId));
+      if (hosp) {
+        const current = (hosp.status ?? {}) as Record<string, "accept" | "divert">;
+        const nextStatus = { ...current, [divertSpecialty]: "divert" as const };
+        await tx
+          .update(hospitalsMatrix)
+          .set({ status: nextStatus, statusUpdatedAt: now, statusUpdatedBy: appUser.id })
+          .where(eq(hospitalsMatrix.id, row.hospitalId));
+      }
+    }
+
     await tx.insert(incidentEvents).values({
       incidentId: found.incidentId,
       actorRole: appUser.role,
@@ -198,6 +215,76 @@ export async function respondToHandover(
   return { handoverId: answered.id, status, divertSpecialty };
 }
 
+/** Sends AT-MIST via SMS if handover has not been acknowledged within 60 s (PRD FR-S3-22, FR-S7-03). */
+export async function checkHandoverFallback(
+  { db, events, smsTransport }: { db: Database; events: EventBus; smsTransport: SmsTransport },
+  now = new Date(),
+) {
+  const threshold = new Date(now.getTime() - 60 * 1000);
+
+  const pending = await db
+    .select({
+      handover: handovers,
+      phone: hospitalsMatrix.phone,
+      hospitalName: hospitalsMatrix.name,
+      incidentId: medicAssessments.incidentId,
+    })
+    .from(handovers)
+    .innerJoin(hospitalsMatrix, eq(hospitalsMatrix.id, handovers.hospitalId))
+    .innerJoin(medicAssessments, eq(medicAssessments.id, handovers.assessmentId))
+    .where(
+      and(
+        eq(handovers.status, "pending"),
+        isNull(handovers.smsFallbackSentAt),
+        lte(handovers.createdAt, threshold),
+      ),
+    );
+
+  let fallbackSent = 0;
+  for (const item of pending) {
+    const atmist = item.handover.atmist as unknown as AtMist;
+    const body = renderAtMistSms(atmist);
+    const phone = item.phone || "021000000";
+
+    if (smsTransport) {
+      await smsTransport.send(phone, body, { incidentId: item.incidentId });
+    }
+
+    await db
+      .update(handovers)
+      .set({ smsFallbackSentAt: now })
+      .where(eq(handovers.id, item.handover.id));
+
+    await db.insert(incidentEvents).values({
+      incidentId: item.incidentId,
+      actorRole: "system",
+      actorId: "system",
+      type: "handover.sms_fallback_sent",
+      payload: {
+        handoverId: item.handover.id,
+        hospitalId: item.handover.hospitalId,
+        phone,
+      },
+    });
+
+    // Notify the hospital board live so the card immediately shows "envoyé aussi par SMS"
+    events.publish(
+      {
+        type: "handover.incoming",
+        handover: {
+          ...summaryOf(item.handover, item.incidentId),
+          smsFallbackSentAt: now.toISOString(),
+        },
+      },
+      `hospital:${item.handover.hospitalId}`,
+    );
+
+    fallbackSent++;
+  }
+
+  return { fallbackSent };
+}
+
 /** A hospital's handovers, newest first. `hospitalId` null means every hospital (admin only). */
 export async function listIncoming(db: Database, hospitalId: string | null) {
   const rows = await db
@@ -210,6 +297,7 @@ export async function listIncoming(db: Database, hospitalId: string | null) {
     ...summaryOf(handover, incidentId),
     respondedAt: handover.respondedAt,
     divertSpecialty: handover.divertSpecialty,
+    smsFallbackSentAt: handover.smsFallbackSentAt ? handover.smsFallbackSentAt.toISOString() : null,
   }));
 }
 
@@ -226,6 +314,126 @@ export async function listForAssessment(db: Database, appUser: AppUserContext, a
     divertSpecialty: row.divertSpecialty,
     respondedAt: row.respondedAt,
     createdAt: row.createdAt,
+    smsFallbackSentAt: row.smsFallbackSentAt ? row.smsFallbackSentAt.toISOString() : null,
   }));
+}
+
+export type UpdateVitalsInput = {
+  assessmentId: string;
+  vitals: {
+    gcs?: number;
+    hr?: number;
+    sbp?: number;
+    dbp?: number;
+    spo2?: number;
+    rr?: number;
+  };
+};
+
+/** Pushes updated vital signs to active handovers and notifies the hospital board (PRD FR-S6-05, FR-S7-01). */
+export async function updateHandoverVitals(
+  { db, events }: Deps,
+  appUser: AppUserContext,
+  input: UpdateVitalsInput,
+  now = new Date(),
+) {
+  const [assessment] = await db
+    .select()
+    .from(medicAssessments)
+    .where(eq(medicAssessments.id, input.assessmentId));
+  if (!assessment) throw new TRPCError({ code: "NOT_FOUND", message: "Bilan not found" });
+  assertOwnsAssessment(appUser, assessment.unitId);
+
+  const [profile] = assessment.profileId
+    ? await db.select().from(medicalProfiles).where(eq(medicalProfiles.id, assessment.profileId))
+    : [];
+
+  const age = profile ? ageYears(profile.birthDate, now) : assessment.estAge;
+  const medications = profile?.medications ?? [];
+  const hr = input.vitals.hr ?? assessment.hr;
+  const sbp = input.vitals.sbp ?? assessment.sbp;
+  const dbp = input.vitals.dbp ?? assessment.dbp;
+  const gcs = input.vitals.gcs ?? assessment.gcs;
+  const spo2 = input.vitals.spo2 ?? assessment.spo2;
+  const rr = input.vitals.rr ?? assessment.rr;
+
+  const index = shockIndex(hr, sbp, {
+    ageYears: age,
+    betaBlocker: medications.some((m) => m.class === "beta_blocker"),
+    antihypertensive: medications.some((m) => m.class === "antihypertensive"),
+    pregnant: (profile?.pregnancyStatus ?? "none") !== "none",
+  });
+
+  await db
+    .update(medicAssessments)
+    .set({
+      hr,
+      sbp,
+      dbp,
+      gcs,
+      spo2,
+      rr,
+      shockIndex: index?.value == null ? null : index.value.toFixed(2),
+      assessedAt: now,
+    })
+    .where(eq(medicAssessments.id, input.assessmentId));
+
+  const activeHandovers = await db
+    .select()
+    .from(handovers)
+    .where(and(eq(handovers.assessmentId, input.assessmentId), notInArray(handovers.status, ["diverted"])));
+
+  for (const h of activeHandovers) {
+    const atmist = h.atmist as unknown as AtMist;
+    const updatedAtmist: AtMist = {
+      ...atmist,
+      signs: {
+        ...atmist.signs,
+        gcs: gcs ?? null,
+        hr: hr ?? null,
+        sbp: sbp ?? null,
+        dbp: dbp ?? null,
+        spo2: spo2 ?? null,
+        rr: rr ?? null,
+        shockIndex: index ? { value: index.value, flag: index.flag, caveats: index.caveats } : null,
+      },
+    };
+
+    await db
+      .update(handovers)
+      .set({ atmist: updatedAtmist as unknown as Record<string, unknown> })
+      .where(eq(handovers.id, h.id));
+
+    events.publish(
+      {
+        type: "handover.vitals_updated",
+        handoverId: h.id,
+        assessmentId: input.assessmentId,
+        vitals: { gcs, hr, sbp, dbp, spo2, rr },
+        shockIndex: index ? { value: index.value, flag: index.flag } : null,
+        updatedAt: now.toISOString(),
+      },
+      `hospital:${h.hospitalId}`,
+    );
+  }
+
+  await db.insert(incidentEvents).values({
+    incidentId: assessment.incidentId,
+    actorRole: appUser.role,
+    actorId: appUser.id,
+    type: "handover.vitals_updated",
+    payload: {
+      assessmentId: input.assessmentId,
+      vitals: { gcs, hr, sbp, dbp, spo2, rr },
+      shockIndex: index ? { value: index.value, flag: index.flag } : null,
+    },
+  });
+
+  return {
+    assessmentId: input.assessmentId,
+    vitals: { gcs, hr, sbp, dbp, spo2, rr },
+    shockIndex: index ? { value: index.value, flag: index.flag } : null,
+    updatedAt: now.toISOString(),
+  };
 }
 

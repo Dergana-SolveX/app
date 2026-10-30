@@ -3,9 +3,16 @@ import { TRPCError, tracked } from "@trpc/server";
 import { z } from "zod";
 
 import type { AppUserContext } from "../context";
-import { roleProcedure, router } from "../index";
+import { protectedProcedure, roleProcedure, router } from "../index";
 import type { Channel } from "../services/events";
-import { listForAssessment, listIncoming, respondToHandover, sendHandover } from "../services/handovers";
+import {
+  checkHandoverFallback,
+  listForAssessment,
+  listIncoming,
+  respondToHandover,
+  sendHandover,
+  updateHandoverVitals,
+} from "../services/handovers";
 
 const medicAccess = roleProcedure("medic", "admin");
 const hospitalAccess = roleProcedure("hospital", "admin");
@@ -41,6 +48,23 @@ export const handoversRouter = router({
     .input(z.object({ assessmentId: z.uuid() }))
     .mutation(({ ctx, input }) => sendHandover(ctx, ctx.appUser, input.assessmentId)),
 
+  /** Medic pushes updated in-transit vital signs (PRD FR-S6-05, FR-S7-01). */
+  updateVitals: medicAccess
+    .input(
+      z.object({
+        assessmentId: z.uuid(),
+        vitals: z.object({
+          gcs: z.number().int().min(3).max(15).optional(),
+          hr: z.number().int().min(0).max(300).optional(),
+          sbp: z.number().int().min(0).max(350).optional(),
+          dbp: z.number().int().min(0).max(250).optional(),
+          spo2: z.number().int().min(0).max(100).optional(),
+          rr: z.number().int().min(0).max(80).optional(),
+        }),
+      }),
+    )
+    .mutation(({ ctx, input }) => updateHandoverVitals(ctx, ctx.appUser, input)),
+
   /** The hospital accepts, or diverts with the specialty it cannot offer. */
   respond: hospitalAccess
     .input(
@@ -55,8 +79,22 @@ export const handoversRouter = router({
   /** The snapshot a hospital board starts from (and refetches on `ready` / `resync`). */
   incoming: hospitalAccess
     .input(z.object({ hospitalId: z.uuid().optional() }).optional())
-    .query(({ ctx, input }) =>
-      listIncoming(ctx.db, ctx.appUser.role === "admin" ? (input?.hospitalId ?? null) : hospitalOf(ctx.appUser, input?.hospitalId)),
+    .query(async ({ ctx, input }) => {
+      // Opportunistically check if any pending handovers need fallback SMS
+      if (ctx.smsTransport) {
+        await checkHandoverFallback(ctx).catch(() => undefined);
+      }
+      return listIncoming(ctx.db, ctx.appUser.role === "admin" ? (input?.hospitalId ?? null) : hospitalOf(ctx.appUser, input?.hospitalId));
+    }),
+
+  /** Triggers or checks fallback for unacknowledged handovers > 60s (PRD FR-S3-22, FR-S7-03). */
+  checkFallback: protectedProcedure
+    .input(z.object({ now: z.string().datetime().optional() }).optional())
+    .mutation(({ ctx, input }) =>
+      checkHandoverFallback(
+        ctx,
+        input?.now ? new Date(input.now) : undefined,
+      ),
     ),
 
   /** The handovers of one bilan, for the tablet's En route screen. */
