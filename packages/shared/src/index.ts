@@ -4,6 +4,7 @@ export * from "./roles";
 export * from "./sms/crc8";
 export * from "./sms/protocol";
 export * from "./thresholds";
+export * from "./triage";
 export * from "./geo/geohash";
 export * from "./geo/distance";
 export * from "./geo/polygon";

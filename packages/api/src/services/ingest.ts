@@ -1,5 +1,5 @@
 import type { Database } from "@solvex-dergana/db";
-import { rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
+import { medicalProfiles, rawAlerts, smsLog } from "@solvex-dergana/db/schema/index";
 import {
   decodeSvx,
   GEOHASH8_ACCURACY_M,
@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 
 import { placeAlert, type Placement } from "./clustering";
 import type { EventBus } from "./events";
+import { retriageIncident } from "./triage";
 
 export type InboundSms = {
   /** Sender phone number (E.164). Only a hash of it is stored. */
@@ -79,6 +80,11 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
       .from(rawAlerts)
       .where(eq(rawAlerts.dedupeKey, dedupeKey));
 
+    // The medical profile the sender registered, if the code matches one (feeds the profile-risk rules).
+    const [profile] = alert.profileCode
+      ? await db.select({ id: medicalProfiles.id }).from(medicalProfiles).where(eq(medicalProfiles.shortCode, alert.profileCode))
+      : [];
+
     // Where and when it happened. A late SMS keeps its true time, a wrong device clock is ignored.
     const cell = alert.geohash ? geohashDecode(alert.geohash) : null;
     const position = cell ? { lat: cell.lat, lng: cell.lng, accuracyM: GEOHASH8_ACCURACY_M } : null;
@@ -89,11 +95,13 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
 
     // The stored alert, the same for a recognised SVX message and for plain text.
     const alertRow = {
+      profileId: profile?.id ?? null,
       source: sourceOf(alert.layer, alert.peakG),
       channel: "sms" as const,
       receivedAt,
       geohash: alert.geohash,
       gForce: alert.peakG,
+      rollover: alert.rollover,
       deltaVKmh: alert.deltaVKmh,
       fire: alert.fire,
       victims: alert.victims,
@@ -142,8 +150,15 @@ export async function ingestSms({ db, events }: IngestDeps, sms: InboundSms): Pr
 
     // Told to dispatchers as soon as the incident is committed: a failure to write the SMS log below
     // must never hide a distress signal from them (NFR-P6).
-    if (placement.kind === "created") events.publish({ type: "incident.created", incident: placement.incident });
-    if (placement.kind === "merged") events.publish({ type: "incident.updated", incident: placement.incident });
+    // Triage first, so what dispatchers see already carries the recommendation. If triage itself fails,
+    // announce the incident as it is: the signal still gets through.
+    if (placement.kind === "created" || placement.kind === "merged") {
+      const triaged = await retriageIncident({ db, events }, placement.incident.id, { announce: false }).catch(
+        () => null,
+      );
+      const incident = triaged ?? placement.incident;
+      events.publish({ type: placement.kind === "created" ? "incident.created" : "incident.updated", incident });
+    }
     const incidentId =
       placement.kind !== "duplicate"
         ? placement.incident.id

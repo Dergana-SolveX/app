@@ -1,6 +1,6 @@
 import type { Database } from "@solvex-dergana/db";
-import { masterIncidents, rawAlerts } from "@solvex-dergana/db/schema/index";
-import { asc, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
+import { incidentEvents, masterIncidents, rawAlerts } from "@solvex-dergana/db/schema/index";
+import { and, asc, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 
 /** All incidents, most recently updated first. This is the snapshot the dispatcher queue starts from. */
 export async function listIncidents(db: Database) {
@@ -26,6 +26,34 @@ export async function getIncident(db: Database, id: string) {
     .where(eq(rawAlerts.incidentId, id))
     .orderBy(asc(rawAlerts.receivedAt));
   return { ...incident, alerts };
+}
+
+/**
+ * The data behind the evaluation card: the incident with the reasons for its recommendation.
+ * The reasons come from the latest `triage.recommended` event (the recommendation never changes after dispatch).
+ */
+export async function getEvaluation(db: Database, id: string) {
+  const [incident] = await db.select().from(masterIncidents).where(eq(masterIncidents.id, id));
+  if (!incident) return null;
+  const [latest] = await db
+    .select({ payload: incidentEvents.payload })
+    .from(incidentEvents)
+    .where(and(eq(incidentEvents.incidentId, id), eq(incidentEvents.type, "triage.recommended")))
+    .orderBy(desc(incidentEvents.at))
+    .limit(1);
+  const reasons = (latest?.payload.reasons ?? []) as { fr: string; ar: string }[];
+
+  // A severity increase suggested after the dispatch (nothing was changed): the card keeps showing it on reload.
+  const [suggested] = await db
+    .select({ payload: incidentEvents.payload })
+    .from(incidentEvents)
+    .where(and(eq(incidentEvents.incidentId, id), eq(incidentEvents.type, "incident.escalation_suggested")))
+    .orderBy(desc(incidentEvents.at))
+    .limit(1);
+  const escalation = suggested
+    ? (suggested.payload as { from: string; to: "yellow" | "red"; reasons: { fr: string; ar: string }[] })
+    : null;
+  return { ...incident, reasons, escalation };
 }
 
 /** Raw alerts that belong to no incident (e.g. text that was not an SVX alert), newest first. */

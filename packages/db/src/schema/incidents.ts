@@ -69,6 +69,8 @@ export const rawAlerts = pgTable(
     gForce: doublePrecision("g_force"),
     deltaVKmh: doublePrecision("delta_v_kmh"),
     rolloverDeg: doublePrecision("rollover_deg"),
+    /** Yes/no rollover as reported (an SVX SMS carries no angle). */
+    rollover: boolean("rollover"),
     fire: boolean("fire"),
     victims: integer("victims"),
     conscious: integer("conscious"),
