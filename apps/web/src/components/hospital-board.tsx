@@ -4,7 +4,16 @@ import { Skeleton } from "@solvex-dergana/ui/components/skeleton";
 import { cn } from "@solvex-dergana/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { AmbulanceIcon, CheckIcon, CircleAlertIcon, ClockIcon, InboxIcon, XIcon } from "lucide-react";
+import {
+  ActivityIcon,
+  AmbulanceIcon,
+  CheckIcon,
+  CircleAlertIcon,
+  ClockIcon,
+  InboxIcon,
+  RadioIcon,
+  XIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -49,6 +58,7 @@ type Incoming = {
   createdAt: string;
   respondedAt: Date | string | null;
   divertSpecialty: string | null;
+  smsFallbackSentAt?: string | null;
 };
 
 function HandoverCard({ handover, now, hospitalId }: { handover: Incoming; now: Date; hospitalId: string }) {
@@ -92,6 +102,12 @@ function HandoverCard({ handover, now, hospitalId }: { handover: Incoming; now: 
                 Traumatisé grave
               </span>
             )}
+            {handover.smsFallbackSentAt && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-bold tracking-wide text-amber-700 dark:text-amber-300">
+                <RadioIcon className="size-3.5" aria-hidden="true" />
+                Envoyé aussi par SMS
+              </span>
+            )}
           </p>
           <p className="text-xs text-muted-foreground">Envoyé {timeAgo(handover.createdAt, now)}</p>
         </div>
@@ -118,84 +134,90 @@ function HandoverCard({ handover, now, hospitalId }: { handover: Incoming; now: 
             {atmist.mechanism.length ? atmist.mechanism.join(", ") : "non précisé"}
           </Line>
           <Line letter="I" label="Lésions">
-            {atmist.injuries.length ? atmist.injuries.join(", ") : "aucune signalée"}
-          </Line>
-          <Line letter="S" label="Signes">
-            {vitals.length ? vitals.join(" · ") : "non mesurés"}
-          </Line>
-          <Line letter="T" label="Gestes">
-            {atmist.treatments.length ? atmist.treatments.join(", ") : "aucun"}
+            {atmist.injuries.length ? atmist.injuries.join(", ") : "non précisées"}
           </Line>
         </dl>
-        <div className="flex flex-col gap-2">
-          <ShockIndexBadge result={signs.shockIndex} />
+        <dl>
+          <Line letter="S" label="Constantes">
+            <span className="flex flex-wrap items-center gap-2">
+              <span>{vitals.length ? vitals.join(" · ") : "non mesurées"}</span>
+              {signs.shockIndex && <ShockIndexBadge result={signs.shockIndex} />}
+            </span>
+          </Line>
+          <Line letter="T" label="Traitements">
+            {atmist.treatments.length ? atmist.treatments.join(", ") : "aucun"}
+          </Line>
+          {(atmist.bloodType || (atmist.allergies && atmist.allergies.length > 0)) && (
+            <Line letter="P" label="Profil">
+              {[
+                atmist.bloodType && `Groupe ${atmist.bloodType}`,
+                atmist.allergies && atmist.allergies.length > 0 && `allergies : ${atmist.allergies.join(", ")}`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </Line>
+          )}
           {atmist.prep.length > 0 && (
-            <div>
-              <p className="mb-1 text-xs font-bold tracking-wide text-muted-foreground uppercase">À préparer</p>
-              <ul className="flex flex-wrap gap-1.5">
-                {atmist.prep.map((tag) => (
-                  <li key={tag} className="rounded-md border border-primary/40 bg-accent px-2 py-1 text-sm font-semibold text-accent-foreground">
-                    {tag}
-                  </li>
+            <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
+              <p className="font-extrabold text-primary uppercase tracking-wide">À préparer :</p>
+              <ul className="mt-1 list-disc list-inside space-y-0.5">
+                {atmist.prep.map((p) => (
+                  <li key={p}>{p}</li>
                 ))}
               </ul>
             </div>
           )}
-          {(atmist.bloodType || atmist.allergies.length > 0) && (
-            <p className="text-sm">
-              {atmist.bloodType && (
-                <>
-                  Groupe <strong>{atmist.bloodType}</strong>
-                </>
-              )}
-              {atmist.bloodType && atmist.allergies.length > 0 && " · "}
-              {atmist.allergies.length > 0 && (
-                <>
-                  Allergies : <strong>{atmist.allergies.join(", ")}</strong>
-                </>
-              )}
+        </dl>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+        <div>
+          {handover.status === "accepted" && (
+            <p className="flex items-center gap-1.5 text-sm font-bold text-sev-green">
+              <CheckIcon className="size-4" aria-hidden="true" />
+              Transfert accepté · équipe prévenue
+            </p>
+          )}
+          {handover.status === "diverted" && (
+            <p className="flex items-center gap-1.5 text-sm font-bold text-sev-red">
+              <CircleAlertIcon className="size-4" aria-hidden="true" />
+              Dérouté · spécialité : {NEED_LABELS[handover.divertSpecialty as Need] ?? handover.divertSpecialty}
             </p>
           )}
         </div>
-      </div>
-
-      <div className="mt-4 border-t pt-3">
-        {!pending && (
-          <p
-            role="status"
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-bold",
-              handover.status === "accepted"
-                ? "border-sev-green/40 bg-sev-green-soft text-sev-green"
-                : "border-sev-yellow/40 bg-sev-yellow-soft text-sev-yellow",
-            )}
-          >
-            {handover.status === "accepted" ? <CheckIcon className="size-4" aria-hidden="true" /> : <XIcon className="size-4" aria-hidden="true" />}
-            {handover.status === "accepted"
-              ? "Accepté"
-              : `Dérouté : ${NEED_LABELS[handover.divertSpecialty as Need] ?? handover.divertSpecialty}`}
-          </p>
-        )}
 
         {pending && !diverting && (
-          <div className="flex flex-wrap gap-3">
-            <Button type="button" size="lg" onClick={() => respond.mutate({ handoverId: handover.id, decision: "accept" })} disabled={respond.isPending}>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="lg"
+              variant="default"
+              disabled={respond.isPending}
+              onClick={() => respond.mutate({ handoverId: handover.id, decision: "accept" })}
+            >
               <CheckIcon aria-hidden="true" />
               Accepter
             </Button>
-            <Button type="button" size="lg" variant="outline" onClick={() => setDiverting(true)} disabled={respond.isPending}>
+            <Button type="button" size="lg" variant="destructive" onClick={() => setDiverting(true)}>
               <XIcon aria-hidden="true" />
-              Dérouter
+              Dériver
             </Button>
           </div>
         )}
 
         {pending && diverting && (
-          <fieldset className="flex flex-col gap-3">
-            <legend className="mb-1 text-sm font-bold">Quelle spécialité ne peut pas être assurée ? (obligatoire)</legend>
-            <div role="group" aria-label="Spécialité indisponible" className="flex flex-wrap gap-2">
+          <fieldset className="w-full space-y-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+            <legend className="text-sm font-bold text-destructive">
+              Précisez la spécialité saturée ou indisponible (obligatoire) :
+            </legend>
+            <div className="flex flex-wrap gap-2">
               {NEEDS.map((need) => (
-                <ToggleChip key={need} label={NEED_LABELS[need]} pressed={specialty === need} onPressedChange={() => setSpecialty(specialty === need ? null : need)} />
+                <ToggleChip
+                  key={need}
+                  label={NEED_LABELS[need]}
+                  pressed={specialty === need}
+                  onPressedChange={(on) => setSpecialty(on ? need : null)}
+                />
               ))}
             </div>
             <div className="flex flex-wrap gap-3">
@@ -219,17 +241,33 @@ function HandoverCard({ handover, now, hospitalId }: { handover: Incoming; now: 
   );
 }
 
-/** The hospital's arrivals board: incoming AT-MIST cards, live, with Accept / Divert (PRD FR-S7-01). */
+/** The hospital's arrivals board: incoming AT-MIST cards, live, with Accept / Divert and specialty toggles (PRD FR-S7-01, FR-S7-02, FR-S7-03). */
 export default function HospitalBoard({ hospitalId }: { hospitalId: string }) {
   const queryClient = useQueryClient();
   const now = useNow(1_000);
+  const hospital = useQuery(trpc.hospitals.byId.queryOptions({ hospitalId }));
   const incoming = useQuery(trpc.handovers.incoming.queryOptions({ hospitalId }));
 
-  // Snapshot + stream: on `ready`, `resync` and every event, fetch the list again.
+  const updateStatus = useMutation(
+    trpc.hospitals.updateStatus.mutationOptions({
+      onSuccess: () => {
+        toast.success("Disponibilité mise à jour");
+        queryClient.invalidateQueries({ queryKey: trpc.hospitals.byId.queryKey({ hospitalId }) });
+      },
+      onError: (err) => toast.error(err.message),
+    }),
+  );
+
+  // Snapshot + stream: on `ready`, `resync` and every event, fetch the list and hospital state again.
   const stream = useSubscription(
     trpc.handovers.onHospital.subscriptionOptions(
       { hospitalId },
-      { onData: () => queryClient.invalidateQueries({ queryKey: trpc.handovers.incoming.queryKey({ hospitalId }) }) },
+      {
+        onData: () => {
+          queryClient.invalidateQueries({ queryKey: trpc.handovers.incoming.queryKey({ hospitalId }) });
+          queryClient.invalidateQueries({ queryKey: trpc.hospitals.byId.queryKey({ hospitalId }) });
+        },
+      },
     ),
   );
 
@@ -237,6 +275,67 @@ export default function HospitalBoard({ hospitalId }: { hospitalId: string }) {
 
   return (
     <section aria-labelledby="arrivals-title" className="p-4 md:p-6">
+      {/* Specialty availability toggle bar (PRD FR-S7-02) */}
+      {hospital.isSuccess && (
+        <div className="mb-6 rounded-lg border bg-card p-4 shadow-sm">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-extrabold flex items-center gap-2">
+                <span>{hospital.data.name}</span>
+                <span className="text-xs font-normal text-muted-foreground uppercase tracking-wider">
+                  ({hospital.data.commune})
+                </span>
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Disponibilité des spécialités · Les détournements sont répercutés instantanément sur les tablettes ambulances
+                {hospital.data.statusUpdatedAt && ` · modifié ${timeAgo(hospital.data.statusUpdatedAt, now)}`}
+              </p>
+            </div>
+            {hospital.data.staleDivert && (
+              <div
+                role="alert"
+                className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-300"
+              >
+                <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
+                Détournement actif depuis plus de 6 h — Confirmez-vous le statut ?
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {NEEDS.filter((need) => hospital.data.capabilities[need]).map((need) => {
+              const isDiverted = hospital.data.status[need] === "divert";
+              return (
+                <button
+                  key={need}
+                  type="button"
+                  onClick={() =>
+                    updateStatus.mutate({
+                      hospitalId,
+                      specialty: need,
+                      status: isDiverted ? "accept" : "divert",
+                    })
+                  }
+                  disabled={updateStatus.isPending}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-bold transition-colors duration-150 outline-none cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2",
+                    isDiverted
+                      ? "border-sev-red bg-sev-red-soft text-sev-red"
+                      : "border-input bg-card hover:border-primary/60 text-foreground",
+                  )}
+                >
+                  <span className={cn("size-2 rounded-full", isDiverted ? "bg-sev-red" : "bg-sev-green")} />
+                  {NEED_LABELS[need]}
+                  <span className="font-mono text-[10px] uppercase opacity-75">
+                    {isDiverted ? "Dérouté" : "Accepte"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="arrivals-title" className="text-base font-bold">

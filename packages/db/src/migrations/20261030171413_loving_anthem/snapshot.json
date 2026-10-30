@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "ea1ce4af-4c4d-40ba-9e53-8ae98f9f4b41",
+  "prevIds": [
+    "69ed9792-fb91-4e44-b3ea-fa51bc1fa7f5"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "handovers",
+        "sms_fallback_sent_at"
+      ],
+      "writes": [
+        "s|col|public.handovers.sms_fallback_sent_at",
+        "n|col|public.handovers.sms_fallback_sent_at",
+        "e|col|public.handovers.sms_fallback_sent_at"
+      ],
+      "reads": [
+        "n|tbl|public.handovers",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "handovers",
+        "name": "sms_fallback_sent_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

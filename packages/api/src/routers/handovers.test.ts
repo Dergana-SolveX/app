@@ -6,6 +6,7 @@ import {
   incidentEvents,
   masterIncidents,
   medicalProfiles,
+  smsLog,
 } from "@solvex-dergana/db/schema/index";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
@@ -13,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import type { AppUserContext, Context } from "../context";
 import { t } from "../index";
 import { createEventBus } from "../services/events";
+import { createTransport } from "../sms/transport";
 import { appRouter } from "./index";
 
 const CAPS = {
@@ -23,6 +25,7 @@ const CAPS = {
 async function setup() {
   const db = await createTestDb();
   const events = createEventBus();
+  const smsTransport = createTransport("emulator", { db });
   const [unit, otherUnit] = await db
     .insert(ambulanceUnits)
     .values([
@@ -34,8 +37,8 @@ async function setup() {
   const [hospitalA, hospitalB] = await db
     .insert(hospitalsMatrix)
     .values([
-      { ...place, name: "CHU Proche", shortName: "Proche", lat: 36.7614, lng: 3.0586, ...CAPS },
-      { ...place, name: "EPH Lointain", shortName: "Lointain", lat: 36.738, lng: 3.28, ...CAPS },
+      { ...place, name: "CHU Proche", shortName: "Proche", phone: "021000001", lat: 36.7614, lng: 3.0586, ...CAPS },
+      { ...place, name: "EPH Lointain", shortName: "Lointain", phone: "021000002", lat: 36.738, lng: 3.28, ...CAPS },
     ])
     .returning();
   const [profile] = await db
@@ -56,7 +59,7 @@ async function setup() {
     .returning();
 
   const as = (appUser: AppUserContext) =>
-    t.createCallerFactory(appRouter)({ db, events, session: { user: { id: "auth" } }, appUser } as unknown as Context);
+    t.createCallerFactory(appRouter)({ db, events, smsTransport, session: { user: { id: "auth" } }, appUser } as unknown as Context);
   const medic = as({ id: "medic-1", role: "medic", unitId: unit!.id, hospitalId: null });
   const otherMedic = as({ id: "medic-2", role: "medic", unitId: otherUnit!.id, hospitalId: null });
   const hospitalCallerA = as({ id: "hosp-a", role: "hospital", unitId: null, hospitalId: hospitalA!.id });
@@ -367,3 +370,99 @@ describe("handover realtime: hospital:{id} and unit:{id} (PRD FR-S3-21)", () => 
     await expect(admin.handovers.onHospital({})).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });
+
+describe("handover SMS fallback: unacknowledged > 60 s (PRD FR-S3-22, FR-S7-03)", () => {
+  it("sends AT-MIST by SMS to the hospital phone when pending for > 60 seconds", async () => {
+    const { medic, hospitalCallerA, hospitalA, saveBilan, db } = await setup();
+    const { assessmentId } = await saveBilan(hospitalA.id);
+    const sent = await medic.handovers.send({ assessmentId });
+
+    // Less than 60s: fallback does NOT trigger
+    const now30s = new Date(Date.now() + 30 * 1000);
+    const res30 = await medic.handovers.checkFallback({ now: now30s.toISOString() });
+    expect(res30.fallbackSent).toBe(0);
+
+    // 65 seconds later: fallback triggers
+    const now65s = new Date(Date.now() + 65 * 1000);
+    const res65 = await medic.handovers.checkFallback({ now: now65s.toISOString() });
+    expect(res65.fallbackSent).toBe(1);
+
+    // The handover record now has smsFallbackSentAt set
+    const [row] = await db.select().from(handovers).where(eq(handovers.id, sent.handoverId));
+    expect(row!.smsFallbackSentAt).toBeDefined();
+
+    // The SMS outbox has the message
+    const outbox = await db.select().from(smsLog).where(eq(smsLog.direction, "out"));
+    expect(outbox.length).toBeGreaterThanOrEqual(1);
+    expect(outbox[0]!.body).toContain("AMB-1");
+
+    // Running fallback again does not send duplicate SMS
+    const resAgain = await medic.handovers.checkFallback({ now: now65s.toISOString() });
+    expect(resAgain.fallbackSent).toBe(0);
+
+    // Incoming list returns smsFallbackSentAt
+    const incoming = await hospitalCallerA.handovers.incoming({});
+    expect(incoming[0]!.smsFallbackSentAt).toBeDefined();
+  });
+
+  it("does not send SMS fallback if the handover was already accepted or diverted within 60s", async () => {
+    const { medic, hospitalCallerA, hospitalA, saveBilan, db } = await setup();
+    const { assessmentId } = await saveBilan(hospitalA.id);
+    const sent = await medic.handovers.send({ assessmentId });
+
+    // Hospital accepts after 20s
+    await hospitalCallerA.handovers.respond({ handoverId: sent.handoverId, decision: "accept" });
+
+    // 65s later: checkFallback runs
+    const now65s = new Date(Date.now() + 65 * 1000);
+    const res = await medic.handovers.checkFallback({ now: now65s.toISOString() });
+    expect(res.fallbackSent).toBe(0);
+
+    const [row] = await db.select().from(handovers).where(eq(handovers.id, sent.handoverId));
+    expect(row!.smsFallbackSentAt).toBeNull();
+  });
+});
+
+describe("handovers.updateVitals: 'Mettre à jour constantes' in transit (PRD FR-S6-05, FR-S7-01)", () => {
+  it("allows the medic to update vitals in transit, recomputes Shock Index and notifies the hospital board", async () => {
+    const { medic, hospitalCallerA, hospitalA, saveBilan } = await setup();
+    const { assessmentId } = await saveBilan(hospitalA.id, { hr: 90, sbp: 120 });
+    await medic.handovers.send({ assessmentId });
+
+    const hospitalStream = listen(await hospitalCallerA.handovers.onHospital({}));
+    await settle();
+
+    // Medic pushes worsening vitals while en route: HR 140, SBP 80 -> SI = 1.75 (critical)
+    const updated = await medic.handovers.updateVitals({
+      assessmentId,
+      vitals: { hr: 140, sbp: 80, spo2: 91, gcs: 10 },
+    });
+
+    expect(updated.shockIndex?.value).toBeCloseTo(1.75, 2);
+    expect(updated.shockIndex?.flag).toBe("critical");
+
+    // The hospital board receives the live vitals update
+    await settle();
+    const vitalsEvent = hospitalStream.heard.find((h) => h.event.type === "handover.vitals_updated");
+    expect(vitalsEvent).toBeDefined();
+    expect(vitalsEvent!.event.vitals).toMatchObject({ hr: 140, sbp: 80, spo2: 91, gcs: 10 });
+    expect((vitalsEvent!.event.shockIndex as any)?.flag).toBe("critical");
+
+    hospitalStream.stop();
+  });
+
+  it("refuses vitals update from another ambulance's medic", async () => {
+    const { otherMedic, hospitalA, saveBilan } = await setup();
+    const { assessmentId } = await saveBilan(hospitalA.id);
+
+    const error = await otherMedic.handovers
+      .updateVitals({
+        assessmentId,
+        vitals: { hr: 100, sbp: 110 },
+      })
+      .catch((e) => e);
+
+    expect(error.code).toBe("FORBIDDEN");
+  });
+});
+

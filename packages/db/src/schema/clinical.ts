@@ -71,5 +71,7 @@ export const handovers = pgTable("handovers", {
   respondedAt: timestamp("responded_at", { withTimezone: true }),
   respondedBy: text("responded_by"),
   divertSpecialty: text("divert_specialty"),
+  /** Sent if unacknowledged after 60 seconds (PRD FR-S3-22, FR-S7-03). */
+  smsFallbackSentAt: timestamp("sms_fallback_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

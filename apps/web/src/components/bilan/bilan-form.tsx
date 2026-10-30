@@ -70,7 +70,9 @@ export function BilanForm({
   handovers,
   onSend,
   sending,
+  assessmentId,
 }: {
+  assessmentId?: string | null;
   draft: Draft;
   onChange: (draft: Draft) => void;
   profiles: MissionProfile[];
@@ -280,6 +282,15 @@ export function BilanForm({
               canSend={!missingReason}
               onSend={onSend}
               now={now}
+              assessmentId={assessmentId}
+              initialVitals={{
+                hr: draft.hr,
+                sbp: draft.sbp,
+                dbp: draft.dbp,
+                spo2: draft.spo2,
+                gcs: draft.gcs,
+                rr: draft.rr,
+              }}
             />
             <OrientationPanel
             orientation={orientation}
