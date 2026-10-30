@@ -6,6 +6,8 @@ Each `app_users` row gets a Better Auth email/password login, linked through `ap
 ## Password
 
 All demo accounts share one password: the `DEMO_PASSWORD` value in `apps/server/.env`.
+The local-dev default in `apps/server/.env.example` is `svx-demo-2026` (copy it, and set the same
+value as `VITE_DEMO_PASSWORD` in `apps/web/.env`). Use a different one for any deployed instance.
 The web app reads the same value from `VITE_DEMO_PASSWORD` in `apps/web/.env` for the quick-login
 buttons (keep the two equal). It is never shown in the UI.
 

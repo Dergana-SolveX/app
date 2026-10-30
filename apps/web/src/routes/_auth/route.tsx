@@ -1,3 +1,4 @@
+import { landingPathFor } from "@solvex-dergana/shared";
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { ShieldOffIcon } from "lucide-react";
 
@@ -23,11 +24,11 @@ export const Route = createFileRoute("/_auth")({
 function AuthLayout() {
   const { session, appUser } = Route.useRouteContext();
 
-  if (!appUser) {
+  if (!appUser || !landingPathFor(appUser)) {
     return (
       <main className="grid min-h-dvh place-items-center p-6">
         <div className="max-w-md rounded-lg border bg-card p-8 text-center">
-          <span className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-sev-red-soft text-sev-red">
+          <span className="mx-auto mb-4 grid size-12 place-items-center rounded-lg bg-sev-red-soft text-sev-red">
             <ShieldOffIcon className="size-6" aria-hidden="true" />
           </span>
           <h1 className="text-lg font-extrabold">Accès refusé</h1>

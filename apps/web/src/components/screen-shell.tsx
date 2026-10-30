@@ -45,7 +45,7 @@ export default function ScreenShell({
       />
       <div className="p-4 md:p-6">
         <div className="grid place-items-center rounded-lg border border-dashed bg-card/60 px-6 py-16 text-center">
-          <span className="mb-4 grid size-12 place-items-center rounded-full bg-accent text-accent-foreground">
+          <span className="mb-4 grid size-12 place-items-center rounded-lg bg-accent text-accent-foreground">
             <ConstructionIcon className="size-6" aria-hidden="true" />
           </span>
           <p className="text-base font-bold">Écran en cours de construction</p>

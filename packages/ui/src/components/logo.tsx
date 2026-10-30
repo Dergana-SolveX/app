@@ -43,7 +43,7 @@ export function Logo({ className, inverted }: { className?: string; inverted?: b
         </span>
         <span
           className={cn(
-            "mt-1 block text-[0.68rem] font-semibold tracking-[0.14em] uppercase",
+            "mt-1 block text-xs font-semibold tracking-[0.14em] uppercase",
             inverted ? "text-sidebar-muted" : "text-muted-foreground",
           )}
         >
