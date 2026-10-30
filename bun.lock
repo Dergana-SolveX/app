@@ -20,6 +20,7 @@
       "dependencies": {
         "hono": "^4.13.7",
         "serialport": "^13.0.0",
+        "varlock": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {

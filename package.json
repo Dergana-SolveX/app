@@ -31,6 +31,7 @@
     "dev:native": "turbo run dev -F native --",
     "dev:web": "turbo run dev -F web --",
     "dev:server": "turbo run dev -F server --",
+    "dev:gateway": "turbo run dev -F gateway --",
     "db:push": "turbo run db:push -F @solvex-dergana/db --",
     "db:studio": "turbo run db:studio -F @solvex-dergana/db --",
     "db:generate": "turbo run db:generate -F @solvex-dergana/db --",
@@ -45,8 +46,8 @@
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
-    "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./apps/native/ && varlock codegen --path ./packages/db/",
-    "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./apps/native/ && varlock codegen --path ./packages/db/",
+    "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./apps/native/ && varlock codegen --path ./packages/db/ && varlock codegen --path ./apps/gateway/",
+    "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./apps/native/ && varlock codegen --path ./packages/db/ && varlock codegen --path ./apps/gateway/",
     "auth:generate": "cd apps/server && bun run auth:generate"
   },
   "dependencies": {
