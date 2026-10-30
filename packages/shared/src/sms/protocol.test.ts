@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import vectors from "../../test-vectors/svx.json";
-import { decodeSvx, encodeSvx, verifySvx, type SvxAlert } from "./protocol";
+import { decodeSvx, encodeSvx, verifySvx, type EncodeOptions, type SvxAlert } from "./protocol";
 
 describe("encodeSvx: reference vectors (test-vectors/svx.json)", () => {
   for (const v of vectors.valid) {
@@ -99,5 +99,41 @@ describe("encodeSvx: input handling", () => {
   it("refuses a negative or fractional event time", () => {
     expect(() => encodeSvx({ ...base, eventMinutes: -1 })).toThrow(RangeError);
     expect(() => encodeSvx({ ...base, eventMinutes: 1.5 })).toThrow(RangeError);
+  });
+});
+
+describe("review fixes: a hostile or garbled distress SMS never crashes ingestion", () => {
+  it("ignores keys that collide with JavaScript object internals", () => {
+    const decoded = decodeSvx("SVX1#L:2#__proto__:x#constructor:1#toString:2#hasOwnProperty:3");
+    expect(decoded.recognized).toBe(true);
+    expect(decoded.alert.layer).toBe(2);
+    expect(decoded.parseErrors).toEqual(["missing_crc"]);
+  });
+
+  it("rejects an event time too large to be a safe integer", () => {
+    const decoded = decodeSvx("SVX1#L:1#T:zzzzzzzzzzzzzzzzzzzz");
+    expect(decoded.alert.eventMinutes).toBeNull();
+    expect(decoded.parseErrors).toContain("invalid_T");
+  });
+
+  it("verifySvx answers false (never throws) for an empty key or a malformed message", async () => {
+    const empty = new Uint8Array(0) as Uint8Array<ArrayBuffer>;
+    expect(await verifySvx(vectors.verify[0]!.sms, empty)).toBe(false);
+    expect(await verifySvx("SVX1#H:", deviceKey)).toBe(false);
+    expect(await verifySvx("", deviceKey)).toBe(false);
+  });
+
+  it("refuses numbers that are not finite instead of writing NaN or Infinity", () => {
+    const base = vectors.valid[0]!.alert as SvxAlert;
+    expect(() => encodeSvx({ ...base, peakG: NaN })).toThrow(RangeError);
+    expect(() => encodeSvx({ ...base, peakG: Infinity })).toThrow(RangeError);
+    expect(() => encodeSvx({ ...base, victims: NaN })).toThrow(RangeError);
+    expect(() => encodeSvx({ ...base, deltaVKmh: NaN })).toThrow(RangeError);
+  });
+
+  it("treats a deviceKey of undefined as 'no key' (unsigned, synchronous)", () => {
+    const base = vectors.valid[0]!.alert as SvxAlert;
+    const options = { deviceKey: undefined } as unknown as EncodeOptions;
+    expect(encodeSvx(base, options)).toBe(vectors.valid[0]!.sms);
   });
 });

@@ -89,6 +89,19 @@ describe("SVX v1 properties", () => {
     );
   });
 
+  it("never throws when keys are JavaScript object internals (__proto__, constructor, toString...)", () => {
+    const internalKeys = Object.getOwnPropertyNames(Object.prototype);
+    fc.assert(
+      fc.property(
+        fc.array(fc.tuple(fc.constantFrom(...internalKeys), fc.string({ maxLength: 8 })), { maxLength: 8 }),
+        (pairs) => {
+          const decoded = decodeSvx(["SVX1", ...pairs.map(([k, v]) => `${k}:${v}`)].join("#"));
+          expect(decoded.recognized).toBe(true);
+        },
+      ),
+    );
+  });
+
   it("never throws on SVX-looking text with random fields", () => {
     fc.assert(
       fc.property(fc.array(fc.string({ maxLength: 20 }), { maxLength: 12 }), (tokens) => {

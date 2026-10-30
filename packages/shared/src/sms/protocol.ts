@@ -61,6 +61,13 @@ function fitBody(alert: SvxAlert, maxLength: number, reserved: number): string {
   if (alert.profileCode !== null && !PROFILE_CODE.test(alert.profileCode)) {
     throw new TypeError(`profile code must be 8 uppercase letters or digits, got "${alert.profileCode}"`);
   }
+  for (const [name, value] of [
+    ["peakG", alert.peakG],
+    ["victims", alert.victims],
+    ["deltaVKmh", alert.deltaVKmh],
+  ] as const) {
+    if (value !== null && !Number.isFinite(value)) throw new RangeError(`${name} must be a finite number`);
+  }
   if (!Number.isInteger(alert.eventMinutes) || alert.eventMinutes < 0) {
     throw new RangeError(`event time must be a non-negative whole number of minutes`);
   }
@@ -109,9 +116,10 @@ export function encodeSvx(
   options: EncodeOptions | SignedEncodeOptions = {},
 ): string | Promise<string> {
   const maxLength = options.maxLength ?? MAX_SMS_LENGTH;
-  if ("deviceKey" in options) {
+  const deviceKey = (options as SignedEncodeOptions).deviceKey;
+  if (deviceKey !== undefined) {
     const body = fitBody(alert, maxLength, H_LENGTH);
-    return signature(options.deviceKey, body).then((h) => {
+    return signature(deviceKey, body).then((h) => {
       const signed = `${body}#H:${h}`;
       return `${signed}#CK:${crc8Hex(signed)}`;
     });
@@ -146,11 +154,15 @@ export async function verifySvx(sms: string, deviceKey: Uint8Array<ArrayBuffer>)
   const at = sms.indexOf("#H:");
   if (at < 0) return false;
   const given = sms.slice(at + 3, at + 3 + SIGNATURE_CHARS);
-  const expected = await signature(deviceKey, sms.slice(0, at));
-  if (given.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
-  return diff === 0;
+  try {
+    const expected = await signature(deviceKey, sms.slice(0, at));
+    if (given.length !== expected.length) return false;
+    let diff = 0;
+    for (let i = 0; i < expected.length; i++) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
+    return diff === 0;
+  } catch {
+    return false; // e.g. an empty or unusable key
+  }
 }
 
 export type DecodedSvxAlert = { [K in keyof SvxAlert]: SvxAlert[K] | null };
@@ -185,7 +197,7 @@ const emptyAlert = (): DecodedSvxAlert => ({
 const FIELD_PARSERS: Record<string, (raw: string, alert: DecodedSvxAlert) => boolean> = {
   L: (raw, a) => /^[123]$/.test(raw) && ((a.layer = Number(raw) as 1 | 2 | 3), true),
   GH: (raw, a) => raw === "" || (GEOHASH.test(raw) && ((a.geohash = raw), true)),
-  T: (raw, a) => /^[0-9a-z]+$/.test(raw) && ((a.eventMinutes = parseInt(raw, 36)), true),
+  T: (raw, a) => /^[0-9a-z]{1,10}$/.test(raw) && ((a.eventMinutes = parseInt(raw, 36)), true),
   G: (raw, a) => /^\d+(\.\d+)?$/.test(raw) && ((a.peakG = Number(raw)), true),
   R: (raw, a) => /^[01]$/.test(raw) && ((a.rollover = raw === "1"), true),
   FIRE: (raw, a) => /^[01]$/.test(raw) && ((a.fire = raw === "1"), true),
@@ -223,8 +235,9 @@ export function decodeSvx(sms: string): DecodedSvx {
   else if (!crcValid) parseErrors.push("bad_crc");
 
   for (const [key, raw] of fields) {
-    const parse = FIELD_PARSERS[key];
-    if (!parse) continue; // unknown keys (future versions) are ignored
+    // Own properties only: a wire key such as "__proto__" or "constructor" must not hit Object.prototype.
+    if (!Object.prototype.hasOwnProperty.call(FIELD_PARSERS, key)) continue; // unknown keys are ignored
+    const parse = FIELD_PARSERS[key]!;
     if (!parse(raw, alert)) parseErrors.push(`invalid_${key}`);
   }
 
