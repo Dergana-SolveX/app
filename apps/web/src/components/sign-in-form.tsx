@@ -74,15 +74,10 @@ export default function SignInForm() {
       {/* Brand panel */}
       <aside
         className="relative hidden overflow-hidden bg-sidebar p-12 text-sidebar-foreground lg:flex lg:flex-col lg:justify-between"
-        style={{
-          backgroundImage:
-            "radial-gradient(60rem 30rem at 0% 0%, color-mix(in srgb, var(--sidebar-primary) 16%, transparent), transparent 60%), linear-gradient(color-mix(in srgb, var(--sidebar-border) 55%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--sidebar-border) 55%, transparent) 1px, transparent 1px)",
-          backgroundSize: "auto, 44px 44px, 44px 44px",
-        }}
       >
         <Logo inverted />
         <div className="max-w-lg">
-          <h2 className="text-4xl leading-[1.1] font-extrabold tracking-tight text-sidebar-accent-foreground">
+          <h2 className="text-3xl leading-[1.1] font-extrabold tracking-tight text-sidebar-accent-foreground">
             Du choc à l'hôpital,
             <br />
             <span className="text-sidebar-primary">sans perdre une minute.</span>
@@ -238,9 +233,9 @@ export default function SignInForm() {
                   >
                     <span className="grid size-9 shrink-0 place-items-center rounded-md bg-secondary text-primary group-hover:bg-card">
                       {signingIn === email ? (
-                        <Loader2Icon className="size-[1.1rem] animate-spin" aria-hidden="true" />
+                        <Loader2Icon className="size-5 animate-spin" aria-hidden="true" />
                       ) : (
-                        <Icon className="size-[1.1rem]" aria-hidden="true" />
+                        <Icon className="size-5" aria-hidden="true" />
                       )}
                     </span>
                     <span className="flex-1 leading-tight">

@@ -25,7 +25,7 @@ export default function ConnectionStatus({ className }: { className?: string }) 
       <span
         aria-hidden="true"
         className={cn(
-          "size-2 rounded-full",
+          "size-2 rounded-sm",
           online ? "bg-sev-green" : checking ? "bg-muted-foreground" : "bg-sev-red",
         )}
       />

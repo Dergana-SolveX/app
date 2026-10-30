@@ -29,16 +29,16 @@ export default function AppShell({ user, appUser, children }: Props) {
           <Logo inverted />
         </div>
         <nav aria-label="Navigation principale" className="flex-1 space-y-1 p-3">
-          <p className="px-3 pt-2 pb-2 text-[0.68rem] font-bold tracking-[0.14em] text-sidebar-muted uppercase">
+          <p className="px-3 pt-2 pb-2 text-xs font-bold tracking-[0.14em] text-sidebar-muted uppercase">
             {ROLE_LABEL[appUser.role]}
           </p>
           {items.map(({ label, icon: Icon, link }) => (
             <Link key={label} {...link} className={navLink}>
               <span
                 aria-hidden="true"
-                className="absolute inset-y-2 start-0 w-1 rounded-full bg-sidebar-primary opacity-0 group-data-[status=active]:opacity-100"
+                className="absolute inset-y-2 start-0 w-1 rounded-sm bg-sidebar-primary opacity-0 group-data-[status=active]:opacity-100"
               />
-              <Icon className="size-[1.15rem] shrink-0" aria-hidden="true" />
+              <Icon className="size-5 shrink-0" aria-hidden="true" />
               {label}
             </Link>
           ))}
@@ -80,7 +80,7 @@ export default function AppShell({ user, appUser, children }: Props) {
               key={label}
               {...link}
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-[0.7rem] font-semibold text-sidebar-foreground/75 data-[status=active]:text-sidebar-primary",
+                "flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-xs font-semibold text-sidebar-foreground/75 data-[status=active]:text-sidebar-primary",
               )}
             >
               <Icon className="size-5" aria-hidden="true" />

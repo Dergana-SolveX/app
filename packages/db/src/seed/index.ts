@@ -50,6 +50,8 @@ const DEMO_AUTH_ID_PREFIX = "demo-";
 async function seedDemoLogins(db: Database, demoPassword: string) {
   const accounts = buildDemoAccounts(userRows);
   const now = new Date();
+  const passwordHash = await hashPassword(demoPassword);
+  const authUserIdByAppUser = new Map(accounts.map((a) => [a.appUserId, a.authUserId]));
   await db
     .insert(user)
     .values(
@@ -66,17 +68,15 @@ async function seedDemoLogins(db: Database, demoPassword: string) {
   await db
     .insert(account)
     .values(
-      await Promise.all(
-        accounts.map(async (a) => ({
-          id: `${DEMO_AUTH_ID_PREFIX}account-${a.appUserId}`,
-          accountId: a.authUserId,
-          providerId: "credential",
-          userId: a.authUserId,
-          password: await hashPassword(demoPassword),
-          createdAt: now,
-          updatedAt: now,
-        })),
-      ),
+      accounts.map((a) => ({
+        id: `${DEMO_AUTH_ID_PREFIX}account-${a.appUserId}`,
+        accountId: a.authUserId,
+        providerId: "credential",
+        userId: a.authUserId,
+        password: passwordHash,
+        createdAt: now,
+        updatedAt: now,
+      })),
     )
     .onConflictDoNothing();
   await db
@@ -84,7 +84,7 @@ async function seedDemoLogins(db: Database, demoPassword: string) {
     .values(
       userRows.map((u) => ({
         ...u,
-        authUserId: accounts.find((a) => a.appUserId === u.id)!.authUserId,
+        authUserId: authUserIdByAppUser.get(u.id as string),
       })),
     )
     .onConflictDoUpdate({
