@@ -8,6 +8,7 @@ export * from "./triage";
 export * from "./geo/geohash";
 export * from "./geo/distance";
 export * from "./geo/polygon";
+export * from "./geo/communes";
 export * from "./cluster/merge";
 export * from "./cluster/confidence";
 export * from "./routing/polyline";
