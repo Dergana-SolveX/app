@@ -249,3 +249,19 @@ it("retains a late device result without changing timeout status or allowing lat
     status: "timeout", result: { ok: true, late: true, emulated: true }, ackedAt: "2026-10-30T12:01:00.001Z",
   });
 });
+
+it("retries a saved acknowledgement after reconnecting beyond the command deadline", async () => {
+  const { createSimulatedChip } = await import("@solvex-dergana/shared/chip/simulator");
+  const { request, app, key, advance } = await setup();
+  await request("commands", { cmd: "arm", args: ["on"] });
+  const chip = createSimulatedChip({ deviceId, key, now: () => 1793361600000,
+    request: async (path, init) => path.endsWith("events") ? new Response(null, { status: 503 }) : app.request(path, init) });
+  await expect(chip.poll()).rejects.toThrow("503");
+  advance(60_001);
+  const restored = createSimulatedChip({ deviceId, key, initialState: chip.snapshot(), now: () => 1793361660001,
+    request: async (path, init) => app.request(path, init) });
+  await restored.poll();
+  expect((await auditLog(await request("commands")))[0]).toMatchObject({
+    status: "timeout", result: { ok: true, demoArm: true, emulated: true }, ackedAt: "2026-10-30T12:01:00.001Z",
+  });
+});

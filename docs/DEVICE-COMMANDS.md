@@ -66,7 +66,8 @@ Commands progress `queued → delivered → acked`. Queued or delivered commands
 expire 60 seconds after issue, even if the device is offline. A five-second server
 sweep persists timeouts; heartbeat, acknowledgement, and audit reads also enforce
 the deadline immediately. Lost heartbeat responses cause redelivery. Lost
-acknowledgements cause the simulator to resend its cached result, without executing
+acknowledgements cause the simulator to resend its cached result before fetching
+more commands, including after a restart beyond the deadline, without executing
 the command again.
 
 ## Run the simulated consumer

@@ -4,6 +4,7 @@ import { commandPayload } from "../crypto/deviceCommand";
 import { signDevicePayload, verifyDevicePayload } from "../crypto/deviceKey";
 
 export const simulatedChipState = z.object({
+  pendingAck: z.boolean().default(true),
   demoArm: z.boolean(), lastSeq: z.number().int().nonnegative(),
   channel: z.enum(["auto", "http", "sms"]), lastTrace: chipTraceName.nullable(),
   lastResult: z.object({ hmac: z.string(), result: z.record(z.string(), z.unknown()) }).optional(),
@@ -23,7 +24,7 @@ export type SimulatedChipOptions = {
 export function createSimulatedChip(options: SimulatedChipOptions) {
   const now = options.now ?? Date.now;
   const state: SimulatedChipState = options.initialState ? structuredClone(simulatedChipState.parse(options.initialState)) :
-    { demoArm: false, lastSeq: 0, channel: "auto", lastTrace: null };
+    { demoArm: false, lastSeq: 0, channel: "auto", lastTrace: null, pendingAck: false };
   function execute(command: ChipCommand): Record<string, unknown> {
     const [arg] = command.args;
     switch (command.cmd) {
@@ -54,7 +55,16 @@ export function createSimulatedChip(options: SimulatedChipOptions) {
     if (!response.ok) throw new Error(`Device ${path} failed: ${response.status}`);
     return response;
   }
+  async function acknowledgePending() {
+    if (!state.pendingAck || !state.lastResult) return;
+    await options.saveState?.(structuredClone(state));
+    await post("events", { deviceId: options.deviceId, t: now(), type: "command_ack", emulated: true,
+      data: { seq: state.lastSeq, result: state.lastResult.result } });
+    // The saved pending receipt may be retried after restart; server ACKs are idempotent.
+    state.pendingAck = false;
+  }
   async function poll() {
+    await acknowledgePending();
     const response = await post("heartbeat", { deviceId: options.deviceId, emulated: true, demoArm: state.demoArm, channel: state.channel });
     const payload = await response.json() as { commands: unknown[] };
     for (const value of payload.commands) {
@@ -65,11 +75,9 @@ export function createSimulatedChip(options: SimulatedChipOptions) {
       if (command.seq > state.lastSeq) {
         state.lastSeq = command.seq;
         state.lastResult = { hmac: command.hmac, result: execute(command) };
+        state.pendingAck = true;
       }
-      await options.saveState?.(structuredClone(state));
-      const result = state.lastResult!.result;
-      await post("events", { deviceId: options.deviceId, t: now(), type: "command_ack", emulated: true,
-        data: { seq: command.seq, result } });
+      await acknowledgePending();
     }
   }
   let pendingPoll: Promise<void> = Promise.resolve();
