@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useState } from "react";
+import React, { useEffect, useMemo, useReducer, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -20,6 +20,7 @@ import {
   flowReducer,
   createCrashCountdownState,
   countdownReducer,
+  buildWitnessSvxString,
   type Coords,
   type DangerType,
   WITNESS_TEXT,
@@ -71,7 +72,7 @@ export default function WitnessPhoneFrame({
   const t = WITNESS_TEXT[state.lang];
   const isRtl = state.lang === "ar";
 
-  // tRPC mutation
+  // tRPC mutation (Online)
   const submitMutation = useMutation(
     trpc.alerts.submitOnline.mutationOptions({
       onSuccess: (res) => {
@@ -85,6 +86,56 @@ export default function WitnessPhoneFrame({
       },
     }),
   );
+
+  // Forced SMS mode & Ack state (FR-S4-06)
+  const [forcedSms, setForcedSms] = useState(false);
+  const [smsAck, setSmsAck] = useState<string | null>(null);
+
+  // tRPC mutation (Forced SMS emulator ingest)
+  const submitSmsMutation = useMutation(
+    trpc.alerts.submitSms.mutationOptions({
+      onSuccess: (res) => {
+        if (res.kind === "alert") {
+          setSmsAck(res.ack);
+          dispatch({
+            type: "SUBMISSION_SUCCESS",
+            result: {
+              alertId: `sms-${res.incidentId}`,
+              incidentId: res.incidentId,
+              duplicate: res.duplicate,
+              merged: res.merged,
+            },
+          });
+        } else {
+          dispatch({
+            type: "SUBMISSION_ERROR",
+            error: "Format SMS non reconnu",
+          });
+        }
+      },
+      onError: (err) => {
+        dispatch({
+          type: "SUBMISSION_ERROR",
+          error: err.message || "Erreur de transmission SMS",
+        });
+      },
+    }),
+  );
+
+  const isSubmitting = submitMutation.isPending || submitSmsMutation.isPending;
+
+  // Real-time SVX v1 protocol string & length calculation
+  const svxStringResult = useMemo(() => {
+    return buildWitnessSvxString({
+      victims: state.victims ?? 1,
+      conscious: state.conscious,
+      fire: state.dangers.includes("fire"),
+      trapped: state.dangers.includes("trapped"),
+      bleeding: state.dangers.includes("bleeding"),
+      lat: state.coords?.lat ?? null,
+      lng: state.coords?.lng ?? null,
+    });
+  }, [state.victims, state.conscious, state.dangers, state.coords]);
 
   // Initial coords if supplied
   useEffect(() => {
@@ -189,9 +240,17 @@ export default function WitnessPhoneFrame({
       return;
     }
 
-    const payload = state.toSubmissionPayload();
     dispatch({ type: "SUBMISSION_START" });
-    submitMutation.mutate(payload);
+    if (forcedSms) {
+      submitSmsMutation.mutate({
+        from: "+213550000000",
+        body: svxStringResult.svx,
+        emulated: true,
+      });
+    } else {
+      const payload = state.toSubmissionPayload();
+      submitMutation.mutate(payload);
+    }
   };
 
   const handleManualLocationSubmit = (e: React.FormEvent) => {
@@ -202,14 +261,21 @@ export default function WitnessPhoneFrame({
       pkMarker: pkInput,
     });
 
-    const payload = {
-      ...state.toSubmissionPayload(),
-      commune: communeInput.trim() || null,
-      pkMarker: pkInput.trim() || null,
-    };
-
     dispatch({ type: "SUBMISSION_START" });
-    submitMutation.mutate(payload);
+    if (forcedSms) {
+      submitSmsMutation.mutate({
+        from: "+213550000000",
+        body: svxStringResult.svx,
+        emulated: true,
+      });
+    } else {
+      const payload = {
+        ...state.toSubmissionPayload(),
+        commune: communeInput.trim() || null,
+        pkMarker: pkInput.trim() || null,
+      };
+      submitMutation.mutate(payload);
+    }
   };
 
   const simulateGpsFix = () => {
@@ -226,6 +292,7 @@ export default function WitnessPhoneFrame({
   const handleReset = () => {
     setCommuneInput("");
     setPkInput("");
+    setSmsAck(null);
     dispatch({ type: "RESET" });
   };
 
@@ -251,6 +318,18 @@ export default function WitnessPhoneFrame({
           className="rounded-md bg-amber-500/10 px-2.5 py-1 font-medium text-amber-400 hover:bg-amber-500/20 active:scale-95 transition"
         >
           Simuler timeout GPS (20s)
+        </button>
+        <button
+          type="button"
+          data-testid="force-sms-toggle"
+          onClick={() => setForcedSms((prev) => !prev)}
+          className={`rounded-md px-2.5 py-1 font-semibold transition flex items-center gap-1 active:scale-95 border ${
+            forcedSms
+              ? "bg-purple-600 border-purple-500 text-white shadow-sm"
+              : "bg-purple-500/15 border-purple-500/30 text-purple-400 hover:bg-purple-500/25"
+          }`}
+        >
+          <span>📱</span> Forcer canal SMS (démo)
         </button>
         <button
           type="button"
@@ -395,6 +474,29 @@ export default function WitnessPhoneFrame({
               </span>
             )}
           </div>
+
+          {/* Forced SMS Status & Raw Preview Banner (FR-S4-06) */}
+          {forcedSms && (
+            <div
+              data-testid="raw-sms-preview"
+              className="px-4 py-2 bg-purple-950/40 border-b border-purple-800/80 text-xs"
+            >
+              <div className="flex items-center justify-between text-[10px] font-bold text-purple-300 uppercase tracking-wider mb-1">
+                <span className="flex items-center gap-1">
+                  <span>📱</span> CANAL FORCÉ SMS (DÉMO)
+                </span>
+                <span
+                  data-testid="sms-char-counter"
+                  className="font-mono text-purple-200"
+                >
+                  {svxStringResult.charCount} / 160 car.
+                </span>
+              </div>
+              <div className="font-mono text-[11px] text-white bg-slate-950/80 p-2 rounded-lg border border-purple-700/50 break-all select-all">
+                {svxStringResult.svx}
+              </div>
+            </div>
+          )}
 
           {/* Progress Indicator (3 Steps) */}
           {typeof state.step === "number" && (
@@ -673,11 +775,15 @@ export default function WitnessPhoneFrame({
                   <button
                     type="button"
                     onClick={handleProceedSubmit}
-                    disabled={submitMutation.isPending}
+                    disabled={isSubmitting}
                     className="w-full h-16 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-base uppercase tracking-wider shadow-lg shadow-red-900/50 active:scale-[0.98] transition flex items-center justify-center gap-2 border-2 border-red-500 disabled:opacity-50"
                   >
                     <ShieldAlert className="size-5" />
-                    {submitMutation.isPending ? t.submitting : t.submit_button}
+                    {isSubmitting
+                      ? t.submitting
+                      : forcedSms
+                        ? "Envoyer par SMS (Émulé)"
+                        : t.submit_button}
                   </button>
 
                   <button
@@ -749,11 +855,15 @@ export default function WitnessPhoneFrame({
                 <div className="pt-4">
                   <button
                     type="submit"
-                    disabled={submitMutation.isPending}
+                    disabled={isSubmitting}
                     className="w-full h-14 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-red-900/40 active:scale-[0.98] transition flex items-center justify-center gap-2 border border-red-400 disabled:opacity-50"
                   >
                     <CheckCircle2 className="size-5" />
-                    {submitMutation.isPending ? t.submitting : t.confirm_location_button}
+                    {isSubmitting
+                      ? t.submitting
+                      : forcedSms
+                        ? "Envoyer par SMS (Émulé)"
+                        : t.confirm_location_button}
                   </button>
                 </div>
               </form>
@@ -802,6 +912,23 @@ export default function WitnessPhoneFrame({
                       </span>
                     </div>
                   </div>
+
+                  {/* SMS Ack Card (FR-S4-06) */}
+                  {smsAck && (
+                    <div className="w-full rounded-2xl bg-purple-950/40 border border-purple-800/80 p-3 mb-4 text-left">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-purple-300 uppercase tracking-wider mb-1.5">
+                        <span className="flex items-center gap-1">
+                          <span>📨</span> Accusé de réception (SMS)
+                        </span>
+                        <span className="text-[10px] bg-purple-900/60 text-purple-200 px-2 py-0.5 rounded border border-purple-700/50">
+                          Émulé
+                        </span>
+                      </div>
+                      <div className="font-mono text-xs font-bold text-white bg-slate-900/90 px-3 py-2 rounded-xl border border-purple-600/50">
+                        {smsAck}
+                      </div>
+                    </div>
+                  )}
 
                   <p className="text-xs text-amber-300 bg-amber-950/40 border border-amber-900/60 rounded-xl p-3 font-medium">
                     ⚠️ {t.success_stay_safe}

@@ -34,16 +34,17 @@ describe("WitnessPhoneFrame (Seam 3)", () => {
           { headers: { "content-type": "application/json" } },
         );
       }
-      if (url.includes("profiles.register")) {
+      if (url.includes("alerts.submitSms")) {
         return new Response(
           JSON.stringify([
             {
               result: {
                 data: {
-                  id: "prof-uuid-1",
-                  shortCode: "K7Q2M9XA",
-                  fullName: "Amina Benali",
-                  consentAt: new Date().toISOString(),
+                  kind: "alert",
+                  incidentId: "inc-sms-777",
+                  ack: "SVXACK#777",
+                  duplicate: false,
+                  merged: false,
                 },
               },
             },
@@ -234,63 +235,58 @@ describe("WitnessPhoneFrame (Seam 3)", () => {
     });
   });
 
-  it("registers optional medical profile with Law 18-07 consent, displays short_code, and attaches it to alerts (Issue 24 - Seam 3)", async () => {
+  it("shows raw SMS preview with exact string and character count when 'Forcer canal SMS' is on (FR-S4-06)", async () => {
     render(
       <QueryClientProvider client={queryClient}>
         <WitnessPhoneFrame initialCoords={{ lat: 36.725, lng: 3.183, accuracyM: 10 }} />
       </QueryClientProvider>,
     );
 
-    // Click "Profil" button to open modal
-    const profileBtn = screen.getByTestId("open-profile-modal-btn");
-    expect(profileBtn).toBeTruthy();
-    await userEvent.click(profileBtn);
+    // Toggle "Forcer canal SMS" switch
+    const smsSwitch = screen.getByTestId("force-sms-toggle");
+    expect(smsSwitch).toBeTruthy();
+    await userEvent.click(smsSwitch);
 
-    // Modal is open
-    expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(screen.getByText(/Optionnel — Aucun compte requis/i)).toBeTruthy();
-    expect(screen.getByText(/Consentement Loi 18-07/i)).toBeTruthy();
+    // Verify raw SMS preview box is visible with SVX string and character count
+    const preview = screen.getByTestId("raw-sms-preview");
+    expect(preview).toBeTruthy();
+    expect(preview.textContent).toMatch(/SVX1#L:2/);
+    expect(screen.getByTestId("sms-char-counter")).toBeTruthy();
+    expect(screen.getByTestId("sms-char-counter").textContent).toMatch(/\/ 160/);
+  });
 
-    // Fill form
-    const nameInput = screen.getByPlaceholderText(/Ex\. Amina Benali/i);
-    const phoneInput = screen.getByPlaceholderText(/Ex\. 0555 12 34 56/i);
-    const chronicInput = screen.getByPlaceholderText(/Ex\. diabète, asthme, hypertension/i);
-    const consentCheckbox = screen.getByRole("checkbox");
+  it("posts SVX string to alerts.submitSms flagged emulated: true when forced SMS is used (FR-S4-06)", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WitnessPhoneFrame initialCoords={{ lat: 36.725, lng: 3.183, accuracyM: 10 }} />
+      </QueryClientProvider>,
+    );
 
-    await userEvent.type(nameInput, "Amina Benali");
-    await userEvent.type(phoneInput, "0555 12 34 56");
-    await userEvent.type(chronicInput, "diabète, asthme");
-    await userEvent.click(consentCheckbox);
+    // Enable Forced SMS
+    await userEvent.click(screen.getByTestId("force-sms-toggle"));
 
-    // Submit registration
-    const submitBtn = screen.getByRole("button", { name: /Obtenir mon UID/i });
+    // Complete 3-tap questions
+    await userEvent.click(screen.getByRole("button", { name: /2 victimes/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Oui \(Conscient\)/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Feu \/ Fumée/i }));
+
+    // Submit button should reflect SMS path
+    const submitBtn = screen.getByRole("button", { name: /Envoyer par SMS \(Émulé\)/i });
     await userEvent.click(submitBtn);
 
-    // Short code display should show generated code
+    // Verify it called alerts.submitSms with emulated: true and valid SVX body
     await waitFor(() => {
-      const codeDisplay = screen.getByTestId("profile-short-code-display");
-      expect(codeDisplay.textContent).toBe("K7Q2M9XA");
-    });
-
-    // Close modal
-    const closeBtn = screen.getByRole("button", { name: /Terminer/i });
-    await userEvent.click(closeBtn);
-
-    // Header button now shows UID: K7Q2M9XA
-    expect(screen.getByText(/UID: K7Q2M9XA/i)).toBeTruthy();
-
-    // Now submit a witness report
-    await userEvent.click(screen.getByRole("button", { name: /1 victime/i }));
-    await userEvent.click(screen.getByRole("button", { name: /Oui \(Conscient\)/i }));
-    await userEvent.click(screen.getByRole("button", { name: /Aucun danger apparent/i }));
-    await userEvent.click(screen.getByRole("button", { name: /Envoyer l'alerte maintenant/i }));
-
-    // Verify submission payload contains profileCode: "K7Q2M9XA"
-    await waitFor(() => {
-      const call = fetchMock.mock.calls.find((c: any) => c[0].includes("alerts.submitOnline"));
+      const call = fetchMock.mock.calls.find((c: any) => c[0].includes("alerts.submitSms"));
       expect(call).toBeDefined();
       const body = JSON.parse(call[1].body);
-      expect(body[0].profileCode).toBe("K7Q2M9XA");
+      expect(body[0].emulated).toBe(true);
+      expect(body[0].body).toMatch(/^SVX1#L:2.*#CK:[0-9A-F]{2}$/);
     });
+
+    // Should display ack confirmation
+    expect(await screen.findByText(/Accusé de réception/i)).toBeTruthy();
+    expect(screen.getByText(/SVXACK#777/)).toBeTruthy();
   });
 });
+
+

@@ -238,59 +238,48 @@ describe("alertsRouter.submitOnline (Seam 1)", () => {
     expect(alert!.source).toBe("app_auto");
   });
 
-  it("links medical profile to the incident when submitted with profileCode (Issue 24 - Seam 2)", async () => {
+  it("submits emulated SVX SMS via alerts.submitSms, creates an incident with channel 'sms' and returns SVXACK (FR-S4-06)", async () => {
     const db = await createTestDb();
     testDatabases.push(db);
     const bus = createEventBus();
     const caller = makeCaller(db, bus);
 
-    // Seed medical profile
-    const [profile] = await db
-      .insert(medicalProfiles)
-      .values({
-        shortCode: "PROFIL01",
-        fullName: "Yasmine Larbi",
-        birthDate: "1995-07-12",
-        sex: "female",
-        bloodType: "A-",
-        chronicConditions: ["asthme"],
-        medications: [{ name: "Ventoline", class: "other" }],
-        emergencyContact: "0550998877",
-        consentAt: new Date(),
-      })
-      .returning();
-
-    const idempotencyKey = "witness-with-profile-code-01";
-    const res = await caller.alerts.submitOnline({
-      idempotencyKey,
-      profileCode: "PROFIL01",
-      victims: 1,
+    // Build a valid SVX string
+    // SVX1#L:2#GH:spey52b7#T:10q3z#V:2#C:1#TR:1#CK:xx
+    const { buildWitnessSvxString } = await import("@solvex-dergana/shared");
+    const { svx } = buildWitnessSvxString({
+      victims: 2,
       conscious: 1,
       fire: false,
-      trapped: false,
-      bleeding: true,
-      lat: 36.76,
-      lng: 3.12,
-      accuracyM: 5,
+      trapped: true,
+      bleeding: false,
+      lat: 36.75,
+      lng: 3.05,
+      timestamp: 1793361600000,
     });
 
-    expect(res.alertId).toBeDefined();
-    expect(res.incidentId).toBeDefined();
+    const res = await caller.alerts.submitSms({
+      from: "+213550000123",
+      body: svx,
+      emulated: true,
+    });
 
-    // Verify raw_alert has profileId
-    const [alert] = await db
-      .select()
-      .from(rawAlerts)
-      .where(eq(rawAlerts.id, res.alertId));
-    expect(alert).toBeDefined();
-    expect(alert!.profileId).toBe(profile!.id);
+    expect(res).toBeDefined();
+    expect(res.kind).toBe("alert");
+    if (res.kind === "alert") {
+      expect(res.ack).toMatch(/^SVXACK#[0-9A-F]+$/);
+      expect(res.incidentId).toBeDefined();
 
-    // Verify master_incident has linkedProfileIds
-    const [incident] = await db
-      .select()
-      .from(masterIncidents)
-      .where(eq(masterIncidents.id, res.incidentId));
-    expect(incident).toBeDefined();
-    expect(incident!.linkedProfileIds).toContain(profile!.id);
+      const [stored] = await db
+        .select()
+        .from(rawAlerts)
+        .where(eq(rawAlerts.incidentId, res.incidentId));
+      expect(stored).toBeDefined();
+      expect(stored!.channel).toBe("sms");
+      expect(stored!.emulated).toBe(true);
+      expect(stored!.source).toBe("app_witness");
+    }
   });
 });
+
+

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { publicProcedure, router } from "../index";
 import { placeAlert } from "../services/clustering";
+import { receiveSms } from "../services/sms-flow";
 import { retriageIncident } from "../services/triage";
 
 export const alertsRouter = router({
@@ -144,5 +145,21 @@ export const alertsRouter = router({
         duplicate: false,
         merged: placement.kind === "merged",
       };
+    }),
+
+  submitSms: publicProcedure
+    .input(
+      z.object({
+        from: z.string().trim().min(1).max(32).default("+213550000000"),
+        body: z.string().min(1).max(160),
+        emulated: z.boolean().default(true),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const result = await receiveSms(
+        { db: ctx.db, events: ctx.events, transport: ctx.smsTransport },
+        { from: input.from, body: input.body, emulated: input.emulated },
+      );
+      return result;
     }),
 });
