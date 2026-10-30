@@ -51,7 +51,7 @@ export function createPulseTracker({ sampleRateHz = 1000 }: { sampleRateHz?: num
     const peakG = Math.max(...run.map(magnitude));
     const finished = run;
     run = [];
-    if (durationMs >= minDurationMs - 1e-9) {
+    if (durationMs >= minDurationMs - 1e-6) {
       const deltaVMs = finished.reduce((sum, s) => sum + magnitude(s) * STANDARD_GRAVITY * (dtMs / 1000), 0);
       return { pulse: { startMs, durationMs, peakG, deltaVKmh: deltaVMs * 3.6, saturated: peakG >= saturationG } };
     }

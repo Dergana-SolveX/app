@@ -57,9 +57,9 @@ export function PacketCard({ transmissions }: { transmissions: Transmission[] })
   return (
     <section aria-label="Paquet envoyé" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-bold">
+        <h2 className="text-sm font-bold">
           Paquet envoyé · tentative {tx.attempt} · {tx.channel === "sms" ? "SMS (zone blanche)" : "Internet, signé HMAC-SHA256"}
-        </h3>
+        </h2>
       </div>
       <StatusLine tx={tx} />
 
@@ -96,6 +96,9 @@ export function PacketCard({ transmissions }: { transmissions: Transmission[] })
             <p className="mt-2 text-xs text-muted-foreground">
               Un message eCall européen (MSD) pèse jusqu'à 140 octets et exige un canal dédié. Ici, {anatomy.length} caractères de texte lisible, qui passent par n'importe quel réseau GSM.
             </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Le format SMS (protocole figé) ne porte ni le nombre de chocs ni l'indicateur de saturation du capteur : seul l'envoi par Internet les transmet.
+            </p>
           </div>
         </>
       ) : (
@@ -114,6 +117,12 @@ export function PacketCard({ transmissions }: { transmissions: Transmission[] })
             </div>
           ))}
         </dl>
+      )}
+      {!anatomy && (
+        <p className="text-xs text-muted-foreground">
+          Requête POST vers <span className="font-mono">/devices/…/events</span> avec les en-têtes{" "}
+          <span className="font-mono">X-SVX-Signature</span> (HMAC-SHA256 du corps) et <span className="font-mono">X-SVX-Timestamp</span> (contre le rejeu).
+        </p>
       )}
     </section>
   );

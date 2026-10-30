@@ -88,7 +88,8 @@ describe("chip.transmit by the web: a signed event on the real device endpoint",
 
   it("is really signed: a chip with the wrong secret is refused by the endpoint", async () => {
     const { caller, db } = await setup({ secret: "another-master-secret-that-is-wrong-0001" });
-    await expect(send(caller)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    // Not UNAUTHORIZED: that would look like the presenter's own session was lost.
+    await expect(send(caller)).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
     expect(await db.select().from(masterIncidents)).toHaveLength(0);
   });
 
@@ -105,6 +106,15 @@ describe("chip.transmit by the web: a signed event on the real device endpoint",
     await send(caller, { eventAt: Date.now() - 48 * 3_600_000 });
     const [alert] = await db.select().from(rawAlerts);
     expect(Math.abs(alert!.eventAt!.getTime() - Date.now())).toBeLessThan(5000);
+  });
+
+  it("accepts a crash time with fractions of a millisecond: the page's clock produces them", async () => {
+    const { caller, db } = await setup();
+    const crashedAt = Date.now() - 12_345.678;
+    const answer = await send(caller, { eventAt: crashedAt });
+    expect(answer.ok).toBe(true);
+    const [alert] = await db.select().from(rawAlerts);
+    expect(Math.abs(alert!.eventAt!.getTime() - crashedAt)).toBeLessThan(1000);
   });
 
   it("does not make a second alert when the same event is sent again", async () => {

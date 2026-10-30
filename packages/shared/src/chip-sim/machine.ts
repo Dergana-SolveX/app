@@ -54,7 +54,6 @@ export function createChip({ forceSms = false, sampleRateHz = 1000 }: { forceSms
   const config = THRESHOLDS.chipSim;
   let state: ChipState = "BOOT";
   let out: ChipRecord[] = [];
-  let clock = 0;
 
   const timers: { boot: number | null; confirm: number | null; retry: number | null; ackTimeout: number | null } = {
     boot: config.bootMs,
@@ -109,6 +108,8 @@ export function createChip({ forceSms = false, sampleRateHz = 1000 }: { forceSms
     timers.retry = tMs + (config.backoffS[attempt - 1] ?? config.maxBackoffS) * 1000;
   }
 
+  const currentAttempt = () => attempt;
+
   function summaryData(p: Pending) {
     const summary = summarizeImpacts(p.pulses);
     return {
@@ -155,15 +156,18 @@ export function createChip({ forceSms = false, sampleRateHz = 1000 }: { forceSms
         .sort((a, b) => a[1] - b[1])[0];
       if (!due) break;
       const [name, at] = due;
-      clock = Math.max(clock, at);
       timers[name] = null;
       if (name === "boot") {
         emit(at, "selftest", { ok: true });
         moveTo("IDLE", at);
       } else if (name === "confirm" && pending) {
+        const { impacts, peakG, deltaVKmh, saturated } = summaryData(pending);
         packet = {
           cause: pending.cause,
-          ...(({ impacts, peakG, deltaVKmh, saturated }) => ({ impacts, peakG, deltaVKmh, saturated }))(summaryData(pending)),
+          impacts,
+          peakG,
+          deltaVKmh,
+          saturated,
           rollover: pending.rollover,
           rolloverDeg: pending.rollover ? Math.round(pending.rolloverDeg) : null,
           fire: pending.fire,
@@ -179,7 +183,6 @@ export function createChip({ forceSms = false, sampleRateHz = 1000 }: { forceSms
         attemptFailed(at);
       }
     }
-    clock = Math.max(clock, to);
   }
 
   /** Runs `work` and returns everything the chip recorded, timers included. */
@@ -249,8 +252,15 @@ export function createChip({ forceSms = false, sampleRateHz = 1000 }: { forceSms
         moveTo("DONE", tMs);
       }),
 
-    /** The last attempt could not be delivered (no coverage, an error): back off, then try again. */
-    sendFailed: (tMs: number) => record(() => (runTimers(tMs), attemptFailed(tMs))),
+    /**
+     * An attempt could not be delivered (no coverage, an error): back off, then try again. `attempt` says which one;
+     * the failure of an older attempt, reported late, says nothing about the one now in flight.
+     */
+    sendFailed: (tMs: number, attempt?: number) =>
+      record(() => {
+        runTimers(tMs);
+        if (attempt === undefined || attempt === currentAttempt()) attemptFailed(tMs);
+      }),
 
     /** Power-cycles the chip: back to BOOT, everything forgotten. */
     reset: (tMs: number) =>

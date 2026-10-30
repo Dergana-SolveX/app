@@ -1,3 +1,4 @@
+import { THRESHOLDS } from "@solvex-dergana/shared";
 import { Button } from "@solvex-dergana/ui/components/button";
 import { FlameIcon, PlayIcon, PowerIcon, RotateCcwIcon, ShieldCheckIcon, ShieldOffIcon } from "lucide-react";
 import { useState } from "react";
@@ -57,7 +58,7 @@ export function ScenarioPanel({
       </section>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button type="button" size="lg" variant={armed ? "default" : "outline"} aria-pressed={armed} disabled={!canToggleArm} onClick={() => onPress(armed ? "disarm" : "arm")}>
+        <Button type="button" size="lg" variant={armed ? "default" : "outline"} disabled={!canToggleArm} onClick={() => onPress(armed ? "disarm" : "arm")}>
           {armed ? <ShieldCheckIcon aria-hidden="true" /> : <ShieldOffIcon aria-hidden="true" />}
           {armed ? "Désarmer" : "Armer"}
         </Button>
@@ -67,19 +68,23 @@ export function ScenarioPanel({
         </Button>
       </div>
 
-      <section aria-labelledby="custom-title" className="rounded-lg border bg-card p-3">
-        <h2 id="custom-title" className="mb-3 text-sm font-bold">
+      {/* Folded away until needed, so the five scenarios and the arm button fit a 1280x720 projector. */}
+      <details className="group rounded-lg border bg-card p-3">
+        <summary className="flex min-h-12 cursor-pointer items-center text-sm font-bold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           Impact personnalisé
-        </h2>
-        <div className="grid grid-cols-2 gap-3">
-          <NumberStepper label="Pic" unit="g" value={custom.peakG} onChange={(v) => setCustom({ ...custom, peakG: v ?? 0 })} min={0} max={400} step={5} fallback={40} />
+        </summary>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <NumberStepper label="Pic" unit="g" value={custom.peakG} onChange={(v) => setCustom({ ...custom, peakG: v ?? 0 })} min={0} max={THRESHOLDS.chipSim.saturationG * 2} step={5} fallback={40} />
           <NumberStepper label="Durée" unit="ms" value={custom.durationMs} onChange={(v) => setCustom({ ...custom, durationMs: v ?? 0 })} min={0} max={300} step={5} fallback={80} />
           <NumberStepper label="Tonneau" unit="°" value={custom.rollDeg} onChange={(v) => setCustom({ ...custom, rollDeg: v ?? 0 })} min={0} max={360} step={30} fallback={0} />
           <div className="flex flex-col justify-end">
             <ToggleChip label="Incendie" pressed={custom.fire} onPressedChange={(fire) => setCustom({ ...custom, fire })} />
           </div>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">Seuil de la puce : plus de 6 g pendant au moins 3 ms. Au-delà de 200 g, le capteur sature.</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Seuil de la puce : plus de {THRESHOLDS.chipTrigger.peakG} g pendant au moins {THRESHOLDS.chipTrigger.minDurationMs} ms. Au-delà de{" "}
+          {THRESHOLDS.chipSim.saturationG} g, le capteur sature.
+        </p>
         <Button
           type="button"
           size="lg"
@@ -90,7 +95,7 @@ export function ScenarioPanel({
           {custom.fire ? <FlameIcon aria-hidden="true" /> : <PowerIcon aria-hidden="true" />}
           Lancer l'impact
         </Button>
-      </section>
+      </details>
     </div>
   );
 }

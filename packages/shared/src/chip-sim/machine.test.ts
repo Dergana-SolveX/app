@@ -227,6 +227,20 @@ describe("AWAIT_ACK: backoff and switching channel (PRD FR-S8-02)", () => {
     expect(retry[0]!.data).toMatchObject({ attempt: 2 });
   });
 
+  it("ignores the failure of an old attempt reported after the next one has gone out", () => {
+    const { chip } = awaiting();
+    chip.sendFailed(13_000, 1);
+    expect(sends(chip.advance(16_010))).toHaveLength(1); // attempt 2 is on its way
+    chip.sendFailed(16_100, 1); // attempt 1's failure, reported again late: it says nothing about attempt 2
+    expect(sends(chip.advance(25_000))).toEqual([]);
+    // A failure of the attempt that is really in flight still counts: 6 s of backoff, so the retry is at 22100.
+    const chip2 = awaiting().chip;
+    chip2.sendFailed(13_000, 1);
+    chip2.advance(16_010);
+    chip2.sendFailed(16_100, 2);
+    expect(sends(chip2.advance(22_100))).toHaveLength(1);
+  });
+
   it("answers on a later attempt: DONE, with the original event time still in the packet", () => {
     const { chip } = awaiting();
     chip.sendFailed(13_000);

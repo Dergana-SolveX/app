@@ -30,9 +30,8 @@ export const chipRouter = router({
         channel: z.enum(["http", "sms"]),
         packet,
         position: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }),
-        /** When it happened, as epoch milliseconds: kept through every retry. */
-        eventAt: z.number().int().positive(),
-        attempt: z.number().int().min(1).max(100).default(1),
+        /** When it happened, as epoch milliseconds (the page's clock has fractions): kept through every retry. */
+        eventAt: z.number().finite().positive(),
       }),
     )
     .mutation(({ ctx, input }) => transmitFromChip(ctx, input)),

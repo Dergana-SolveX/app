@@ -3,18 +3,10 @@ import { Button } from "@solvex-dergana/ui/components/button";
 import { cn } from "@solvex-dergana/ui/lib/utils";
 import { CheckIcon, XIcon } from "lucide-react";
 
+import { STATE_LABELS } from "./labels";
 import type { Snapshot } from "./use-chip-simulator";
 
-const ORDER: { state: ChipState; label: string }[] = [
-  { state: "BOOT", label: "Démarrage" },
-  { state: "IDLE", label: "Repos" },
-  { state: "ARMED", label: "Armée" },
-  { state: "IMPACT", label: "Impact" },
-  { state: "CONFIRM", label: "Confirmation" },
-  { state: "SEND", label: "Envoi" },
-  { state: "AWAIT_ACK", label: "Attente d'accusé" },
-  { state: "DONE", label: "Terminé" },
-];
+const ORDER: ChipState[] = ["BOOT", "IDLE", "ARMED", "IMPACT", "CONFIRM", "SEND", "AWAIT_ACK", "DONE"];
 
 const RADIUS = 38;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -46,13 +38,14 @@ export function StateStrip({
   onCancel: () => void;
 }) {
   const { state, confirmRemainingMs, transmissions, forceSms } = snapshot;
-  const current = ORDER.findIndex((s) => s.state === state);
+  const current = ORDER.indexOf(state);
   const latest = transmissions.at(-1);
 
   return (
     <section aria-label="États de la puce" className="flex flex-col gap-3">
       <ol className="flex flex-wrap gap-1.5">
-        {ORDER.map(({ state: name, label }, index) => {
+        {ORDER.map((name, index) => {
+          const label = STATE_LABELS[name];
           const active = name === state;
           const passed = index < current;
           return (
@@ -73,9 +66,13 @@ export function StateStrip({
         })}
       </ol>
 
-      <div role="status" className="flex min-h-24 flex-wrap items-center gap-4 rounded-lg border bg-card p-3">
+      <div className="flex min-h-24 flex-wrap items-center gap-4 rounded-lg border bg-card p-3">
         {state === "CONFIRM" ? (
           <>
+            {/* Said once when the countdown starts: the numbers below change every second and must not be read out. */}
+            <p role="status" className="sr-only">
+              Impact détecté : l'alerte part dans {THRESHOLDS.chipSim.confirmS} secondes, vous pouvez l'annuler.
+            </p>
             <CountdownRing remainingMs={confirmRemainingMs} />
             <div className="min-w-0 flex-1">
               <p className="text-base font-extrabold">Impact détecté : l'alerte part dans {Math.ceil(confirmRemainingMs / 1000)} s</p>
@@ -87,7 +84,7 @@ export function StateStrip({
             </Button>
           </>
         ) : (
-          <p className="text-sm">
+          <p role="status" className="text-sm">
             <StateSentence state={state} attempt={latest?.attempt} channel={latest?.channel} status={latest?.status} forceSms={forceSms} />
           </p>
         )}
@@ -126,6 +123,6 @@ function StateSentence({
     case "DONE":
       return <>Alerte reçue par le serveur : la puce a terminé.</>;
     default:
-      return <>{state}</>;
+      return <>{STATE_LABELS[state]}.</>;
   }
 }

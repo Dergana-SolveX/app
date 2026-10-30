@@ -8,6 +8,7 @@ import { clockTime } from "@/lib/time";
 import { GChart } from "./g-chart";
 import { PacketCard } from "./packet-card";
 import { SCENARIOS, ScenarioPanel } from "./scenario-panel";
+import { RECORD_LABELS, STATE_LABELS } from "./labels";
 import { StateStrip } from "./state-strip";
 import { TRACE_LABEL, useChipSimulator } from "./use-chip-simulator";
 
@@ -27,26 +28,41 @@ export default function IotShowcase() {
   latest.current = snapshot;
 
   useEffect(() => {
+    // Space cancels the alert; the same key press must not also "click" a button that happens to have focus.
+    let spaceCancelled = false;
     const onKey = (event: KeyboardEvent) => {
-      if (isTyping(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
       const { busy, state } = latest.current;
+      // Cancelling a false alarm matters more than the field being typed in: Space works there too.
+      if (event.key === " " && state === "CONFIRM") {
+        event.preventDefault();
+        spaceCancelled = true;
+        actions.press("cancel");
+        return;
+      }
+      if (isTyping(event.target)) return;
       const scenario = SCENARIOS.find((s) => s.key === event.key);
       if (scenario) {
         if (!busy) actions.start(scenario.scenario);
       } else if (event.key === "r" || event.key === "R") {
         actions.press("reset");
-      } else if (event.key === " " && state === "CONFIRM") {
-        event.preventDefault();
-        actions.press("cancel");
       } else if (event.key === "f" || event.key === "F") {
         if (document.fullscreenElement) void document.exitFullscreen();
         else void root.current?.requestFullscreen();
-      } else {
-        return;
+      }
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key === " " && spaceCancelled) {
+        event.preventDefault();
+        spaceCancelled = false;
       }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp);
+    };
   }, [actions]);
 
   const { playing } = snapshot;
@@ -60,11 +76,7 @@ export default function IotShowcase() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {playing && (
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-emulation/50 bg-emulation-soft px-2 py-0.5 text-xs font-bold tracking-wide text-emulation uppercase">
-              {TRACE_LABEL} · {playing.label} · graine {playing.seed}
-            </span>
-          )}
+          {playing && <EmulationBadge>{`${TRACE_LABEL} · ${playing.label} · graine ${playing.seed}`}</EmulationBadge>}
           {/* Permanent: nothing on this page comes from real hardware (PRD NFR-P5). */}
           <EmulationBadge />
           <Button type="button" variant="outline" size="icon-lg" aria-label="Plein écran (touche F)" onClick={() => void (document.fullscreenElement ? document.exitFullscreen() : root.current?.requestFullscreen())}>
@@ -95,7 +107,9 @@ export default function IotShowcase() {
                   <li key={`${record.tMs}-${i}`} className="flex gap-2 font-mono">
                     <span className="tabular text-muted-foreground">{clockTime(new Date(Date.now() - (snapshot.nowMs - record.tMs)))}</span>
                     <span>
-                      {record.type === "state_change" ? `${record.data.from} → ${record.data.to}` : record.type}
+                      {record.type === "state_change"
+                        ? `${STATE_LABELS[record.data.from as keyof typeof STATE_LABELS]} → ${STATE_LABELS[record.data.to as keyof typeof STATE_LABELS]}`
+                        : RECORD_LABELS[record.type]}
                     </span>
                   </li>
                 ))}

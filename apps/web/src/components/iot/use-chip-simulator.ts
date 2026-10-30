@@ -73,7 +73,8 @@ function createEngine() {
   let pending: Scenario | null = null;
   let seedCounter = 0;
   const buttons: Button[] = [];
-  const responses: { ok: boolean }[] = [];
+  /** The network's answers; `attempt` says which send a failure is about. */
+  const responses: { ok: boolean; attempt: number }[] = [];
 
   const records: ChipRecord[] = [];
   const transmissions: Transmission[] = [];
@@ -84,7 +85,8 @@ function createEngine() {
   let bucket = -1;
   let bucketG = 0;
   let last: SensorSample | null = null;
-  let lastHeartbeat = 0;
+  // The first heartbeat goes out at once, then one every 15 s.
+  let lastHeartbeat = -HEARTBEAT_MS;
 
   const pushChart = (tMs: number, g: number) => {
     const slot = Math.floor(tMs / 10);
@@ -112,16 +114,17 @@ function createEngine() {
         packet,
         position: SCENE,
         // The crash time on the wall clock, kept through every retry.
-        eventAt: Date.now() - (clock - packet.eventMs),
-        attempt,
+        eventAt: Math.round(Date.now() - (clock - packet.eventMs)),
       })
       .then((answer) => {
         Object.assign(tx, { status: "ok", incidentId: answer.incidentId, ack: answer.ack, sms: answer.sms });
-        responses.push({ ok: true });
+        responses.push({ ok: true, attempt });
       })
       .catch((error: Error) => {
-        Object.assign(tx, { status: "failed", error: error.message });
-        responses.push({ ok: false });
+        // A server that cannot be reached says so plainly, instead of a raw network message.
+        const unreachable = /fetch|network|load failed|ECONNREFUSED/i.test(error.message);
+        Object.assign(tx, { status: "failed", error: unreachable ? "serveur injoignable" : error.message });
+        responses.push({ ok: false, attempt });
       });
   }
 
@@ -149,6 +152,7 @@ function createEngine() {
         forceSms = wantSms;
         chip = createChip({ forceSms });
       }
+      last = null;
       out.push(...chip.reset(clock));
       return;
     }
@@ -170,6 +174,7 @@ function createEngine() {
 
     for (const button of buttons.splice(0)) {
       if (button === "reset") {
+        last = null;
         trace = null;
         playing = null;
         pending = null;
@@ -178,7 +183,10 @@ function createEngine() {
         out.push(...chip.press(button, clock));
       }
     }
-    while (responses.length) out.push(...(responses.shift()!.ok ? chip.ack(clock) : chip.sendFailed(clock)));
+    while (responses.length) {
+      const answer = responses.shift()!;
+      out.push(...(answer.ok ? chip.ack(clock) : chip.sendFailed(clock, answer.attempt)));
+    }
     tryStart(clock, out);
 
     if (trace) {
