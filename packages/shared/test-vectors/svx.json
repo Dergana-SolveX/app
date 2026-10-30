@@ -251,6 +251,7 @@
       "angleDeg": 90,
       "minDurationS": 2
     },
+    "chipSim": {"saturationG": 200, "bootMs": 1000, "confirmS": 10, "ackTimeoutS": 10, "backoffS": [3, 6, 12], "maxBackoffS": 30, "smsAfterFailures": 2, "fireDebounceS": 3, "fireSmokeAbove": 0.5, "orientationAlpha": 0.98},
     "cluster": {
       "windowMin": 10,
       "baseDistanceM": 200,
