@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import IncidentQueue from "@/components/incident-queue";
+import DispatcherWorkspace from "@/components/dispatcher/workspace";
 import { PageHeader } from "@/components/screen-shell";
 import { requireAccess } from "@/lib/guard";
 
@@ -12,14 +12,13 @@ export const Route = createFileRoute("/_auth/dispatcher")({
 });
 
 function DispatcherScreen() {
-  const { appUser } = Route.useRouteContext();
   return (
     <>
       <PageHeader
         title="Poste de commandement"
-        description="Les incidents arrivent ici en direct. La carte et la décision de dispatch viennent ensuite."
+        description="Incidents en direct, signaux reçus et coordination sur la carte."
       />
-      <IncidentQueue canOpenConsole={appUser?.role === "admin"} />
+      <DispatcherWorkspace />
     </>
   );
 }

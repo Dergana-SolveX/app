@@ -1,6 +1,23 @@
+import { TRPCError } from "@trpc/server";
 import type { Database } from "@solvex-dergana/db";
-import { masterIncidents, rawAlerts } from "@solvex-dergana/db/schema/index";
-import { asc, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
+import {
+  incidentEvents,
+  masterIncidents,
+  rawAlerts,
+  medicalProfiles,
+  ambulanceUnits,
+  hospitalsMatrix,
+  zones,
+} from "@solvex-dergana/db/schema/index";
+import {
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  inArray,
+  isNull,
+  sql,
+} from "drizzle-orm";
 
 /** All incidents, most recently updated first. This is the snapshot the dispatcher queue starts from. */
 export async function listIncidents(db: Database) {
@@ -18,17 +35,92 @@ export async function listIncidents(db: Database) {
 
 /** One incident with every raw alert that belongs to it, oldest first. Null if it does not exist. */
 export async function getIncident(db: Database, id: string) {
-  const [incident] = await db.select().from(masterIncidents).where(eq(masterIncidents.id, id));
+  const [incident] = await db
+    .select()
+    .from(masterIncidents)
+    .where(eq(masterIncidents.id, id));
   if (!incident) return null;
   const alerts = await db
     .select()
     .from(rawAlerts)
     .where(eq(rawAlerts.incidentId, id))
     .orderBy(asc(rawAlerts.receivedAt));
-  return { ...incident, alerts };
+  const journal = await db
+    .select()
+    .from(incidentEvents)
+    .where(eq(incidentEvents.incidentId, id))
+    .orderBy(asc(incidentEvents.at));
+  return { ...incident, alerts, journal };
 }
 
 /** Raw alerts that belong to no incident (e.g. text that was not an SVX alert), newest first. */
 export async function listUnlinkedAlerts(db: Database) {
-  return db.select().from(rawAlerts).where(isNull(rawAlerts.incidentId)).orderBy(desc(rawAlerts.receivedAt));
+  return db
+    .select()
+    .from(rawAlerts)
+    .where(isNull(rawAlerts.incidentId))
+    .orderBy(desc(rawAlerts.receivedAt));
+}
+
+/** Audit and read in one transaction: no medical information leaves without its access record. */
+export async function getIncidentProfiles(
+  db: Database,
+  id: string,
+  actor: { id: string; role: string },
+) {
+  return db.transaction(async (tx) => {
+    const [incident] = await tx
+      .select()
+      .from(masterIncidents)
+      .where(eq(masterIncidents.id, id));
+    if (!incident)
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Incident introuvable",
+      });
+    const linkedAlerts = await tx
+      .select({ profileId: rawAlerts.profileId })
+      .from(rawAlerts)
+      .where(eq(rawAlerts.incidentId, id));
+    const ids = [
+      ...new Set([
+        ...incident.linkedProfileIds,
+        ...linkedAlerts.flatMap((a) => (a.profileId ? [a.profileId] : [])),
+      ]),
+    ];
+    if (!ids.length) return [];
+    const profiles = await tx
+      .select()
+      .from(medicalProfiles)
+      .where(inArray(medicalProfiles.id, ids));
+    await tx
+      .insert(incidentEvents)
+      .values({
+        incidentId: id,
+        actorRole: actor.role,
+        actorId: actor.id,
+        type: "profile.accessed",
+        payload: { profileIds: profiles.map((p) => p.id) },
+      });
+    return profiles.map((p) => ({
+      id: p.id,
+      shortCode: p.shortCode,
+      bloodType: p.bloodType,
+      allergies: p.allergies,
+      anticoagulant: p.medications.some((m) => m.class === "anticoagulant"),
+      unreliableShockIndex: p.medications.some(
+        (m) => m.class === "beta_blocker",
+      ),
+      insulin: p.medications.some((m) => m.class === "insulin"),
+    }));
+  });
+}
+
+export async function getMapLayers(db: Database) {
+  const [units, hospitals, perimeters] = await Promise.all([
+    db.select().from(ambulanceUnits),
+    db.select().from(hospitalsMatrix),
+    db.select().from(zones),
+  ]);
+  return { units, hospitals, zones: perimeters };
 }
