@@ -15,6 +15,7 @@ import {
 import {
   formatCellId,
   getOperatorInfo,
+  SURVEY_PRESETS_DZ,
   type CurrentCellInfo,
 } from "@solvex-dergana/shared";
 import { trpc } from "@/utils/trpc";
@@ -23,16 +24,10 @@ type Props = {
   initialCoords?: { lat: number; lng: number; accuracyM: number };
 };
 
-const PRESETS: CurrentCellInfo[] = [
-  { mcc: 603, mnc: 1, lac: 100, cid: 5541, signalDbm: -68 }, // Mobilis
-  { mcc: 603, mnc: 2, lac: 7, cid: 1204, signalDbm: -76 },   // Djezzy
-  { mcc: 603, mnc: 3, lac: 44, cid: 8812, signalDbm: -82 },  // Ooredoo
-];
-
 export default function CellSurveyFrame({
   initialCoords = { lat: 36.7538, lng: 3.0588, accuracyM: 4.5 },
 }: Props) {
-  const [activePreset, setActivePreset] = useState<CurrentCellInfo>(PRESETS[0]!);
+  const [activePreset, setActivePreset] = useState<CurrentCellInfo>(SURVEY_PRESETS_DZ[0]!);
   const [mcc, setMcc] = useState(String(activePreset.mcc));
   const [mnc, setMnc] = useState(String(activePreset.mnc));
   const [lac, setLac] = useState(String(activePreset.lac));
@@ -133,7 +128,7 @@ export default function CellSurveyFrame({
 
           {/* Operator Preset Selector */}
           <div className="mt-3 grid grid-cols-3 gap-1.5">
-            {PRESETS.map((p) => {
+            {SURVEY_PRESETS_DZ.map((p) => {
               const op = getOperatorInfo(p.mcc, p.mnc);
               const isSelected = activePreset.mcc === p.mcc && activePreset.mnc === p.mnc;
               return (

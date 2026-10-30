@@ -65,10 +65,11 @@ export function getOperatorInfo(mcc: number, mnc: number): OperatorInfo {
 }
 
 /**
- * Formats cell parameters into standard hyphenated string (e.g., "603-1-100-2").
+ * Formats cell parameters into standard hyphenated string with 2-digit MNC (e.g., "603-01-100-2").
  */
 export function formatCellId({ mcc, mnc, lac, cid }: CellIdentifier): string {
-  return `${mcc}-${mnc}-${lac}-${cid}`;
+  const mncStr = String(mnc).padStart(2, "0");
+  return `${mcc}-${mncStr}-${lac}-${cid}`;
 }
 
 /**

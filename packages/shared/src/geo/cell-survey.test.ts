@@ -39,11 +39,17 @@ describe("Cell Survey Domain Model (FR-S4-08)", () => {
 
   describe("formatCellId and parseCellId", () => {
     it("formats cell parameters into standard hyphenated string", () => {
-      expect(formatCellId({ mcc: 603, mnc: 1, lac: 100, cid: 2 })).toBe("603-1-100-2");
-      expect(formatCellId({ mcc: 603, mnc: 2, lac: 2541, cid: 45012 })).toBe("603-2-2541-45012");
+      expect(formatCellId({ mcc: 603, mnc: 1, lac: 100, cid: 2 })).toBe("603-01-100-2");
+      expect(formatCellId({ mcc: 603, mnc: 2, lac: 2541, cid: 45012 })).toBe("603-02-2541-45012");
     });
 
     it("parses valid cell id strings into numeric components", () => {
+      expect(parseCellId("603-01-100-2")).toEqual({
+        mcc: 603,
+        mnc: 1,
+        lac: 100,
+        cid: 2,
+      });
       expect(parseCellId("603-1-100-2")).toEqual({
         mcc: 603,
         mnc: 1,

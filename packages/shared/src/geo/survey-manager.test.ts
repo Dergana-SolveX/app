@@ -95,4 +95,17 @@ describe("SurveyManager State Machine (FR-S4-08)", () => {
     expect(manager.getState().loggedPoints).toHaveLength(2);
     expect(manager.getState().loggedPoints[0]!.lat).toBeCloseTo(36.7552, 4);
   });
+
+  it("calls onAutoLog callback when continuous fix fires", () => {
+    const autoLogs: string[] = [];
+    const manager = createSurveyManager({
+      autoDistanceM: 50,
+      onAutoLog: (pt) => autoLogs.push(pt.id),
+    });
+    manager.updateCell(ALGIERS_CELL);
+    manager.setContinuous(true);
+
+    manager.updateGps(ALGIERS_GPS);
+    expect(autoLogs).toHaveLength(1);
+  });
 });

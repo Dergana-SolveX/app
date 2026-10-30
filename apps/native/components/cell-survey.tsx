@@ -19,38 +19,15 @@ import {
   createSurveyManager,
   formatCellId,
   getOperatorInfo,
+  SURVEY_PRESETS_DZ,
   type CurrentCellInfo,
   type CurrentGpsFix,
   type SurveyPoint,
 } from "@solvex-dergana/shared";
 import { trpc } from "@/utils/trpc";
 
-// Known demo cell tower presets in Algiers for stage demonstrations
-const PRESET_TOWERS: CurrentCellInfo[] = [
-  { mcc: 603, mnc: 1, lac: 100, cid: 5541, signalDbm: -68 }, // Mobilis Bab Ezzouar
-  { mcc: 603, mnc: 2, lac: 7, cid: 1204, signalDbm: -76 },   // Djezzy Alger-Centre
-  { mcc: 603, mnc: 3, lac: 44, cid: 8812, signalDbm: -82 },  // Ooredoo Rouiba
-];
-
 export function CellSurvey() {
-  const managerRef = useRef(createSurveyManager({ autoDistanceM: 50 }));
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
-
-  const [activeCell, setActiveCell] = useState<CurrentCellInfo>(PRESET_TOWERS[0]!);
-  const [gpsFix, setGpsFix] = useState<CurrentGpsFix | null>({
-    lat: 36.7538,
-    lng: 3.0588,
-    accuracyM: 4.2,
-    timestamp: Date.now(),
-  });
-  const [isContinuous, setIsContinuous] = useState(false);
-  const [isSearchingGps, setIsSearchingGps] = useState(false);
-
-  // Editable cell fields
-  const [editMcc, setEditMcc] = useState(String(activeCell.mcc));
-  const [editMnc, setEditMnc] = useState(String(activeCell.mnc));
-  const [editLac, setEditLac] = useState(String(activeCell.lac));
-  const [editCid, setEditCid] = useState(String(activeCell.cid));
 
   // Sync mutation
   const logSurveyMutation = useMutation(
@@ -70,6 +47,49 @@ export function CellSurvey() {
 
   // Fetch recent surveys from server
   const surveysQuery = useQuery(trpc.cells.listSurveys.queryOptions({ limit: 30 }));
+
+  const syncPoint = async (logged: SurveyPoint) => {
+    try {
+      await logSurveyMutation.mutateAsync({
+        mcc: logged.mcc,
+        mnc: logged.mnc,
+        lac: logged.lac,
+        cid: logged.cid,
+        lat: logged.lat,
+        lng: logged.lng,
+        rangeM: 800,
+        signalDbm: logged.signalDbm,
+      });
+      managerRef.current.markSynced(logged.id);
+      void surveysQuery.refetch();
+      forceUpdate();
+    } catch {
+      // Keeps point as pending in local history
+    }
+  };
+
+  const managerRef = useRef(
+    createSurveyManager({
+      autoDistanceM: 50,
+      onAutoLog: (point) => void syncPoint(point),
+    }),
+  );
+
+  const [activeCell, setActiveCell] = useState<CurrentCellInfo>(SURVEY_PRESETS_DZ[0]!);
+  const [gpsFix, setGpsFix] = useState<CurrentGpsFix | null>({
+    lat: 36.7538,
+    lng: 3.0588,
+    accuracyM: 4.2,
+    timestamp: Date.now(),
+  });
+  const [isContinuous, setIsContinuous] = useState(false);
+  const [isSearchingGps, setIsSearchingGps] = useState(false);
+
+  // Editable cell fields
+  const [editMcc, setEditMcc] = useState(String(activeCell.mcc));
+  const [editMnc, setEditMnc] = useState(String(activeCell.mnc));
+  const [editLac, setEditLac] = useState(String(activeCell.lac));
+  const [editCid, setEditCid] = useState(String(activeCell.cid));
 
   // Initialize and request GPS on mount
   useEffect(() => {
@@ -176,24 +196,7 @@ export function CellSurvey() {
     const logged = managerRef.current.logPoint();
     if (logged) {
       forceUpdate();
-
-      try {
-        await logSurveyMutation.mutateAsync({
-          mcc: logged.mcc,
-          mnc: logged.mnc,
-          lac: logged.lac,
-          cid: logged.cid,
-          lat: logged.lat,
-          lng: logged.lng,
-          rangeM: 800,
-          signalDbm: logged.signalDbm,
-        });
-        managerRef.current.markSynced(logged.id);
-        void surveysQuery.refetch();
-        forceUpdate();
-      } catch (e) {
-        // Keeps point as pending in local history
-      }
+      await syncPoint(logged);
     }
   };
 
@@ -255,7 +258,7 @@ export function CellSurvey() {
           Opérateurs Démo :
         </Text>
         <View className="mb-4 flex-row gap-2">
-          {PRESET_TOWERS.map((preset) => {
+          {SURVEY_PRESETS_DZ.map((preset) => {
             const op = getOperatorInfo(preset.mcc, preset.mnc);
             const isSelected = activeCell.mcc === preset.mcc && activeCell.mnc === preset.mnc && activeCell.cid === preset.cid;
             return (

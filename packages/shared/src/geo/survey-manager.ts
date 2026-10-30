@@ -5,6 +5,16 @@ export type CurrentCellInfo = CellIdentifier & {
   signalDbm?: number | null;
 };
 
+/**
+ * Standard operator presets for field testing in Algiers (FR-S4-08).
+ * Mobilis (603-01), Djezzy (603-02), Ooredoo (603-03).
+ */
+export const SURVEY_PRESETS_DZ: CurrentCellInfo[] = [
+  { mcc: 603, mnc: 1, lac: 100, cid: 5541, signalDbm: -68 }, // Mobilis Bab Ezzouar
+  { mcc: 603, mnc: 2, lac: 7, cid: 1204, signalDbm: -76 },   // Djezzy Alger-Centre
+  { mcc: 603, mnc: 3, lac: 44, cid: 8812, signalDbm: -82 },  // Ooredoo Rouiba
+];
+
 export type CurrentGpsFix = {
   lat: number;
   lng: number;
@@ -31,8 +41,14 @@ export type SurveyState = {
   loggedPoints: SurveyPoint[];
 };
 
-export function createSurveyManager(options: { autoDistanceM?: number } = {}) {
+export function createSurveyManager(
+  options: {
+    autoDistanceM?: number;
+    onAutoLog?: (point: SurveyPoint) => void;
+  } = {},
+) {
   const autoDistanceM = options.autoDistanceM ?? 50;
+  const onAutoLog = options.onAutoLog;
 
   let currentCell: CurrentCellInfo | null = null;
   let currentGps: CurrentGpsFix | null = null;
@@ -91,7 +107,8 @@ export function createSurveyManager(options: { autoDistanceM?: number } = {}) {
 
     if (isContinuous && currentGps && currentCell) {
       if (!lastLoggedCoords) {
-        logPoint();
+        const pt = logPoint();
+        if (pt && onAutoLog) onAutoLog(pt);
       } else {
         const dist = haversineM(
           lastLoggedCoords.lat,
@@ -100,7 +117,8 @@ export function createSurveyManager(options: { autoDistanceM?: number } = {}) {
           currentGps.lng,
         );
         if (dist >= autoDistanceM) {
-          logPoint();
+          const pt = logPoint();
+          if (pt && onAutoLog) onAutoLog(pt);
         }
       }
     }
