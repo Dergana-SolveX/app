@@ -15,7 +15,9 @@ import { WitnessReport } from "../../../native/components/witness-report";
 
 it("lets an Arabic-speaking witness complete all three choices and enter a manual location", async () => {
   render(<QueryClientProvider client={new QueryClient()}><WitnessReport /></QueryClientProvider>);
+  expect(screen.getByTestId("witness-report-container").style.direction).toBe("ltr");
   await userEvent.click(screen.getByText("عربي"));
+  expect(screen.getByTestId("witness-report-container").style.direction).toBe("rtl");
   await userEvent.click(screen.getByText("فرض قناة SMS (عرض تجريبي)"));
   expect(screen.getByText("رسالة SVX الخام")).toBeTruthy();
   await userEvent.click(screen.getByText("ضحية واحدة (1)"));

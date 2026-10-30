@@ -11,7 +11,9 @@ it("announces the native crash cancellation in Arabic with RTL text", async () =
   } });
   let cancelled = false;
   render(<CrashCountdownOverlay state={state} locale="ar" onCancel={() => { cancelled = true; }} onReset={() => {}} />);
+  expect(screen.getByTestId("crash-countdown-overlay").style.direction).toBe("rtl");
   expect(screen.getByText("ثوانٍ")).toBeTruthy();
+  expect(screen.getByText(/إنذار يتضمن موقعكم/)).toBeTruthy();
   await userEvent.click(screen.getByRole("button", { name: "إلغاء الإنذار" }));
   expect(cancelled).toBe(true);
   expect(screen.getByText("اختبار محاكاة (عرض تجريبي)")).toBeTruthy();

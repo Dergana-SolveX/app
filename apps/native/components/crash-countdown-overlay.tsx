@@ -96,8 +96,8 @@ export function CrashCountdownOverlay({
             </Animated.View>
 
             <Text style={styles.helperText}>
-              Une alerte géolocalisée sera transmise aux secours dans{" "}
-              <Text style={styles.boldWhite}>{state.secondsRemaining} s</Text>.
+              {t.helper}{" "}
+              <Text style={styles.boldWhite}>{state.secondsRemaining} {locale === "ar" ? "ث" : "s"}</Text>.
             </Text>
 
             {/* Giant Cancel Button (PRD FR-S4-01: JE VAIS BIEN — ANNULER) */}

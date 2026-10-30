@@ -365,7 +365,7 @@ export function WitnessReport() {
   };
 
   return (
-    <View style={{ flex: 1, direction: isRtl ? "rtl" : "ltr" }}>
+    <View testID="witness-report-container" style={{ flex: 1, direction: isRtl ? "rtl" : "ltr" }}>
       <CrashCountdownOverlay
         state={crashState}
         locale={state.lang}
