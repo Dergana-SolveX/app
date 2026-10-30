@@ -21,5 +21,5 @@ export * from "./clinical/assemble";
 export * from "./clinical/assess";
 export * from "./hospital/needs";
 export * from "./hospital/match";
-export * from "./hospital/recommend";
+export { recommendForBilan, type Recommendation } from "./hospital/recommend";
 export * from "./dispatch/differs";

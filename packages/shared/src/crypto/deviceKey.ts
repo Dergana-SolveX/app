@@ -24,3 +24,39 @@ export async function deriveDeviceKey(
 export async function deviceKeyCheck(key: Uint8Array<ArrayBuffer>): Promise<string> {
   return toHex(await crypto.subtle.digest("SHA-256", key));
 }
+
+/** Signs body with HMAC-SHA256(deviceKey, body), returning a 64-char lowercase hex string. */
+export async function signDevicePayload(
+  key: Uint8Array<ArrayBuffer>,
+  body: string,
+): Promise<string> {
+  const hmacKey = await crypto.subtle.importKey(
+    "raw",
+    key,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", hmacKey, encoder.encode(body));
+  return toHex(sig);
+}
+
+/** Verifies that signature matches HMAC-SHA256(deviceKey, body). Timing-safe, case-insensitive. */
+export async function verifyDevicePayload(
+  key: Uint8Array<ArrayBuffer>,
+  body: string,
+  signature: string,
+): Promise<boolean> {
+  if (typeof signature !== "string" || signature.length !== 64) return false;
+  try {
+    const expected = await signDevicePayload(key, body);
+    const given = signature.toLowerCase();
+    let diff = 0;
+    for (let i = 0; i < 64; i++) {
+      diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
+    }
+    return diff === 0;
+  } catch {
+    return false;
+  }
+}
