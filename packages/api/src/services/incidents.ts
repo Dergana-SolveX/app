@@ -72,6 +72,16 @@ export async function getIncident(db: Database, id: string) {
     .from(incidentEvents)
     .where(eq(incidentEvents.incidentId, id))
     .orderBy(asc(incidentEvents.at));
+  return { ...incident, alerts, journal };
+}
+
+/**
+ * The data behind the evaluation card: the incident with the reasons for its recommendation, the escalation
+ * suggested after the dispatch, and the authority to notify. Null if the incident does not exist.
+ */
+export async function getEvaluation(db: Database, id: string) {
+  const [incident] = await db.select().from(masterIncidents).where(eq(masterIncidents.id, id));
+  if (!incident) return null;
 
   const [latest] = await db
     .select({ payload: incidentEvents.payload })
@@ -112,18 +122,7 @@ export async function getIncident(db: Database, id: string) {
       }
     : null;
 
-  const alerts = await db
-    .select()
-    .from(rawAlerts)
-    .where(eq(rawAlerts.incidentId, id))
-    .orderBy(asc(rawAlerts.receivedAt));
-  const journal = await db
-    .select()
-    .from(incidentEvents)
-    .where(eq(incidentEvents.incidentId, id))
-    .orderBy(asc(incidentEvents.at));
-
-  return { ...incident, alerts, journal, reasons, escalation, authorityReason, authorityNotification };
+  return { ...incident, reasons, escalation, authorityReason, authorityNotification };
 }
 
 /** Notifies the relevant authority (Police / Gendarmerie) by SMS and logs it (FR-S5-05). */
