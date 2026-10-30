@@ -22,3 +22,4 @@ export * from "./clinical/assess";
 export * from "./hospital/needs";
 export * from "./hospital/match";
 export * from "./hospital/recommend";
+export * from "./dispatch/differs";

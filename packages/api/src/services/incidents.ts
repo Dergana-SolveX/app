@@ -60,3 +60,8 @@ export async function getEvaluation(db: Database, id: string) {
 export async function listUnlinkedAlerts(db: Database) {
   return db.select().from(rawAlerts).where(isNull(rawAlerts.incidentId)).orderBy(desc(rawAlerts.receivedAt));
 }
+
+/** The journal of an incident (every automatic and human decision), oldest first. */
+export async function listIncidentEvents(db: Database, incidentId: string) {
+  return db.select().from(incidentEvents).where(eq(incidentEvents.incidentId, incidentId)).orderBy(asc(incidentEvents.at));
+}
