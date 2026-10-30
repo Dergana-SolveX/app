@@ -126,6 +126,12 @@ function HospitalCard({
             : `${match.diverting.map((need) => NEED_LABELS[need]).join(", ")} en détournement.`}
         </p>
       )}
+      {match.flags.includes("declined") && (
+        <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-sev-red">
+          <XIcon className="size-4 shrink-0" aria-hidden="true" />
+          A dérouté ce patient.
+        </p>
+      )}
       {match.flags.includes("stabilisation_only") && (
         <p className="mt-2 text-sm text-muted-foreground">Structure de stabilisation uniquement.</p>
       )}

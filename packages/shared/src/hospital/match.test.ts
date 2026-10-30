@@ -36,7 +36,7 @@ const needs = (required: Need[], preferred: Need[] = []): NeedResult => ({ requi
 const match = (
   required: Need[],
   hospitals: MatchHospital[],
-  options: { preferred?: Need[]; severity?: "red" | "yellow" | "green" | "unknown"; inShock?: boolean; graph?: typeof graph; origin?: LatLng } = {},
+  options: { declined?: string[]; preferred?: Need[]; severity?: "red" | "yellow" | "green" | "unknown"; inShock?: boolean; graph?: typeof graph; origin?: LatLng } = {},
 ) =>
   matchHospitals({
     needs: needs(required, options.preferred),
@@ -46,6 +46,7 @@ const match = (
     zones: [],
     severity: options.severity ?? "red",
     inShock: options.inShock ?? false,
+    declined: options.declined,
   });
 
 const A = hospital("A", at(1));
@@ -223,5 +224,41 @@ describe("hospitalFromRow (a hospitals_matrix row, as the matcher reads it)", ()
   it("treats a polyclinic, or a hospital marked stabilisation-only, as a stabilisation facility", () => {
     expect(hospitalFromRow({ ...row, tier: "epsp_polyclinic" }).stabilizationOnly).toBe(true);
     expect(hospitalFromRow({ ...row, capStabilizationOnly: true }).stabilizationOnly).toBe(true);
+  });
+});
+
+describe("matchHospitals: a hospital that diverted this victim", () => {
+  it("sinks below every other hospital, is flagged, and is never recommended", () => {
+    const result = match(["icu"], [A, B, C], { declined: ["A"] });
+    expect(result.ranking.map((m) => m.hospitalId)).toEqual(["B", "C", "A"]);
+    expect(result.recommended!.hospitalId).toBe("B");
+    expect(result.ranking.at(-1)!.flags).toContain("declined");
+    expect(result.ranking.slice(0, 2).every((m) => !m.flags.includes("declined"))).toBe(true);
+  });
+
+  it("makes the next hospital a partial match when the one that declined was the only full one", () => {
+    const noIcu = hospital("B", at(2), ALL.filter((n) => n !== "icu"));
+    const result = match(["icu"], [A, noIcu], { declined: ["A"] });
+    expect(result.recommended!.hospitalId).toBe("B");
+    expect(result.recommended!.flags).toContain("secondary_transfer_risk");
+  });
+
+  it("recommends nothing when every hospital has declined", () => {
+    const result = match(["icu"], [A, B], { declined: ["A", "B"] });
+    expect(result.recommended).toBeNull();
+    expect(result.ranking).toHaveLength(2);
+  });
+
+  it("does not offer a stabilisation facility that has declined", () => {
+    const poly = hospital("P", at(1), [], { tier: "epsp_polyclinic", stabilizationOnly: true });
+    const poly2 = hospital("Q", at(2), [], { tier: "epsp_polyclinic", stabilizationOnly: true });
+    const far = loadRoadGraph(assetOf([at(0), at(1), at(2), [LAT, 3.2]], [[0, 1, 1000, "tertiary"], [1, 2, 1000, "tertiary"], [0, 3, 35000, "tertiary"]]));
+    const faraway = hospital("F", [LAT, 3.2]);
+    const result = match(["icu"], [faraway, poly, poly2], { graph: far, inShock: true, declined: ["P"] });
+    expect(result.stabilisation!.hospitalId).toBe("Q");
+  });
+
+  it("ignores an id that is not a known hospital", () => {
+    expect(match(["icu"], [A, B], { declined: ["nobody"] }).recommended!.hospitalId).toBe("A");
   });
 });

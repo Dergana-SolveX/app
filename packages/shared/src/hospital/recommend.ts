@@ -2,9 +2,8 @@ import type { GeoJsonPolygon } from "../geo/polygon";
 import type { LatLng } from "../routing/polyline";
 import type { RoadGraph } from "../routing/route";
 import { matchHospitals, type MatchHospital, type MatchResult } from "./match";
+import type { Severity } from "../triage/triage";
 import { deriveNeeds, isInShock, needFacts, type NeedResult } from "./needs";
-
-export type Severity = "red" | "yellow" | "green" | "unknown";
 
 export type Recommendation = MatchResult & { needs: NeedResult };
 
@@ -19,6 +18,8 @@ export function recommendForBilan(input: {
   graph: RoadGraph;
   zones: readonly GeoJsonPolygon[];
   severity: Severity;
+  /** Hospitals that diverted this victim. */
+  declined?: readonly string[];
 }): Recommendation {
   const facts = needFacts(input.bilan);
   const needs = deriveNeeds(facts);
@@ -32,6 +33,7 @@ export function recommendForBilan(input: {
       zones: input.zones,
       severity: input.severity,
       inShock: isInShock(facts),
+      declined: input.declined,
     }),
   };
 }

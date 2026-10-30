@@ -110,7 +110,7 @@ function createChannel<E extends Ready | Resync | { type: string }>({
             yield { id: idOf(seq), event: { type: "resync" } as E };
           } else {
             delivered = last;
-            for (const item of buffer.filter((b) => b.seq > last)) {
+            for (const item of buffer.filter((b) => b.seq > last && b.channel === channel)) {
               delivered = item.seq;
               yield { id: item.id, event: item.event as E };
             }

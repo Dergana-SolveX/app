@@ -3,6 +3,7 @@ import { Button } from "@solvex-dergana/ui/components/button";
 import { Skeleton } from "@solvex-dergana/ui/components/skeleton";
 import { cn } from "@solvex-dergana/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { ArrowLeftIcon, InboxIcon, PlusIcon, UserRoundIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -64,6 +65,9 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
   const [now] = useState(() => new Date());
   const orientationData = useOrientationData(unitId);
   const graph = useRoadGraph();
+  // The saved bilan of each victim: what a handover is attached to.
+  const [assessmentIds, setAssessmentIds] = useState<Record<number, string>>({});
+  const assessmentId = assessmentIds[active];
 
   // Saved victims come back as drafts once, when the mission first loads.
   const loaded = mission.data?.incident.id;
@@ -71,6 +75,7 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
     const saved = mission.data?.assessments;
     if (!saved || saved.length === 0) return;
     setDrafts(Object.fromEntries(saved.map((row) => [row.victimIndex, draftFromSaved(row)])));
+    setAssessmentIds(Object.fromEntries(saved.map((row) => [row.victimIndex, row.id])));
     setActive(saved[0]!.victimIndex);
     // Only when a different mission arrives, never on a refetch: that would erase what is being typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -78,7 +83,8 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
 
   const save = useMutation(
     trpc.assessments.save.mutationOptions({
-      onSuccess: (result) => {
+      onSuccess: (result, variables) => {
+        setAssessmentIds((current) => ({ ...current, [variables.victimIndex ?? 1]: result.assessmentId }));
         const index = result.shockIndex;
         toast.success(
           `Bilan enregistré${index?.value != null ? ` · indice de choc ${index.value.toFixed(2).replace(".", ",")}` : ""}${result.vittel.severe ? " · traumatisé grave" : ""}`,
@@ -87,6 +93,27 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
       },
       onError: (error) => toast.error(error.message),
     }),
+  );
+
+  const send = useMutation(
+    trpc.handovers.send.mutationOptions({
+      onSuccess: () => {
+        toast.success("AT-MIST envoyé à l'hôpital");
+        queryClient.invalidateQueries({ queryKey: trpc.handovers.forAssessment.pathKey() });
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+  const handovers = useQuery({
+    ...trpc.handovers.forAssessment.queryOptions({ assessmentId: assessmentId ?? "" }),
+    enabled: Boolean(assessmentId),
+  });
+  // The hospital's answer reaches the tablet live; the list is fetched again on every event.
+  useSubscription(
+    trpc.handovers.onUnit.subscriptionOptions(
+      { unitId },
+      { onData: () => queryClient.invalidateQueries({ queryKey: trpc.handovers.forAssessment.pathKey() }) },
+    ),
   );
 
   if (mission.isPending) return <div className="p-4 md:p-6"><Skeleton className="h-40 w-full" /></div>;
@@ -103,8 +130,7 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
     setActive(next);
   };
 
-  const submit = () =>
-    save.mutate({
+  const payload = () => ({
       incidentId,
       unitId,
       victimIndex: active,
@@ -123,6 +149,16 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
       chosenHospitalId: draft.chosenHospitalId ?? undefined,
       overrideReason: draft.overrideReason.trim() || undefined,
     });
+  const submit = () => save.mutate(payload());
+  // One tap: save the bilan with the retained hospital, then warn that hospital.
+  const saveAndSend = async () => {
+    try {
+      const saved = await save.mutateAsync(payload());
+      await send.mutateAsync({ assessmentId: saved.assessmentId });
+    } catch {
+      // Both mutations already show their own error.
+    }
+  };
 
   return (
     <section aria-label="Bilan secouriste" className="p-4 md:p-6">
@@ -171,6 +207,9 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
           severity={mission.data.incident.recSeverity}
           orientationData={orientationData}
           graph={graph}
+          handovers={handovers.data ?? []}
+          onSend={saveAndSend}
+          sending={save.isPending || send.isPending}
         />
       </div>
     </section>

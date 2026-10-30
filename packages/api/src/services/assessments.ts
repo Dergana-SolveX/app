@@ -1,6 +1,8 @@
 import type { Database } from "@solvex-dergana/db";
 import {
+  handovers,
   hospitalsMatrix,
+  incidentEvents,
   masterIncidents,
   medicalProfiles,
   medicAssessments,
@@ -107,6 +109,25 @@ export async function saveAssessment(
     });
 
     // Rank the hospitals from the scene, as the tablet does, and keep the result next to the decision.
+    const [existing] = await tx
+      .select({ id: medicAssessments.id, chosenHospitalId: medicAssessments.chosenHospitalId })
+      .from(medicAssessments)
+      .where(
+        and(
+          eq(medicAssessments.incidentId, input.incidentId),
+          eq(medicAssessments.victimIndex, input.victimIndex),
+          unitId ? eq(medicAssessments.unitId, unitId) : isNull(medicAssessments.unitId),
+        ),
+      );
+    // Hospitals that already diverted this victim are not offered again (PRD FR-S6-05).
+    const declined = existing
+      ? (
+          await tx
+            .select({ hospitalId: handovers.hospitalId })
+            .from(handovers)
+            .where(and(eq(handovers.assessmentId, existing.id), eq(handovers.status, "diverted")))
+        ).map((row) => row.hospitalId)
+      : [];
     const recommendation =
       incident.lat !== null && incident.lng !== null && hospitalRows.length > 0
         ? recommendForBilan({
@@ -124,6 +145,7 @@ export async function saveAssessment(
             graph: algiersRoadGraph(),
             zones: zonePolygons,
             severity: incident.recSeverity,
+            declined,
           })
         : null;
 
@@ -173,16 +195,6 @@ export async function saveAssessment(
       etaMinutes: eta?.etaMin ?? null,
     };
 
-    const [existing] = await tx
-      .select({ id: medicAssessments.id })
-      .from(medicAssessments)
-      .where(
-        and(
-          eq(medicAssessments.incidentId, input.incidentId),
-          eq(medicAssessments.victimIndex, input.victimIndex),
-          unitId ? eq(medicAssessments.unitId, unitId) : isNull(medicAssessments.unitId),
-        ),
-      );
     let assessmentId: string;
     if (existing) {
       await tx.update(medicAssessments).set(values).where(eq(medicAssessments.id, existing.id));
@@ -190,6 +202,23 @@ export async function saveAssessment(
     } else {
       const [created] = await tx.insert(medicAssessments).values(values).returning({ id: medicAssessments.id });
       assessmentId = created!.id;
+    }
+
+    // The decision goes in the incident history (PRD FR-S3-23), once for each change of mind.
+    if (input.chosenHospitalId && input.chosenHospitalId !== existing?.chosenHospitalId) {
+      await tx.insert(incidentEvents).values({
+        incidentId: input.incidentId,
+        actorRole: appUser.role,
+        actorId: appUser.id,
+        type: "hospital.chosen",
+        payload: {
+          assessmentId,
+          chosen: input.chosenHospitalId,
+          recommended: recommendation?.recommended?.hospitalId ?? null,
+          overridden: overriding,
+          reason: overriding ? reason! : null,
+        },
+      });
     }
     return { assessmentId, shockIndex: index, vittel, vittelState: state, recommendation };
   });
