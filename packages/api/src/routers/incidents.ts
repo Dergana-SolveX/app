@@ -43,7 +43,7 @@ export const incidentsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const incident = await splitIncident(ctx.db, ctx.appUser, input);
-      const source = await getIncident(ctx.db, input.id);
+      const source = await getEvaluation(ctx.db, input.id);
       if (source)
         ctx.events.publish({ type: "incident.updated", incident: source });
       ctx.events.publish({ type: "incident.created", incident });
