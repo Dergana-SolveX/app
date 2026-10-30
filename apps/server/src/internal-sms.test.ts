@@ -42,6 +42,19 @@ async function setup() {
 describe("POST /internal/sms", () => {
   const sms = () => ({ from: "+213550000001", body: encodeSvx(alert) });
 
+  it("hands the gateway the menu questions to text back to a feature phone", async () => {
+    const { post } = await setup();
+    const headers = { authorization: `Bearer ${SECRET}` };
+
+    const res = await post({ from: "+213550000009", body: "ACCIDENT" }, headers);
+
+    expect(res.status).toBe(200);
+    const { replies } = (await res.json()) as { replies: { to: string; body: string }[] };
+    expect(replies).toHaveLength(1);
+    expect(replies[0]).toMatchObject({ to: "+213550000009" });
+    expect(replies[0]!.body).toMatch(/victimes/i);
+  });
+
   it("rejects a request without the gateway secret", async () => {
     const { post } = await setup();
     expect((await post(sms())).status).toBe(401);

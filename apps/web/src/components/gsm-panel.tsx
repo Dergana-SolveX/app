@@ -8,6 +8,7 @@ import { Loader2Icon, SendIcon, SmartphoneIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import FeaturePhone from "@/components/feature-phone";
 import { SMS_PRESETS } from "@/lib/sms-presets";
 import { clockTime, incidentRef } from "@/lib/time";
 import { trpc } from "@/utils/trpc";
@@ -31,7 +32,11 @@ export default function GsmPanel() {
               : `Alerte reçue : incident #${incidentRef(result.incidentId)} créé`,
           );
         } else {
-          toast.message("Texte archivé : ce n'est pas un message SVX, aucun incident créé.");
+          toast.message(
+            result.kind === "menu"
+              ? "Menu SMS : réponse envoyée dans la boîte d'envoi."
+              : "Texte archivé : ce n'est pas un message SVX, aucun incident créé.",
+          );
         }
         queryClient.invalidateQueries({ queryKey: trpc.gsm.wire.queryKey() });
         queryClient.invalidateQueries({ queryKey: trpc.gsm.outbox.queryKey() });
