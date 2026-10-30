@@ -100,6 +100,7 @@ export async function getDispatcherStats(
       firstAlertAt: masterIncidents.firstAlertAt,
       alertCount: masterIncidents.alertCount,
       recSeverity: masterIncidents.recSeverity,
+      recAuthority: masterIncidents.recAuthority,
       commune: masterIncidents.commune,
       emulated: masterIncidents.emulated,
     })
@@ -244,11 +245,18 @@ export async function getDispatcherStats(
 
   // Authority grouping
   const authCounts = new Map<string, number>();
-  for (let i = 0; i < incidents.length; i++) {
-    authCounts.set("Protection Civile", (authCounts.get("Protection Civile") ?? 0) + 1);
+  for (const inc of incidents) {
+    const name =
+      inc.recAuthority === "gendarmerie_nationale"
+        ? "Gendarmerie Nationale"
+        : inc.recAuthority === "surete_nationale"
+          ? "Sûreté Nationale"
+          : "Protection Civile";
+    authCounts.set(name, (authCounts.get(name) ?? 0) + 1);
   }
   const byAuthority = Array.from(authCounts.entries())
-    .map(([authority, count]) => ({ authority, count }));
+    .map(([authority, count]) => ({ authority, count }))
+    .sort((a, b) => b.count - a.count);
 
   const emulatedIncidents = incidents.filter((i) => i.emulated).length;
 
@@ -313,6 +321,8 @@ export async function getHospitalStats(
 
   let accepted = 0;
   let diverted = 0;
+  let redTotal = 0;
+  let redAccepted = 0;
   const divertReasonMap = new Map<string, number>();
   let totalLeadTimeMin = 0;
   let leadTimeCount = 0;
@@ -338,8 +348,13 @@ export async function getHospitalStats(
     const bucket = dayBuckets.get(dayKey) ?? { total: 0, red: 0, yellow: 0, green: 0 };
     bucket.total++;
     const signs = (h.atmist as any)?.signs;
-    if (signs?.shockIndex && Number(signs.shockIndex) >= 1.0) {
+    const isRed = signs?.shockIndex && Number(signs.shockIndex) >= 1.0;
+    if (isRed) {
       bucket.red++;
+      redTotal++;
+      if (h.status === "accepted") {
+        redAccepted++;
+      }
     } else {
       bucket.yellow++;
     }
@@ -349,6 +364,7 @@ export async function getHospitalStats(
   const totalHandovers = accepted + diverted;
   const rate = totalHandovers > 0 ? Number(((accepted / totalHandovers) * 100).toFixed(1)) : 100;
   const averageLeadTimeMinutes = leadTimeCount > 0 ? Number((totalLeadTimeMin / leadTimeCount).toFixed(1)) : 0;
+  const redWithCapabilitiesRate = redTotal > 0 ? Number(((redAccepted / redTotal) * 100).toFixed(1)) : 100;
 
   const arrivalsByDay = Array.from(dayBuckets.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -373,6 +389,6 @@ export async function getHospitalStats(
     },
     divertReasons,
     averageLeadTimeMinutes,
-    redWithCapabilitiesRate: 94.0,
+    redWithCapabilitiesRate,
   };
 }

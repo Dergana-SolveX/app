@@ -48,6 +48,7 @@ export function DispatcherStats() {
           <h2 className="text-xl font-bold tracking-tight text-foreground">
             Statistiques du centre de régulation
           </h2>
+          <p className="text-xs font-semibold text-primary/80">إحصائيات مركز التنظيم</p>
           <p className="text-sm text-muted-foreground">
             Performance opérationnelle, convergence des canaux et suivi des décisions.
           </p>
@@ -180,7 +181,7 @@ export function DispatcherStats() {
 
             <Card className="p-4 shadow-xs">
               <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-xs font-medium">Convergence alertes</span>
+                <span className="text-xs font-medium">Convergence alertes (تقارب البلاغات)</span>
                 <RadioTowerIcon className="size-4 text-primary" aria-hidden="true" />
               </div>
               <div className="mt-2 flex items-baseline gap-2">
@@ -190,7 +191,7 @@ export function DispatcherStats() {
                 <span className="text-xs text-muted-foreground">signaux / incident</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {data.alertsMerged.two + data.alertsMerged.threeOrMore} incidents multi-signaux fusionnés
+                {data.alertsMerged.two + data.alertsMerged.threeOrMore} multi-signaux ({data.alertsMerged.single} mono, {data.alertsMerged.two} double, {data.alertsMerged.threeOrMore} triple+)
               </p>
             </Card>
           </div>
@@ -389,27 +390,60 @@ export function DispatcherStats() {
             </Card>
           </div>
 
-          {/* Section 3: Distribution by Commune */}
-          <Card className="p-5 shadow-xs">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div>
-                <h3 className="font-semibold text-foreground">Incidents par commune (Wilaya d'Alger)</h3>
-                <p className="text-xs text-muted-foreground">Concentration géographique des interventions traitées</p>
-              </div>
-              <span className="text-xs font-semibold text-muted-foreground">
-                {data.byCommune.length} communes actives
-              </span>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {data.byCommune.map((c, i) => (
-                <div key={i} className="flex items-center justify-between rounded-md border p-2 text-xs">
-                  <span className="truncate font-medium text-foreground">{c.commune}</span>
-                  <span className="ml-2 font-bold text-primary">{c.count}</span>
+          {/* Section 3: Distribution by Commune and Authority */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="p-5 shadow-xs">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="font-semibold text-foreground">Incidents par commune (حسب البلدية)</h3>
+                  <p className="text-xs text-muted-foreground">Concentration géographique (Wilaya d'Alger)</p>
                 </div>
-              ))}
-            </div>
-          </Card>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {data.byCommune.length} communes actives
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+                {data.byCommune.map((c, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-md border p-2 text-xs">
+                    <span className="truncate font-medium text-foreground">{c.commune}</span>
+                    <span className="ml-2 font-bold text-primary">{c.count}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-5 shadow-xs">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="font-semibold text-foreground">Répartition par autorité (حسب الهيئة)</h3>
+                  <p className="text-xs text-muted-foreground">Notification des forces de sécurité et secours</p>
+                </div>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {data.byAuthority.length} corps
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {data.byAuthority.map((a, i) => {
+                  const pct = data.summary.totalIncidents > 0 ? Math.round((a.count / data.summary.totalIncidents) * 100) : 0;
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-foreground">{a.authority}</span>
+                        <span className="font-semibold text-muted-foreground">
+                          {a.count} ({pct}%)
+                        </span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                        <div style={{ width: `${pct}%` }} className="h-full bg-primary" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          </div>
         </>
       )}
     </div>

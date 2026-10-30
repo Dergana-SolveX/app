@@ -2,6 +2,7 @@ import type { Database } from "../index";
 import {
   dispatches,
   handovers,
+  incidentEvents,
   masterIncidents,
   medicAssessments,
   rawAlerts,
@@ -70,6 +71,7 @@ export async function seedDemoHistory(db: Database) {
   const incidentRows: Array<typeof masterIncidents.$inferInsert> = [];
   const alertRows: Array<typeof rawAlerts.$inferInsert> = [];
   const dispatchRows: Array<typeof dispatches.$inferInsert> = [];
+  const eventRows: Array<typeof incidentEvents.$inferInsert> = [];
   const assessmentRows: Array<typeof medicAssessments.$inferInsert> = [];
   const handoverRows: Array<typeof handovers.$inferInsert> = [];
 
@@ -157,6 +159,26 @@ export async function seedDemoHistory(db: Database) {
       emulated: true,
     });
 
+    // Journal audit events for seeded incidents
+    eventRows.push({
+      id: `00000000-0000-4000-9400-00000000${pad}`,
+      incidentId,
+      actorRole: "system",
+      type: "triage.recommended",
+      payload: { severity: recSeverity, authority: recAuthority },
+      at: firstAlertAt,
+    });
+
+    eventRows.push({
+      id: `00000000-0000-4000-9500-00000000${pad}`,
+      incidentId,
+      actorRole: "dispatcher",
+      actorId: "00000000-0000-4000-8000-000000000001",
+      type: "dispatch.approved",
+      payload: { dispatchId, units: [assignedUnitId], modified: isModified },
+      at: decidedAt,
+    });
+
     // Generate assessments and handovers for ~32 of the incidents
     if (i < 32) {
       const assessmentId = `00000000-0000-4000-9200-00000000${pad}`;
@@ -221,6 +243,7 @@ export async function seedDemoHistory(db: Database) {
   await db.insert(masterIncidents).values(incidentRows).onConflictDoNothing();
   await db.insert(rawAlerts).values(alertRows).onConflictDoNothing();
   await db.insert(dispatches).values(dispatchRows).onConflictDoNothing();
+  await db.insert(incidentEvents).values(eventRows).onConflictDoNothing();
   await db.insert(medicAssessments).values(assessmentRows).onConflictDoNothing();
   await db.insert(handovers).values(handoverRows).onConflictDoNothing();
 }

@@ -74,7 +74,7 @@ export const incidentsRouter = router({
       getIncidentProfiles(ctx.db, input.id, ctx.appUser),
     ),
 
-  /** One incident with its raw alerts, journal, and recommendation: the evaluation card. Null if unknown. */
+  /** One incident with its raw alerts, journal, and recommendation: the evaluation card. Throws NOT_FOUND if unknown. */
   byId: dispatcherAccess
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
