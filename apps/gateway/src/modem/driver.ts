@@ -1,5 +1,5 @@
 import type { SerialLink } from "./link";
-import { fromUcs2Hex, isGsm7, parseModemTimestamp, toUcs2Hex } from "./text";
+import { fromUcs2Hex, GSM_EXTENDED, isGsm7, parseModemTimestamp, toUcs2Hex } from "./text";
 
 export type IncomingSms = { from: string; body: string; receivedAt: Date };
 
@@ -27,7 +27,7 @@ export type ModemDriver = {
 export type DriverOptions = {
   /** How long an ordinary command may take to answer. */
   commandTimeoutMs?: number;
-  /** How long `AT+CMGS` may take: the network has to accept the text first. */
+  /** How long `AT+CMGS` may take: the network has to accept the text first. Shorter than the server's wait for the gateway. */
   sendTimeoutMs?: number;
 };
 
@@ -51,8 +51,6 @@ export class ModemError extends Error {}
 /** A text that does not fit in one SMS. Concatenated messages are not supported: the caller must shorten it. */
 export class SmsTooLongError extends Error {}
 
-/** Characters that take two places of the 160 in the GSM alphabet (they go through an escape). */
-const GSM_DOUBLE = "^{}\\[~]|€\f";
 const MAX_GSM_SEPTETS = 160;
 const MAX_UCS2_UNITS = 70;
 
@@ -72,7 +70,7 @@ const MESSAGE_HEADER = /^\+CMGR: "[^"]*","([^"]*)","[^"]*","([^"]*)"/;
  */
 export function createModemDriver(
   link: SerialLink,
-  { commandTimeoutMs = 5_000, sendTimeoutMs = 60_000 }: DriverOptions = {},
+  { commandTimeoutMs = 5_000, sendTimeoutMs = 30_000 }: DriverOptions = {},
 ): ModemDriver {
   const queue: Job[] = [];
   let current: Job | null = null;
@@ -85,6 +83,8 @@ export function createModemDriver(
   /** The send in progress (or the last one): the next send waits for it. */
   let sending: Promise<void> = Promise.resolve();
   let reportHandler: (report: DeliveryReport) => void = () => {};
+  /** SIM indexes being handed over right now: a second path (a sweep, a repeated notice) must not do it twice. */
+  const handling = new Set<number>();
 
   /**
    * After a timeout or an unplug we cannot know which answer belongs to which command any more.
@@ -178,12 +178,18 @@ export function createModemDriver(
 
   /** Hands a stored message over, and only then deletes it. */
   async function deliver(index: number, senderHex: string, bodyLines: string[], stamp: string) {
-    await messageHandler({
-      from: fromUcs2Hex(senderHex),
-      body: fromUcs2Hex(bodyLines.join("")),
-      receivedAt: parseModemTimestamp(stamp) ?? new Date(),
-    });
-    await exec(`AT+CMGD=${index}`);
+    if (handling.has(index)) return; // this very message is already being handled
+    handling.add(index);
+    try {
+      await messageHandler({
+        from: fromUcs2Hex(senderHex),
+        body: fromUcs2Hex(bodyLines.join("")),
+        receivedAt: parseModemTimestamp(stamp) ?? new Date(),
+      });
+      await exec(`AT+CMGD=${index}`);
+    } finally {
+      handling.delete(index);
+    }
   }
 
   /**
@@ -221,7 +227,7 @@ export function createModemDriver(
     },
     send(to, body) {
       const wanted = isGsm7(body) ? 0 : 8;
-      const size = wanted === 0 ? [...body].reduce((n, char) => n + (GSM_DOUBLE.includes(char) ? 2 : 1), 0) : body.length;
+      const size = wanted === 0 ? [...body].reduce((n, char) => n + (GSM_EXTENDED.includes(char) ? 2 : 1), 0) : body.length;
       if (size > (wanted === 0 ? MAX_GSM_SEPTETS : MAX_UCS2_UNITS)) {
         return Promise.reject(
           new SmsTooLongError(`Text too long for one SMS: ${size} > ${wanted === 0 ? MAX_GSM_SEPTETS : MAX_UCS2_UNITS}`),

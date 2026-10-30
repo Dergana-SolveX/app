@@ -24,4 +24,12 @@ const { app } = createGateway({
 
 modem.start();
 
+// Let go of the serial port when the process is stopped: a port left held cannot be opened by the next start.
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    modem.stop();
+    process.exit(0);
+  });
+}
+
 export default { port: ENV.GATEWAY_PORT, fetch: app.fetch };

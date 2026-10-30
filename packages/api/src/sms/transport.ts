@@ -1,5 +1,6 @@
 import type { Database } from "@solvex-dergana/db";
 import { smsLog } from "@solvex-dergana/db/schema/index";
+import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 /** How the server sends an SMS to a phone. One adapter per way of reaching the GSM network. */
@@ -15,6 +16,8 @@ export type GatewayConfig = {
   /** `GATEWAY_SHARED_SECRET`, the same one the gateway uses towards `/internal/sms`. */
   secret: string;
   fetch?: typeof globalThis.fetch;
+  /** How long to wait for the gateway to accept a text (the modem may take a while to hand it to the network). */
+  timeoutMs?: number;
 };
 
 type Deps = { db: Database; gateway?: GatewayConfig };
@@ -48,12 +51,21 @@ function createEmulatorTransport({ db }: Deps): SmsTransport {
  */
 function createModemTransport({ db, gateway }: Deps): SmsTransport {
   if (!gateway) throw new Error("The modem transport needs GATEWAY_URL: where does apps/gateway listen?");
-  const { url, secret, fetch: fetchImpl = fetch } = gateway;
+  const { url, secret, fetch: fetchImpl = fetch, timeoutMs = 40_000 } = gateway;
 
   return {
     kind: "modem",
     async send(to, body, meta) {
-      const row = { direction: "out" as const, msisdnHash: hashOf(to), body, emulated: false, incidentId: meta?.incidentId ?? null };
+      // On record before anything can go wrong: a text that went out is never missing from the log.
+      const [row] = await db
+        .insert(smsLog)
+        .values({ direction: "out", msisdnHash: hashOf(to), body, emulated: false, incidentId: meta?.incidentId ?? null, status: "queued" })
+        .returning({ id: smsLog.id });
+      const settle = (patch: Partial<typeof smsLog.$inferInsert>) => db.update(smsLog).set(patch).where(eq(smsLog.id, row!.id));
+      const fail = async (message: string): Promise<never> => {
+        await settle({ status: "failed" });
+        throw new Error(message);
+      };
 
       let response: Response;
       try {
@@ -61,18 +73,20 @@ function createModemTransport({ db, gateway }: Deps): SmsTransport {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${secret}` },
           body: JSON.stringify({ to, body }),
+          signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (error) {
-        await db.insert(smsLog).values({ ...row, status: "failed" });
-        throw new Error(`The SMS gateway could not be reached: ${error instanceof Error ? error.message : error}`);
+        return fail(
+          error instanceof Error && error.name === "TimeoutError"
+            ? `The SMS gateway did not answer within ${timeoutMs} ms`
+            : `The SMS gateway could not be reached: ${error instanceof Error ? error.message : error}`,
+        );
       }
-      if (!response.ok) {
-        await db.insert(smsLog).values({ ...row, status: "failed" });
-        throw new Error(`The SMS gateway refused the text (${response.status})`);
-      }
+      if (!response.ok) return fail(`The SMS gateway refused the text (${response.status})`);
 
-      const { ref } = (await response.json()) as { ref: number };
-      await db.insert(smsLog).values({ ...row, status: "sent", modemRef: String(ref) });
+      const answer = (await response.json().catch(() => null)) as { ref?: unknown } | null;
+      if (typeof answer?.ref !== "number") return fail("The SMS gateway accepted the text but gave no network reference");
+      await settle({ status: "sent", modemRef: String(answer.ref) });
     },
   };
 }

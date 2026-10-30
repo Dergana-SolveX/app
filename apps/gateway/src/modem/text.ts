@@ -27,7 +27,7 @@ export function toUcs2Hex(text: string): string {
 const GSM_BASIC =
   "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
 /** Reachable through an escape: each counts for two characters of the 160. */
-const GSM_EXTENDED = "^{}\[~]|€\f";
+export const GSM_EXTENDED = "^{}\\[~]|€\f";
 
 /** Can the text be sent in the 7-bit GSM alphabet (160 characters), or does it need UCS2 (70)? */
 export function isGsm7(text: string): boolean {

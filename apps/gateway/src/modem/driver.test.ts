@@ -331,3 +331,51 @@ describe("modem driver: a failing hand-over during the sweep", () => {
     quiet.mockRestore();
   });
 });
+
+describe("modem driver: characters", () => {
+  it("keeps a backslash in the GSM alphabet (two places each, so 80 fit in one SMS and 81 do not)", async () => {
+    const hex = "005C".repeat(80); // "\" is U+005C
+    const modem = replayLink([
+      ...initSteps(),
+      { host: `AT+CMGS="${HEX.plus213550000001}"\r`, modem: "\r\n> " },
+      { host: `${hex}\x1a`, modem: "\r\n+CMGS: 3\r\n" + OK }, // no switch to UCS2: it is GSM text
+    ]);
+    const driver = createModemDriver(modem.link);
+    await driver.init();
+
+    expect(await driver.send("+213550000001", "\\".repeat(80))).toEqual({ ref: 3 });
+    await expect(driver.send("+213550000001", "\\".repeat(81))).rejects.toThrow(/too long/i);
+  });
+});
+
+describe("modem driver: one message, one hand-over", () => {
+  it("does not hand over a message again while it is still being handled (a sweep must skip it)", async () => {
+    const listing = `\r\n+CMGL: 3,"REC READ","${HEX.plus213550000001}","","26/10/30,12:00:00+04"\r\n${HEX.accident}\r\n` + OK;
+    const modem = replayLink([
+      ...initSteps(),
+      { modem: '\r\n+CMTI: "SM",3\r\n' },
+      {
+        host: "AT+CMGR=3\r",
+        modem: `\r\n+CMGR: "REC UNREAD","${HEX.plus213550000001}","","26/10/30,12:00:00+04"\r\n${HEX.accident}\r\n` + OK,
+      },
+      { host: 'AT+CMGL="ALL"\r', modem: listing }, // the sweep still sees it: it has not been deleted yet
+      { host: "AT+CMGD=3\r", modem: OK },
+    ]);
+    const driver = createModemDriver(modem.link);
+    let release: () => void = () => {};
+    const slow = new Promise<void>((resolve) => (release = resolve));
+    const handled: string[] = [];
+    driver.onMessage(async (sms) => {
+      handled.push(sms.body);
+      await slow; // the server is taking its time
+    });
+    await driver.init();
+    await vi.waitFor(() => expect(handled).toEqual(["ACCIDENT"]));
+
+    await driver.sweep(); // runs while the first hand-over is still in progress
+    release();
+    await untilDone(modem);
+
+    expect(handled).toEqual(["ACCIDENT"]); // once, not twice
+  });
+});

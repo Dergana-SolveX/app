@@ -1,5 +1,5 @@
 import { createTestDb } from "@solvex-dergana/db/testing";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { listOutbox } from "../services/wire";
 import { createTransport } from "./transport";
@@ -74,6 +74,43 @@ describe("createTransport: modem (through apps/gateway)", () => {
     expect(outbox).toHaveLength(1);
     expect(outbox[0]).toMatchObject({ direction: "out", body: "SVXACK#3F9A12BC", emulated: false, status: "sent", modemRef: "12" });
     expect(JSON.stringify(outbox[0])).not.toContain("+213550000001");
+  });
+
+  it("has the text on record as queued before the gateway answers, so nothing that happens later can lose it", async () => {
+    const db = await createTestDb();
+    let answer: (response: Response) => void = () => {};
+    const slow = (async () => new Promise<Response>((resolve) => (answer = resolve))) as unknown as typeof fetch;
+    const transport = createTransport("modem", { db, gateway: { url: "http://gateway.test", secret: SECRET, fetch: slow } });
+
+    const sending = transport.send("+213550000001", "SVXACK#3F9A12BC");
+    await vi.waitFor(async () => expect((await listOutbox(db)).map((m) => m.status)).toEqual(["queued"]));
+
+    answer(Response.json({ ref: 12 }));
+    await sending;
+    expect((await listOutbox(db)).map((m) => [m.status, m.modemRef])).toEqual([["sent", "12"]]);
+  });
+
+  it("gives up on a gateway that does not answer, and records the text as failed", async () => {
+    const db = await createTestDb();
+    const hangs = ((_url: unknown, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason)))) as unknown as typeof fetch;
+    const transport = createTransport("modem", { db, gateway: { url: "http://gateway.test", secret: SECRET, fetch: hangs, timeoutMs: 20 } });
+
+    await expect(transport.send("+213550000001", "a")).rejects.toThrow(/did not answer/i);
+
+    expect((await listOutbox(db)).map((m) => m.status)).toEqual(["failed"]);
+  });
+
+  it("treats an answer without a network reference as a failure instead of guessing", async () => {
+    const db = await createTestDb();
+    const transport = createTransport("modem", {
+      db,
+      gateway: { url: "http://gateway.test", secret: SECRET, fetch: fakeGateway(() => Response.json({ nope: true })).fetch },
+    });
+
+    await expect(transport.send("+213550000001", "a")).rejects.toThrow(/reference/i);
+
+    expect((await listOutbox(db)).map((m) => m.status)).toEqual(["failed"]);
   });
 
   it("records a text the gateway could not send as failed, and lets the caller know", async () => {

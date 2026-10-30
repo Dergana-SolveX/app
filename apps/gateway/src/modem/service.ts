@@ -6,6 +6,14 @@ export class ModemUnavailableError extends Error {}
 
 type Log = Pick<Console, "info" | "warn" | "error">;
 
+const closeQuietly = (link: SerialLink | null) => {
+  try {
+    link?.close();
+  } catch {
+    // already gone
+  }
+};
+
 export type ModemServiceOptions = {
   /** Opens the serial port. Called again after every failure or unplug. */
   open: () => Promise<SerialLink>;
@@ -50,7 +58,7 @@ export function createModemService({
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let sweepTimer: ReturnType<typeof setInterval> | undefined;
   let currentLink: SerialLink | null = null;
-  let waiting: (() => void)[] = [];
+  let waiting: { resolve: () => void; reject: (error: Error) => void }[] = [];
   let messageHandler: (sms: IncomingSms) => Promise<void> = async () => {};
   let reportHandler: (report: DeliveryReport) => void = () => {};
 
@@ -73,6 +81,7 @@ export function createModemService({
     const mine = ++attempt;
     try {
       const link = await open();
+      if (isStopped()) return closeQuietly(link); // stopped while the port was opening: do not keep it held
       currentLink = link;
       const next = createModemDriver(link, driverOptions);
       next.onMessage((sms) => messageHandler(sms));
@@ -82,21 +91,17 @@ export function createModemService({
         retryLater(mine);
       });
       await next.init();
-      if (mine !== attempt || isStopped()) return; // lost or stopped while starting
+      if (mine !== attempt || isStopped()) return closeQuietly(link); // lost or stopped while starting
       driver = next;
       status = "connected";
       failures = 0;
       sweepTimer = setInterval(() => void next.sweep().catch((error) => log.error("[modem] sweep failed", error)), sweepEveryMs);
       log.info("[modem] connected");
-      waiting.forEach((resolve) => resolve());
+      waiting.forEach(({ resolve }) => resolve());
       waiting = [];
     } catch (error) {
       log.error("[modem] could not connect:", error instanceof Error ? error.message : error);
-      try {
-        currentLink?.close();
-      } catch {
-        // already gone
-      }
+      closeQuietly(currentLink);
       retryLater(mine);
     }
   }
@@ -112,13 +117,16 @@ export function createModemService({
       clearTimeout(retryTimer);
       clearInterval(sweepTimer);
       driver = null;
-      try {
-        currentLink?.close();
-      } catch {
-        // already gone
-      }
+      closeQuietly(currentLink);
+      waiting.forEach(({ reject }) => reject(new ModemUnavailableError("The modem service was stopped")));
+      waiting = [];
     },
-    whenConnected: () => (status === "connected" ? Promise.resolve() : new Promise<void>((resolve) => waiting.push(resolve))),
+    whenConnected: () =>
+      status === "connected"
+        ? Promise.resolve()
+        : isStopped()
+          ? Promise.reject(new ModemUnavailableError("The modem service was stopped"))
+          : new Promise<void>((resolve, reject) => waiting.push({ resolve, reject })),
     status: () => status,
     onMessage(handler) {
       messageHandler = handler;

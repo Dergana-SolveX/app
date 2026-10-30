@@ -59,6 +59,8 @@ export function replayLink(steps: readonly Step[], { chunkSize = Infinity }: { c
     written,
     /** What the transcript still expects. Empty when the driver did everything it was supposed to. */
     remaining: () => steps.slice(next),
+    /** Whether the code under test closed the link (the serial port is released). */
+    isClosed: () => closed,
     /** Simulates unplugging the USB modem. */
     unplug: (error = new Error("USB modem unplugged")) => {
       closed = true;

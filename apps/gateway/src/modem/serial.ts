@@ -21,7 +21,8 @@ export function openSerialLink(path: string, baudRate: number): Promise<SerialLi
     port.open((error) => {
       if (error) return reject(error);
       resolve({
-        write: (data) => void port.write(data, "latin1"),
+        // A failed write (the dongle was unplugged mid-command) ends the link at once, instead of waiting for a timeout.
+        write: (data) => void port.write(data, "latin1", (error) => error && onClose(error)),
         onData: (handler) => (onData = handler),
         onClose: (handler) => (onClose = handler),
         close: () => {

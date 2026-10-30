@@ -113,6 +113,35 @@ describe("modem service", () => {
     expect(service.status()).toBe("stopped");
   });
 
+  it("releases the serial port when stopped while the port was still being opened", async () => {
+    const modem = replayLink(initSteps());
+    let opened: (link: typeof modem.link) => void = () => {};
+    const open = vi.fn(() => new Promise<typeof modem.link>((resolve) => (opened = resolve)));
+    const service = createModemService({ open, log: quiet() });
+    service.start();
+    await vi.advanceTimersByTimeAsync(0);
+
+    service.stop(); // the port is still opening
+    opened(modem.link); // ... and then it opens
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(modem.isClosed()).toBe(true); // nobody is going to use it: it must not stay held
+    expect(modem.written).toEqual([]); // and nothing was sent to it
+  });
+
+  it("does not leave callers waiting forever for a service that has been stopped", async () => {
+    const silent = replayLink([{ host: "AT\r", modem: "" }]);
+    const service = createModemService({ open: async () => silent.link, log: quiet() });
+    service.start();
+    const waiting = service.whenConnected();
+    const outcome = expect(waiting).rejects.toThrow(/stopped/i);
+
+    service.stop();
+
+    await outcome;
+    await expect(service.whenConnected()).rejects.toThrow(/stopped/i); // also for later callers
+  });
+
   it("sweeps the SIM again from time to time, so a message left behind is handed over once the server is back", async () => {
     const modem = replayLink([...initSteps(), { host: 'AT+CMGL="ALL"\r', modem: OK }]);
     const service = createModemService({ open: async () => modem.link, sweepEveryMs: 60_000, log: quiet() });
