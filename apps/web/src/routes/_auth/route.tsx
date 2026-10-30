@@ -1,5 +1,7 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
+import { ShieldOffIcon } from "lucide-react";
 
+import AppShell from "@/components/app-shell";
 import { authClient } from "@/lib/auth-client";
 import { trpc } from "@/utils/trpc";
 
@@ -19,16 +21,27 @@ export const Route = createFileRoute("/_auth")({
 });
 
 function AuthLayout() {
-  const { appUser } = Route.useRouteContext();
+  const { session, appUser } = Route.useRouteContext();
+
   if (!appUser) {
     return (
-      <main className="mx-auto max-w-md p-6">
-        <h1 className="text-lg font-medium">Accès refusé</h1>
-        <p className="text-muted-foreground">
-          Ce compte n'a aucun rôle dans SVX Rescue. Contactez l'administrateur.
-        </p>
+      <main className="grid min-h-dvh place-items-center p-6">
+        <div className="max-w-md rounded-lg border bg-card p-8 text-center">
+          <span className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-sev-red-soft text-sev-red">
+            <ShieldOffIcon className="size-6" aria-hidden="true" />
+          </span>
+          <h1 className="text-lg font-extrabold">Accès refusé</h1>
+          <p className="mt-2 text-muted-foreground">
+            Ce compte n'a aucun rôle dans SVX Rescue. Contactez l'administrateur.
+          </p>
+        </div>
       </main>
     );
   }
-  return <Outlet />;
+
+  return (
+    <AppShell user={session.data!.user} appUser={appUser}>
+      <Outlet />
+    </AppShell>
+  );
 }

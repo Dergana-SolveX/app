@@ -7,5 +7,11 @@ export const Route = createFileRoute("/_auth/ambulance/$unitId")({
   beforeLoad: ({ context, params }) => {
     requireAccess(context.appUser, { screen: "ambulance", unitId: params.unitId });
   },
-  component: () => <ScreenShell title="Tablette ambulance" />,
+  component: () => (
+    <ScreenShell
+      title="Tablette ambulance"
+      description="Mission, bilan secouriste et orientation vers l'hôpital."
+      issue="#7"
+    />
+  ),
 });

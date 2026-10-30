@@ -4,7 +4,6 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
-import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import type { trpc } from "@/utils/trpc";
 
@@ -20,11 +19,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
     meta: [
       {
-        title: "solvex-dergana",
+        title: "SVX Rescue",
       },
       {
         name: "description",
-        content: "solvex-dergana is a web application",
+        content: "Réponse aux urgences routières : du choc à l'hôpital.",
       },
     ],
     links: [
@@ -44,16 +43,19 @@ function RootComponent() {
         attribute="class"
         defaultTheme="dark"
         disableTransitionOnChange
-        storageKey="vite-ui-theme"
+        storageKey="svx-theme"
       >
-        <div className="grid grid-rows-[auto_1fr] h-svh">
-          <Header />
-          <Outlet />
-        </div>
-        <Toaster richColors />
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:font-semibold focus:text-primary-foreground"
+        >
+          Aller au contenu
+        </a>
+        <Outlet />
+        <Toaster />
       </ThemeProvider>
-      <TanStackRouterDevtools position="bottom-left" />
-      <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
+      <TanStackRouterDevtools position="bottom-right" />
+      <ReactQueryDevtools position="bottom" buttonPosition="bottom-left" />
     </>
   );
 }
