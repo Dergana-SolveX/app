@@ -1,3 +1,4 @@
+import { assessVictim, type VittelResult } from "@solvex-dergana/shared";
 import { SeverityBadge } from "@solvex-dergana/ui/components/severity-badge";
 import { Button } from "@solvex-dergana/ui/components/button";
 import { Skeleton } from "@solvex-dergana/ui/components/skeleton";
@@ -15,6 +16,7 @@ import { trpc } from "@/utils/trpc";
 
 import { BilanForm } from "./bilan-form";
 import { draftFromSaved, emptyDraft, type Draft } from "./draft";
+import { VittelIndicator } from "./vittel-indicator";
 
 function IncidentPicker({ onPick }: { onPick: (incidentId: string) => void }) {
   const incidents = useQuery(trpc.assessments.openIncidents.queryOptions());
@@ -122,6 +124,23 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
   }
 
   const victims = Object.keys(drafts).map(Number).sort((a, b) => a - b);
+  const vittelByVictim: Record<number, VittelResult> = Object.fromEntries(
+    victims.map((victimIndex) => {
+      const victimDraft = drafts[victimIndex] ?? emptyDraft();
+      const profile = mission.data.profiles.find((candidate) => candidate.id === victimDraft.profileId) ?? null;
+      const result = assessVictim({
+        now,
+        sensors: mission.data.incident.vittelPrefill ?? undefined,
+        profile: profile
+          ? { birthDate: profile.birthDate, pregnancy: profile.pregnancyStatus, medications: profile.medications }
+          : null,
+        estAge: victimDraft.estAge,
+        vitals: victimDraft,
+        medic: victimDraft.medic,
+      }).vittel;
+      return [victimIndex, result];
+    }),
+  );
   const draft = drafts[active] ?? emptyDraft();
   const update = (next: Draft) => setDrafts((current) => ({ ...current, [active]: next }));
   const addVictim = () => {
@@ -205,24 +224,30 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
           </div>
 
           <div className="flex flex-col gap-2">
-            {victims.map((n) => (
-              <button
-                key={n}
-                type="button"
-                aria-current={n === active ? "true" : undefined}
-                onClick={() => setActive(n)}
-                className={cn(
-                  "inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-md border px-2 text-sm font-bold transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:justify-start sm:px-3",
-                  n === active
-                    ? "border-primary bg-accent text-accent-foreground"
-                    : "border-input bg-background hover:border-primary/60",
-                )}
-              >
-                <UserRoundIcon className="size-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Victime </span>
-                {n}
-              </button>
-            ))}
+            {victims.map((n) => {
+              const vittel = vittelByVictim[n]!;
+              return (
+                <div key={n} className="relative">
+                  <button
+                    type="button"
+                    aria-current={n === active ? "true" : undefined}
+                    onClick={() => setActive(n)}
+                    className={cn(
+                      "inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-md border px-2 text-sm font-bold transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:justify-start sm:px-3",
+                      vittel.severe && "pe-10",
+                      n === active
+                        ? "border-primary bg-accent text-accent-foreground"
+                        : "border-input bg-background hover:border-primary/60",
+                    )}
+                  >
+                    <UserRoundIcon className="size-4" aria-hidden="true" />
+                    <span className="hidden sm:inline">Victime </span>
+                    {n}
+                  </button>
+                  <VittelIndicator victim={n} result={vittel} />
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2 border-t pt-3">
