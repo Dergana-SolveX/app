@@ -55,7 +55,7 @@ export function PacketCard({ transmissions }: { transmissions: Transmission[] })
   const anatomy = tx.sms ? explainSvx(tx.sms) : null;
   const { packet } = tx;
   return (
-    <section aria-label="Paquet envoyé" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+    <section aria-label="Paquet envoyé" className="@container flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-bold">
           Paquet envoyé · tentative {tx.attempt} · {tx.channel === "sms" ? "SMS (zone blanche)" : "Internet, signé HMAC-SHA256"}
@@ -67,7 +67,7 @@ export function PacketCard({ transmissions }: { transmissions: Transmission[] })
         <>
           <ul className="flex flex-wrap gap-1.5" aria-label="Champs du message SVX">
             {anatomy.fields.map((field) => (
-              <li key={field.key} className={cn("rounded-md border px-2 py-1", KIND_STYLE[field.kind])}>
+              <li key={field.key} className={cn("min-w-0 max-w-full break-words rounded-md border px-2 py-1", KIND_STYLE[field.kind])}>
                 <span className="tabular font-mono text-sm font-bold">
                   {field.key}
                   {field.value && `:${field.value}`}
@@ -102,7 +102,7 @@ export function PacketCard({ transmissions }: { transmissions: Transmission[] })
           </div>
         </>
       ) : (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm @sm:grid-cols-2">
           {[
             ["Pic", `${packet.peakG.toFixed(1).replace(".", ",")} g${packet.saturated ? " (capteur saturé)" : ""}`],
             ["Delta-V", `${Math.round(packet.deltaVKmh)} km/h`],

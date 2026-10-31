@@ -65,9 +65,9 @@ export function BlockDiagram({
   const { rollDeg } = orientation;
 
   return (
-    <section aria-labelledby="block-diagram-title" className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-      <div className="mb-3 flex items-center justify-between border-b pb-2">
-        <div>
+    <section aria-labelledby="block-diagram-title" className="@container min-w-0 rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+        <div className="min-w-0">
           <h2 id="block-diagram-title" className="text-sm font-bold tracking-tight">
             Schéma Bloc Matériel
           </h2>
@@ -84,8 +84,8 @@ export function BlockDiagram({
       </div>
 
       <div className="relative w-full overflow-hidden rounded-md border border-border/50 bg-background/80 p-3">
-        {/* SVG Wiring Connections */}
-        <svg className="absolute inset-0 h-full w-full pointer-events-none" aria-hidden="true">
+        {/* Wiring only makes sense when the five blocks share one row (wide container). */}
+        <svg className="pointer-events-none absolute inset-0 hidden h-full w-full @3xl:block" aria-hidden="true">
           <defs>
             <linearGradient id={`${diagramId}-bus`} x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" style={{ stopColor: "var(--info)", stopOpacity: 0.8 }} />
@@ -115,10 +115,10 @@ export function BlockDiagram({
           />
         </svg>
 
-        <div className="relative z-10 grid grid-cols-1 gap-3 sm:grid-cols-5">
+        <div className="relative z-10 grid grid-cols-1 gap-3 @md:grid-cols-2 @3xl:grid-cols-5">
           {/* Block 1: Power Supply */}
           <div
-            className={`flex flex-col justify-between rounded-md border p-2.5 transition-all ${
+            className={`flex min-w-0 flex-col justify-between gap-2 rounded-md border p-2.5 transition-all ${
               active.power ? "border-sev-green/50 bg-sev-green-soft" : "border-border bg-card/50"
             }`}
           >
@@ -127,10 +127,10 @@ export function BlockDiagram({
                 <BatteryChargingIcon className={`h-4 w-4 ${active.power ? "text-sev-green" : "text-muted-foreground"}`} />
                 <span className="inline-block h-2 w-2 rounded-full bg-sev-green" />
               </div>
-              <div className="mt-2 text-xs font-bold text-foreground">Alimentation</div>
+              <div className="mt-2 break-words text-xs font-bold text-foreground">Alimentation</div>
               <div className="text-xs text-muted-foreground" dir="rtl">تغذية الطاقة</div>
             </div>
-            <div className="mt-2 text-xs font-mono text-sev-green">
+            <div className="mt-2 break-words text-xs font-mono text-sev-green">
               12V → 3.8V DC-DC<br />
               <span className="text-muted-foreground">LiPo 1200mAh</span>
             </div>
@@ -138,7 +138,7 @@ export function BlockDiagram({
 
           {/* Block 2: Sensors & IMU */}
           <div
-            className={`flex flex-col justify-between rounded-md border p-2.5 transition-all ${
+            className={`flex min-w-0 flex-col justify-between gap-2 rounded-md border p-2.5 transition-all ${
               active.sensors ? "border-brand/60 bg-brand-soft ring-1 ring-brand/20" : "border-border bg-card/50"
             }`}
           >
@@ -149,10 +149,10 @@ export function BlockDiagram({
                   I2C/SPI
                 </span>
               </div>
-              <div className="mt-2 text-xs font-bold text-foreground">IMU LSM6DSOX</div>
+              <div className="mt-2 break-words text-xs font-bold text-foreground">IMU LSM6DSOX</div>
               <div className="text-xs text-muted-foreground" dir="rtl">مستشعر الصدمات</div>
             </div>
-            <div className="mt-2 text-xs font-mono text-brand">
+            <div className="mt-2 break-words text-xs font-mono text-brand">
               Choc : {peakG.toFixed(1)} g<br />
               <span className="text-muted-foreground">Tilt : {Math.abs(rollDeg).toFixed(0)}°</span>
             </div>
@@ -160,7 +160,7 @@ export function BlockDiagram({
 
           {/* Block 3: Central MCU */}
           <div
-            className={`flex flex-col justify-between rounded-md border p-2.5 transition-all ${
+            className={`flex min-w-0 flex-col justify-between gap-2 rounded-md border p-2.5 transition-all ${
               active.mcu ? "border-primary/60 bg-primary/10 ring-1 ring-primary/30" : "border-border bg-card/50"
             }`}
           >
@@ -171,10 +171,10 @@ export function BlockDiagram({
                   FreeRTOS
                 </span>
               </div>
-              <div className="mt-2 text-xs font-bold text-foreground">MCU ESP32-S3</div>
+              <div className="mt-2 break-words text-xs font-bold text-foreground">MCU ESP32-S3</div>
               <div className="text-xs text-muted-foreground" dir="rtl">المعالج المركزي</div>
             </div>
-            <div className="mt-2 text-xs font-mono text-primary-foreground/90">
+            <div className="mt-2 break-words text-xs font-mono text-foreground">
               240 MHz Dual-Core<br />
               <span className="text-sev-green">État : {state}</span>
             </div>
@@ -182,7 +182,7 @@ export function BlockDiagram({
 
           {/* Block 4: GNSS / GPS */}
           <div
-            className={`flex flex-col justify-between rounded-md border p-2.5 transition-all ${
+            className={`flex min-w-0 flex-col justify-between gap-2 rounded-md border p-2.5 transition-all ${
               active.gnss ? "border-info/60 bg-info-soft" : "border-border bg-card/50"
             }`}
           >
@@ -193,10 +193,10 @@ export function BlockDiagram({
                   UART 9600
                 </span>
               </div>
-              <div className="mt-2 text-xs font-bold text-foreground">GNSS NEO-M8N</div>
+              <div className="mt-2 break-words text-xs font-bold text-foreground">GNSS NEO-M8N</div>
               <div className="text-xs text-muted-foreground" dir="rtl">تحديد الموقع GPS</div>
             </div>
-            <div className="mt-2 text-xs font-mono text-info">
+            <div className="mt-2 break-words text-xs font-mono text-info">
               Fix 3D (Alger)<br />
               <span className="text-muted-foreground">36.75°N, 3.05°E</span>
             </div>
@@ -204,7 +204,7 @@ export function BlockDiagram({
 
           {/* Block 5: Modem GSM & Antenna */}
           <div
-            className={`flex flex-col justify-between rounded-md border p-2.5 transition-all ${
+            className={`flex min-w-0 flex-col justify-between gap-2 rounded-md border p-2.5 transition-all @md:col-span-2 @3xl:col-span-1 ${
               active.modem ? "border-sev-yellow/70 bg-sev-yellow-soft ring-1 ring-sev-yellow/30" : "border-border bg-card/50"
             }`}
           >
@@ -217,7 +217,7 @@ export function BlockDiagram({
                   <WifiIcon className="h-4 w-4 text-muted-foreground opacity-40" />
                 )}
               </div>
-              <div className="mt-2 text-xs font-bold text-foreground">Modem SIM800L</div>
+              <div className="mt-2 break-words text-xs font-bold text-foreground">Modem SIM800L</div>
               <div className="text-xs text-muted-foreground" dir="rtl">مودم الاتصال الخلوي</div>
             </div>
             <div className="mt-2 rounded bg-background/50 p-1 font-mono text-xs text-sev-yellow truncate">
