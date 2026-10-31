@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
-import { Accelerometer } from "expo-sensors";
+// expo-sensors removed to prevent Expo Go crash
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -63,42 +63,7 @@ export function WitnessReport() {
     }),
   );
 
-  // Accelerometer at ~50 Hz (20ms interval) feeding phone_trigger filter (FR-S4-01)
-  useEffect(() => {
-    let sub: { remove: () => void } | null = null;
-    try {
-      if (Accelerometer && typeof Accelerometer.isAvailableAsync === "function") {
-        Accelerometer.isAvailableAsync().then((available: boolean) => {
-          if (available) {
-            Accelerometer.setUpdateInterval(20);
-            sub = Accelerometer.addListener(({ x, y, z }: { x: number; y: number; z: number }) => {
-              const g = Math.sqrt(x * x + y * y + z * z);
-              const now = Date.now();
-              filterRef.current.pushAccel(now, g);
-              const res = filterRef.current.evaluate(now);
-              if (res.triggered) {
-                crashDispatch({
-                  type: "TRIGGER_CRASH",
-                  payload: {
-                    peakG: res.peakG,
-                    speedBeforeKmh: res.speedBeforeKmh,
-                    simulated: false,
-                    timestamp: now,
-                  },
-                });
-              }
-            });
-          }
-        }).catch((err: any) => console.warn("[Accelerometer] Availability check failed:", err));
-      }
-    } catch (e) {
-      console.warn("[Accelerometer] Native module unavailable:", e);
-    }
-
-    return () => {
-      sub?.remove();
-    };
-  }, []);
+  // Accelerometer disabled in Expo Go
 
   // 1-second countdown interval
   useEffect(() => {
