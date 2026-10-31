@@ -22,31 +22,31 @@
   --brand-soft: #ccfbf1;
   --brand-soft-foreground: #115e59;
 
-  --background: #f7faf9;
-  --foreground: #102a27;
+  --background: #ffffff;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: #102a27;
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #102a27;
-  --raised: #eff5f3;
-  --primary: #0f766e;
+  --popover-foreground: #0f172a;
+  --raised: #f8fafc;
+  --primary: #15803d;
   --primary-foreground: #ffffff;
-  --primary-action: #0f766e;
+  --primary-action: #16a34a;
   --primary-action-foreground: #ffffff;
-  --primary-hover: #115e59;
-  --secondary: #eff5f3;
-  --secondary-foreground: #102a27;
-  --muted: #eff5f3;
-  --muted-foreground: #526b66;
-  --subtle-foreground: #78908a;
-  --accent: #e5efec;
-  --accent-foreground: #102a27;
+  --primary-hover: #15803d;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --subtle-foreground: #94a3b8;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
   --destructive: #b91c1c;
   --destructive-foreground: #ffffff;
-  --border: #dce8e4;
-  --border-strong: #b8cdc6;
-  --input: #b8cdc6;
-  --ring: #0d9488;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --input: #cbd5e1;
+  --ring: #16a34a;
 
   /* Severity / status: always paired with an icon and a word, never color alone. */
   --sev-red: #b91c1c;
@@ -55,8 +55,8 @@
   --sev-yellow-soft: #fef3c7;
   --sev-green: #15803d;
   --sev-green-soft: #dcfce7;
-  --sev-unknown: #526b66;
-  --sev-unknown-soft: #eff5f3;
+  --sev-unknown: #64748b;
+  --sev-unknown-soft: #f1f5f9;
   --info: #1d4ed8;
   --info-soft: #dbeafe;
   /* Filled semantic surfaces carry white text in both themes, so they keep the light-theme values. */
@@ -71,24 +71,24 @@
   --emulation: var(--info);
   --emulation-soft: var(--info-soft);
 
-  --chart-1: #0d9488;
+  --chart-1: #16a34a;
   --chart-2: #b91c1c;
   --chart-3: #b45309;
   --chart-4: #15803d;
   --chart-5: #1d4ed8;
 
-  /* The sidebar is the brand anchor: Deep Forest in both themes. */
-  --sidebar: #042e2a;
-  --sidebar-foreground: #eaf5f2;
-  --sidebar-muted: #a7c2bb;
-  --sidebar-primary: #2dd4bf;
-  --sidebar-primary-foreground: #042e2a;
-  --sidebar-accent: #164e48;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #164e48;
-  --sidebar-ring: #2dd4bf;
+  /* The sidebar: white and clean in light mode, only active buttons on green */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-muted: #64748b;
+  --sidebar-primary: #16a34a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #16a34a;
 
-  --shadow-color: 16 42 39;
+  --shadow-color: 15 23 42;
 }
 
 .dark {
@@ -96,18 +96,18 @@
   --brand-soft: #164039;
   --brand-soft-foreground: #99f6e4;
 
-  --background: #071b19;
+  --background: #090d0c;
   --foreground: #eaf5f2;
-  --card: #0b2522;
+  --card: #0e1e1c;
   --card-foreground: #eaf5f2;
   --popover: #10312d;
   --popover-foreground: #eaf5f2;
   --raised: #10312d;
-  --primary: #2dd4bf;
-  --primary-foreground: #042e2a;
-  --primary-action: #0f766e;
+  --primary: #22c55e;
+  --primary-foreground: #021c19;
+  --primary-action: #16a34a;
   --primary-action-foreground: #ffffff;
-  --primary-hover: #0d9488;
+  --primary-hover: #22c55e;
   --secondary: #10312d;
   --secondary-foreground: #eaf5f2;
   --muted: #10312d;
@@ -120,7 +120,7 @@
   --border: #1e4841;
   --border-strong: #32645b;
   --input: #32645b;
-  --ring: #2dd4bf;
+  --ring: #22c55e;
 
   --sev-red: #f87171;
   --sev-red-soft: #3b191b;
@@ -133,15 +133,21 @@
   --info: #60a5fa;
   --info-soft: #172c49;
 
-  --chart-1: #2dd4bf;
+  --chart-1: #22c55e;
   --chart-2: #f87171;
   --chart-3: #fbbf24;
   --chart-4: #4ade80;
   --chart-5: #60a5fa;
 
-  --sidebar: #021c19;
-  --sidebar-accent: #10312d;
-  --sidebar-border: #10312d;
+  --sidebar: #0b2522;
+  --sidebar-foreground: #eaf5f2;
+  --sidebar-muted: #a7c2bb;
+  --sidebar-primary: #16a34a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #164039;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1e4841;
+  --sidebar-ring: #22c55e;
 
   --shadow-color: 0 0 0;
 }

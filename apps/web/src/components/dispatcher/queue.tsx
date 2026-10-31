@@ -107,7 +107,9 @@ export function DispatcherQueue({
               onClick={() => setFilter(value)}
               className={cn(
                 "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors hover:bg-accent",
-                filter === value && "border-brand bg-brand-soft text-brand-soft-foreground hover:bg-brand-soft",
+                filter === value
+                  ? "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white"
+                  : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
             >
               {label}
@@ -142,7 +144,7 @@ export function DispatcherQueue({
                   "relative flex overflow-hidden rounded-md border bg-card transition-colors before:absolute before:inset-y-0 before:start-0 before:w-1",
                   STRIPE[i.recSeverity],
                   highlightedId === i.id && "border-border-strong bg-accent",
-                  selectedId === i.id && "border-brand bg-brand-soft/60",
+                  selectedId === i.id && "border-emerald-600 ring-2 ring-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/20",
                   unseen && selectedId !== i.id && "border-sev-red/50",
                 )}
               >

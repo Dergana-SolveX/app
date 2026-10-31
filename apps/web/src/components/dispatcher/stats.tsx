@@ -14,6 +14,7 @@ import {
 import { Button } from "@solvex-dergana/ui/components/button";
 import { Card } from "@solvex-dergana/ui/components/card";
 import { EmulationBadge } from "@solvex-dergana/ui/components/emulation-badge";
+import { cn } from "@solvex-dergana/ui/lib/utils";
 import { trpc } from "@/utils/trpc";
 
 type DateRangeOption = "7d" | "30d" | "all";
@@ -61,7 +62,7 @@ export function DispatcherStats() {
               variant={range === "7d" ? "default" : "ghost"}
               size="sm"
               onClick={() => setRange("7d")}
-              className="h-8 text-xs font-semibold"
+              className={cn("h-8 text-xs font-semibold", range === "7d" && "!bg-emerald-600 !text-white hover:!bg-emerald-700")}
             >
               7 jours
             </Button>
@@ -69,7 +70,7 @@ export function DispatcherStats() {
               variant={range === "30d" ? "default" : "ghost"}
               size="sm"
               onClick={() => setRange("30d")}
-              className="h-8 text-xs font-semibold"
+              className={cn("h-8 text-xs font-semibold", range === "30d" && "!bg-emerald-600 !text-white hover:!bg-emerald-700")}
             >
               30 jours
             </Button>
@@ -77,7 +78,7 @@ export function DispatcherStats() {
               variant={range === "all" ? "default" : "ghost"}
               size="sm"
               onClick={() => setRange("all")}
-              className="h-8 text-xs font-semibold"
+              className={cn("h-8 text-xs font-semibold", range === "all" && "!bg-emerald-600 !text-white hover:!bg-emerald-700")}
             >
               Tout
             </Button>
