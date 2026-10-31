@@ -21,7 +21,7 @@ const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
 
 /**
- * The IoT Showcase (PRD FR-S8-07..10, NFR-S8-1): a 16:9 dark projector page for the simulated chip.
+ * The IoT Showcase (PRD FR-S8-07..10, NFR-S8-1): a 16:9 projector page for the simulated chip. It follows the app theme.
  * Includes 3D vehicle twin, animated SVG block diagram, event-driven timeline, and projector presentation mode.
  */
 export default function IotShowcase() {
@@ -126,7 +126,7 @@ export default function IotShowcase() {
   return (
     <div
       ref={root}
-      className={`dark min-h-[calc(100dvh-4rem)] overflow-x-hidden bg-background p-3 text-foreground transition-all sm:p-4 md:p-6 ${
+      className={`min-h-[calc(100dvh-4rem)] overflow-x-hidden bg-background p-3 text-foreground transition-all sm:p-4 md:p-6 ${
         isFullscreen && cursorHidden ? "cursor-none" : ""
       }`}
     >
