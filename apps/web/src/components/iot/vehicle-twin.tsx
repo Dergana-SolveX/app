@@ -2,7 +2,7 @@ import type { ChipState } from "@solvex-dergana/shared";
 import { Button } from "@solvex-dergana/ui/components/button";
 import { cn } from "@solvex-dergana/ui/lib/utils";
 import { FlameIcon, GaugeIcon, LocateFixedIcon, PlayIcon, ShieldAlertIcon } from "lucide-react";
-import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { readPalette, type ScenePalette } from "./twin3d/palette";
 import type { SceneHandle, Telemetry } from "./twin3d/vehicle-scene";
@@ -79,6 +79,46 @@ function usePrefersReducedMotion() {
     return () => media.removeEventListener("change", onChange);
   }, []);
   return reduced;
+}
+
+/** The crash sound is decoded once and played through Web Audio, so it starts the instant the hit does. */
+function useCrashSound() {
+  const ctx = useRef<AudioContext | null>(null);
+  const buffer = useRef<AudioBuffer | null>(null);
+
+  useEffect(() => {
+    if (typeof AudioContext === "undefined") return;
+    const context = new AudioContext();
+    ctx.current = context;
+    let cancelled = false;
+    fetch("/sound/9bb.mp3")
+      .then((response) => response.arrayBuffer())
+      .then((data) => context.decodeAudioData(data))
+      .then((decoded) => {
+        if (!cancelled) buffer.current = decoded;
+      })
+      .catch(() => {});
+    const unlock = () => void context.resume().catch(() => {});
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+      void context.close().catch(() => {});
+      ctx.current = null;
+      buffer.current = null;
+    };
+  }, []);
+
+  return useCallback(() => {
+    const context = ctx.current;
+    if (!context || !buffer.current) return;
+    const source = context.createBufferSource();
+    source.buffer = buffer.current;
+    source.connect(context.destination);
+    source.start();
+  }, []);
 }
 
 /** Renders only while the viewport is on screen and the tab is visible. */
@@ -170,6 +210,7 @@ export function VehicleTwin({ snapshot }: { snapshot: Snapshot }) {
   const active = useOnScreen(viewport);
   const webgl = useMemo(hasWebGL, []);
   const [telemetry, setTelemetry] = useState<Telemetry>({ speedKmh: 50, crashed: false, flame: false, parked: false });
+  const crashSound = useCrashSound();
 
   const fallback = <CssTwin rollDeg={orientation.rollDeg} pitchDeg={orientation.pitchDeg} impacting={impacting} />;
   const summary = [
@@ -232,6 +273,7 @@ export function VehicleTwin({ snapshot }: { snapshot: Snapshot }) {
                 reducedMotion={reducedMotion}
                 active={active}
                 onTelemetry={setTelemetry}
+                onImpact={crashSound}
               />
             </Suspense>
           </SceneBoundary>

@@ -24,10 +24,12 @@ type Props = {
   /** Off-screen or hidden tab: no frames are rendered. */
   active: boolean;
   onTelemetry: (telemetry: Telemetry) => void;
+  /** Called on the exact frame the collision starts, in step with the chart's hit. */
+  onImpact?: () => void;
   ref?: Ref<SceneHandle>;
 };
 
-function SceneContent({ snapshotRef, palette, reducedMotion, onTelemetry, ref }: Omit<Props, "active">) {
+function SceneContent({ snapshotRef, palette, reducedMotion, onTelemetry, onImpact, ref }: Omit<Props, "active">) {
   const driver = useMemo(() => createTwinDriver(), []);
   const car = useRef<CarHandle>(null);
   const world = useRef<WorldHandle>(null);
@@ -35,7 +37,7 @@ function SceneContent({ snapshotRef, palette, reducedMotion, onTelemetry, ref }:
   const shake = useRef<Group>(null);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   const camera = useThree((s) => s.camera);
-  const follow = useMemo(() => ({ z: 0, lastTelemetryS: -1, body: new Vector3() }), []);
+  const follow = useMemo(() => ({ z: 0, lastTelemetryS: -1, body: new Vector3(), wasCrashed: false }), []);
 
   useImperativeHandle(
     ref,
@@ -60,6 +62,8 @@ function SceneContent({ snapshotRef, palette, reducedMotion, onTelemetry, ref }:
       performance.now() - snap.clockOriginMs,
       dtS * 1000,
     );
+    if (pose.crashed && !follow.wasCrashed) onImpact?.();
+    follow.wasCrashed = pose.crashed;
     world.current.update(pose.odometerM, timeS);
     car.current.update({ pose, timeS, chipState: snap.state, reducedMotion });
     const latest = snap.transmissions.at(-1);
