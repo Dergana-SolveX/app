@@ -78,9 +78,10 @@ function ChoiceRow({
   onChange: (value: number) => void;
 }) {
   return (
-    <div role="group" aria-label={legend} className="flex flex-col gap-1.5">
+    <div role="group" aria-label={legend} className="flex min-w-0 flex-col gap-1.5">
       <span className="text-sm font-semibold">{legend}</span>
-      <div className="flex flex-wrap gap-2">
+      {/* Two equal columns while the card is narrow, free-flowing chips once there is room. */}
+      <div className="grid grid-cols-2 gap-2 @md:flex @md:flex-wrap">
         {options.map((option) => (
           <button
             key={option.value}
@@ -88,15 +89,15 @@ function ChoiceRow({
             aria-pressed={value === option.value}
             onClick={() => onChange(option.value)}
             className={cn(
-              "inline-flex min-h-12 min-w-12 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-semibold transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              "inline-flex min-h-12 min-w-0 cursor-pointer items-center justify-start gap-1.5 rounded-md border px-3 text-sm font-semibold transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring @md:justify-center",
               value === option.value
                 ? "border-primary bg-accent text-accent-foreground"
                 : "border-input bg-card hover:border-primary/60",
             )}
           >
-            {value === option.value && <CheckIcon className="size-4" aria-hidden="true" />}
-            <span className="tabular font-mono">{option.value}</span>
-            <span className="hidden text-xs font-normal text-muted-foreground sm:inline">{option.label}</span>
+            {value === option.value && <CheckIcon className="size-4 shrink-0" aria-hidden="true" />}
+            <span className="tabular shrink-0 font-mono">{option.value}</span>
+            <span className="truncate text-xs font-normal text-muted-foreground">{option.label}</span>
           </button>
         ))}
       </div>
@@ -124,17 +125,20 @@ export function GcsPicker({
   // Scores run from best to worst on screen: 4 for the eyes down to 1.
   const options = (labels: string[]) => labels.map((label, i) => ({ value: labels.length - i, label }));
   return (
-    <fieldset className="flex flex-col gap-3 rounded-lg border bg-raised p-3">
-      <legend className="px-1 text-sm font-semibold">
-        Glasgow{" "}
-        <span className="tabular font-mono font-bold" aria-live="polite">
+    // A plain group, not a <fieldset>: a fieldset cannot shrink below its content and pushed out of its card.
+    <div role="group" aria-labelledby="gcs-title" className="@container flex min-w-0 flex-col gap-3 rounded-lg border bg-raised p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span id="gcs-title" className="text-sm font-semibold">
+          Glasgow
+        </span>
+        <span className="tabular rounded-full border bg-card px-2.5 py-0.5 font-mono text-sm font-bold" aria-live="polite">
           {total === null ? "— / 15" : `${total} / 15`}
         </span>
-      </legend>
+      </div>
       <ChoiceRow legend="Yeux (E)" options={options(EYES)} value={eye} onChange={(v) => onChange({ eye: v, verbal, motor })} />
       <ChoiceRow legend="Verbal (V)" options={options(VERBAL)} value={verbal} onChange={(v) => onChange({ eye, verbal: v, motor })} />
       <ChoiceRow legend="Moteur (M)" options={options(MOTOR)} value={motor} onChange={(v) => onChange({ eye, verbal, motor: v })} />
-    </fieldset>
+    </div>
   );
 }
 
