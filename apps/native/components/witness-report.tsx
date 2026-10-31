@@ -352,12 +352,7 @@ export function WitnessReport() {
     try {
       const perm = await requestPermissionsAsync();
       if (!perm.granted && Platform.OS === "android") {
-        Alert.alert(
-          state.lang === "ar" ? "إذن مطلوب" : "Permission requise",
-          state.lang === "ar"
-            ? "إذن إرسال الرسائل القصيرة مطلوب للإرسال المباشر."
-            : "La permission d'envoi SMS est requise pour la transmission directe.",
-        );
+        Alert.alert(t.sms_permission_title, t.sms_permission_desc);
         dispatch({
           type: "SUBMISSION_ERROR",
           error: "Permission SMS non accordée",
@@ -614,7 +609,7 @@ export function WitnessReport() {
                 forcedSms ? "text-purple-300" : "text-slate-400"
               }`}
             >
-              Forcer canal SMS
+              {t.forced_sms_title}
             </Text>
           </View>
           <Text
@@ -624,7 +619,7 @@ export function WitnessReport() {
                 : "bg-slate-800 text-slate-500"
             }`}
           >
-            {forcedSms ? "ACTIF" : "OFF"}
+            {forcedSms ? t.forced_sms_active : t.forced_sms_off}
           </Text>
         </Pressable>
 
@@ -649,7 +644,7 @@ export function WitnessReport() {
                     smsMode === "native" ? "text-white" : "text-slate-400"
                   }`}
                 >
-                  GSM Réel (svx-sms)
+                  {t.sms_mode_native}
                 </Text>
               </Pressable>
               <Pressable
@@ -666,7 +661,7 @@ export function WitnessReport() {
                     smsMode === "emulated" ? "text-white" : "text-slate-400"
                   }`}
                 >
-                  Émulé (Internet/Démo)
+                  {t.sms_mode_emulated}
                 </Text>
               </Pressable>
             </View>
@@ -676,9 +671,9 @@ export function WitnessReport() {
               <View className="flex-row items-center gap-1.5 bg-slate-900/90 border border-purple-700/40 px-2.5 py-1.5 rounded-lg mb-2">
                 <Ionicons name="radio" size={14} color="#38bdf8" />
                 <Text className="text-xs text-sky-300 font-medium">
-                  Cellule GSM:{" "}
+                  {t.cell_id_label}{" "}
                   <Text className="font-mono font-bold">
-                    {cellId.mcc}-{cellId.mnc}-{cellId.lac}-{cellId.cid}
+                    {cellId.formatted ?? `${cellId.mcc}-${cellId.mnc}-${cellId.lac}-${cellId.cid}`}
                   </Text>
                 </Text>
               </View>
@@ -940,8 +935,8 @@ export function WitnessReport() {
                 ? t.submitting
                 : forcedSms
                   ? smsMode === "native"
-                    ? "Transmettre par SMS (GSM Réel)"
-                    : "Envoyer par SMS (Émulé)"
+                    ? t.submit_sms_native
+                    : t.submit_sms_emulated
                   : t.submit_button}
             </Text>
           </Pressable>
@@ -998,8 +993,8 @@ export function WitnessReport() {
                 ? t.submitting
                 : forcedSms
                   ? smsMode === "native"
-                    ? "Transmettre par SMS (GSM Réel)"
-                    : "Envoyer par SMS (Émulé)"
+                    ? t.submit_sms_native
+                    : t.submit_sms_emulated
                   : t.confirm_location_button}
             </Text>
           </Pressable>
@@ -1033,10 +1028,10 @@ export function WitnessReport() {
             <View className="w-full bg-purple-950/40 border border-purple-800 rounded-2xl p-4 mb-4">
               <View className="flex-row justify-between items-center mb-1">
                 <Text className="text-xs text-purple-300 font-bold">
-                  Accusé de réception (SMS)
+                  {t.sms_ack_title}
                 </Text>
                 <Text className="text-xs text-purple-200 bg-purple-900/60 px-2 py-0.5 rounded font-medium">
-                  {smsMode === "native" ? "GSM Réel" : "Émulé"}
+                  {smsMode === "native" ? t.sms_badge_real : t.sms_badge_emulated}
                 </Text>
               </View>
               <Text className="text-white font-mono font-bold text-sm bg-slate-900 p-2.5 rounded-lg border border-purple-700/50">

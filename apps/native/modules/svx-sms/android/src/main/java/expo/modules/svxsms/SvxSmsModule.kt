@@ -9,6 +9,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Telephony
 import android.telephony.CellIdentityGsm
 import android.telephony.CellIdentityLte
@@ -35,12 +37,13 @@ class SvxSmsModule : Module() {
     private const val ACTION_SMS_SENT = "expo.modules.svxsms.SMS_SENT"
     private const val ACTION_SMS_DELIVERED = "expo.modules.svxsms.SMS_DELIVERED"
     private const val EVENT_SVX_ACK_RECEIVED = "onSvxAckReceived"
+    private const val EVENT_SVX_DELIVERY_REPORT = "onSvxDeliveryReport"
   }
 
   override fun definition() = ModuleDefinition {
     Name("SvxSms")
 
-    Events(EVENT_SVX_ACK_RECEIVED)
+    Events(EVENT_SVX_ACK_RECEIVED, EVENT_SVX_DELIVERY_REPORT)
 
     OnCreate {
       registerSmsReceiver()
@@ -62,6 +65,20 @@ class SvxSmsModule : Module() {
         Manifest.permission.READ_PHONE_STATE,
         Manifest.permission.ACCESS_FINE_LOCATION
       )
+
+      val activity = appContext.currentActivity
+      if (activity != null) {
+        val missing = required.filter {
+          ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isNotEmpty()) {
+          androidx.core.app.ActivityCompat.requestPermissions(
+            activity,
+            missing.toTypedArray(),
+            9001
+          )
+        }
+      }
 
       val permissionsMap = mutableMapOf<String, Boolean>()
       var allGranted = true
@@ -124,16 +141,26 @@ class SvxSmsModule : Module() {
         addAction(deliveredAction)
       }
 
-      val receiver = object : BroadcastReceiver() {
+      var receiver: BroadcastReceiver? = null
+      val watchdogHandler = Handler(Looper.getMainLooper())
+      val watchdogRunnable = Runnable {
+        receiver?.let {
+          try {
+            context.unregisterReceiver(it)
+          } catch (_: Exception) {}
+        }
+      }
+
+      receiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, intent: Intent?) {
           when (intent?.action) {
             sentAction -> {
               if (resultCode == Activity.RESULT_OK) {
                 isSent = true
               }
-              // Resolve as soon as sent, or reject if send failed
               if (resultCode != Activity.RESULT_OK && !hasResolved) {
                 hasResolved = true
+                watchdogHandler.removeCallbacks(watchdogRunnable)
                 try {
                   context.unregisterReceiver(this)
                 } catch (_: Exception) {}
@@ -145,7 +172,8 @@ class SvxSmsModule : Module() {
                 promise.resolve(
                   mapOf(
                     "sent" to true,
-                    "delivered" to isDelivered
+                    "delivered" to isDelivered,
+                    "ref" to reqId
                   )
                 )
               }
@@ -153,7 +181,15 @@ class SvxSmsModule : Module() {
             deliveredAction -> {
               if (resultCode == Activity.RESULT_OK) {
                 isDelivered = true
+                sendEvent(
+                  EVENT_SVX_DELIVERY_REPORT,
+                  mapOf(
+                    "ref" to reqId,
+                    "status" to "delivered"
+                  )
+                )
               }
+              watchdogHandler.removeCallbacks(watchdogRunnable)
               try {
                 context.unregisterReceiver(this)
               } catch (_: Exception) {}
@@ -162,11 +198,15 @@ class SvxSmsModule : Module() {
         }
       }
 
+      // System telephony broadcasts originate outside the app; API 33+ requires RECEIVER_EXPORTED
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        context.registerReceiver(receiver, deliveryFilter, Context.RECEIVER_NOT_EXPORTED)
+        context.registerReceiver(receiver, deliveryFilter, Context.RECEIVER_EXPORTED)
       } else {
         context.registerReceiver(receiver, deliveryFilter)
       }
+
+      // Guarantee receiver cleanup after 45 seconds if no delivery report arrives
+      watchdogHandler.postDelayed(watchdogRunnable, 45000)
 
       try {
         val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -178,6 +218,7 @@ class SvxSmsModule : Module() {
 
         smsManager.sendTextMessage(to, null, message, sentPendingIntent, deliveredPendingIntent)
       } catch (e: Exception) {
+        watchdogHandler.removeCallbacks(watchdogRunnable)
         try {
           context.unregisterReceiver(receiver)
         } catch (_: Exception) {}
@@ -222,7 +263,15 @@ class SvxSmsModule : Module() {
               val lac = id.lac
               val cid = id.cid
               if (mcc != null && mnc != null && lac != -1 && lac != Int.MAX_VALUE && cid != -1 && cid != Int.MAX_VALUE) {
-                promise.resolve(mapOf("mcc" to mcc, "mnc" to mnc, "lac" to lac, "cid" to cid))
+                promise.resolve(
+                  mapOf(
+                    "mcc" to mcc,
+                    "mnc" to mnc,
+                    "lac" to lac,
+                    "cid" to cid,
+                    "formatted" to "$mcc,$mnc,$lac,$cid"
+                  )
+                )
                 return@AsyncFunction
               }
             }
@@ -230,10 +279,18 @@ class SvxSmsModule : Module() {
               val id = info.cellIdentity
               val mcc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) id.mccString?.toIntOrNull() else id.mcc
               val mnc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) id.mncString?.toIntOrNull() else id.mnc
-              val lac = id.tac // TAC corresponds to LAC in LTE
-              val cid = id.ci  // Cell Identity
+              val lac = id.tac
+              val cid = id.ci
               if (mcc != null && mnc != null && lac != -1 && lac != Int.MAX_VALUE && cid != -1 && cid != Int.MAX_VALUE) {
-                promise.resolve(mapOf("mcc" to mcc, "mnc" to mnc, "lac" to lac, "cid" to cid))
+                promise.resolve(
+                  mapOf(
+                    "mcc" to mcc,
+                    "mnc" to mnc,
+                    "lac" to lac,
+                    "cid" to cid,
+                    "formatted" to "$mcc,$mnc,$lac,$cid"
+                  )
+                )
                 return@AsyncFunction
               }
             }
@@ -244,7 +301,15 @@ class SvxSmsModule : Module() {
               val lac = id.lac
               val cid = id.cid
               if (mcc != null && mnc != null && lac != -1 && lac != Int.MAX_VALUE && cid != -1 && cid != Int.MAX_VALUE) {
-                promise.resolve(mapOf("mcc" to mcc, "mnc" to mnc, "lac" to lac, "cid" to cid))
+                promise.resolve(
+                  mapOf(
+                    "mcc" to mcc,
+                    "mnc" to mnc,
+                    "lac" to lac,
+                    "cid" to cid,
+                    "formatted" to "$mcc,$mnc,$lac,$cid"
+                  )
+                )
                 return@AsyncFunction
               }
             }

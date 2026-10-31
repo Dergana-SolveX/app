@@ -7,6 +7,7 @@ export type SvxCellId = {
   mnc: number;
   lac: number;
   cid: number;
+  formatted?: string;
 };
 
 export type SendSmsResult = {
