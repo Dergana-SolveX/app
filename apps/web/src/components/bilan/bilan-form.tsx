@@ -10,19 +10,17 @@ import {
   type VittelState,
 } from "@solvex-dergana/shared";
 import { Button } from "@solvex-dergana/ui/components/button";
-import { Input } from "@solvex-dergana/ui/components/input";
-import { Label } from "@solvex-dergana/ui/components/label";
 import { cn } from "@solvex-dergana/ui/lib/utils";
-import { LoaderCircleIcon, SaveIcon } from "lucide-react";
-import { useEffect, useId, useMemo } from "react";
+import { LoaderCircleIcon, MarsIcon, SaveIcon, UserRoundIcon, VenusIcon } from "lucide-react";
+import { useEffect, useMemo } from "react";
 
 import { GcsPicker, NumberStepper, ToggleChip } from "./controls";
-import type { Draft, Sex } from "./draft";
+import type { Draft } from "./draft";
 import { gcsTotal, withAnswer } from "./draft";
 import { EnRoutePanel, type HandoverView } from "./en-route-panel";
 import { OrientationPanel } from "./orientation-panel";
 import { ShockIndexBadge } from "./shock-index-badge";
-import { VittelBanner, VittelPanel } from "./vittel-panel";
+import { VittelPanel } from "./vittel-panel";
 
 export type MissionProfile = {
   id: string;
@@ -39,8 +37,6 @@ export type MissionProfile = {
 // Lists the team owns and can change (PRD §7.7 note): the words a medic ticks, saved as plain text.
 const INJURIES = Object.keys(INJURY_TAGS);
 const TREATMENTS = ["Oxygène", "Voie veineuse", "Remplissage", "Collier cervical", "Garrot", "Pansement compressif", "Immobilisation", "Analgésie"];
-
-const SEX_LABELS: Record<Sex, string> = { unknown: "Inconnu", male: "Homme", female: "Femme" };
 
 function Section({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
   return (
@@ -98,7 +94,6 @@ export function BilanForm({
   onSend: () => void;
   sending: boolean;
 }) {
-  const ageId = useId();
   const profile = profiles.find((p) => p.id === draft.profileId) ?? null;
   const assessment = assessVictim({
     now,
@@ -154,9 +149,8 @@ export function BilanForm({
 
   return (
     <div className="@container flex min-w-0 flex-col gap-4">
-      {/* Always in view while the medic types: the two results that change what they do next. */}
-      <div className="sticky top-0 z-10 -mx-1 flex flex-col gap-2 bg-background/95 px-1 py-2 backdrop-blur-sm @3xl:flex-row @3xl:*:flex-1">
-        <VittelBanner result={assessment.vittel} />
+      {/* Always in view while the medic types; Vittel details live on the victim indicator in the left rail. */}
+      <div className="sticky top-0 z-10 -mx-1 bg-background/95 px-1 py-2 backdrop-blur-sm">
         <ShockIndexBadge result={assessment.shockIndex} />
       </div>
 
@@ -168,20 +162,25 @@ export function BilanForm({
       <div className="contents @4xl:flex @4xl:min-w-0 @4xl:flex-col @4xl:gap-4">
       <Section title="Victime" className="order-1">
         <div className="flex flex-col gap-4">
-          <div role="group" aria-label="Profil de la victime" className="flex flex-wrap gap-2">
-            <ToggleChip label="Inconnu" pressed={draft.profileId === null} onPressedChange={() => set({ profileId: null })} />
-            {profiles.map((p) => (
-              <ToggleChip
-                key={p.id}
-                label={`${p.fullName}${p.ageYears !== null ? `, ${p.ageYears} ans` : ""}`}
-                pressed={draft.profileId === p.id}
-                onPressedChange={() => set({ profileId: p.id, estAge: null })}
-              />
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="inline-flex min-h-10 items-center gap-2 rounded-md border bg-raised px-3 text-sm">
+              <UserRoundIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+              <span className="text-muted-foreground">Profil :</span>
+              <strong>{profile?.fullName ?? "Inconnu"}</strong>
+            </p>
+            {profiles.length > 0 && (
+              <div role="group" aria-label="Profils liés à l'incident" className="flex flex-wrap gap-2">
+                {profiles.map((p) => (
+                  <ToggleChip
+                    key={p.id}
+                    label={`${p.fullName}${p.ageYears !== null ? `, ${p.ageYears} ans` : ""}`}
+                    pressed={draft.profileId === p.id}
+                    onPressedChange={() => set({ profileId: p.id, estAge: null })}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-          {profiles.length === 0 && (
-            <p className="text-sm text-muted-foreground">Aucun profil n'est lié à cet incident : la victime est inconnue.</p>
-          )}
 
           {profile ? (
             <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
@@ -190,25 +189,49 @@ export function BilanForm({
               <div className="flex gap-2 sm:col-span-2"><dt className="text-muted-foreground">Traitements</dt><dd className="font-semibold">{profile.medications.length ? profile.medications.map((m) => m.name).join(", ") : "aucun"}</dd></div>
             </dl>
           ) : (
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="w-40">
-                <Label htmlFor={ageId} className="mb-1.5 block text-sm font-semibold">Âge estimé (ans)</Label>
-                <Input
-                  id={ageId}
-                  className="h-12"
-                  inputMode="numeric"
-                  placeholder="—"
-                  value={draft.estAge ?? ""}
-                  onChange={(event) => {
-                    const n = Number(event.target.value);
-                    set({ estAge: event.target.value.trim() === "" || !Number.isFinite(n) ? null : Math.min(120, Math.max(0, Math.round(n))) });
-                  }}
-                />
-              </div>
-              <div role="group" aria-label="Sexe" className="flex flex-wrap gap-2">
-                {(["unknown", "male", "female"] as const).map((sex) => (
-                  <ToggleChip key={sex} label={SEX_LABELS[sex]} pressed={draft.sex === sex} onPressedChange={() => set({ sex })} />
-                ))}
+            <div className="grid items-end gap-4 @2xl:grid-cols-[minmax(14rem,1fr)_auto]">
+              <NumberStepper
+                label="Âge estimé"
+                unit="ans"
+                value={draft.estAge}
+                onChange={(estAge) => set({ estAge })}
+                min={0}
+                max={120}
+                fallback={30}
+                quickStep={10}
+              />
+              <div role="group" aria-label="Sexe" className="flex flex-col gap-1.5">
+                <span className="text-sm font-semibold">Sexe</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    aria-pressed={draft.sex === "male"}
+                    onClick={() => set({ sex: draft.sex === "male" ? "unknown" : "male" })}
+                    className={cn(
+                      "inline-flex min-h-12 items-center gap-2 rounded-md border px-4 text-sm font-semibold outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                      draft.sex === "male"
+                        ? "border-info/60 bg-info-soft text-info"
+                        : "border-input bg-card text-info hover:border-info/60 hover:bg-info-soft",
+                    )}
+                  >
+                    <MarsIcon className="size-5" aria-hidden="true" />
+                    Homme
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={draft.sex === "female"}
+                    onClick={() => set({ sex: draft.sex === "female" ? "unknown" : "female" })}
+                    className={cn(
+                      "inline-flex min-h-12 items-center gap-2 rounded-md border px-4 text-sm font-semibold outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                      draft.sex === "female"
+                        ? "border-pink-500/60 bg-pink-500/10 text-pink-600 dark:text-pink-400"
+                        : "border-input bg-card text-pink-600 hover:border-pink-500/60 hover:bg-pink-500/10 dark:text-pink-400",
+                    )}
+                  >
+                    <VenusIcon className="size-5" aria-hidden="true" />
+                    Femme
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -216,19 +239,19 @@ export function BilanForm({
       </Section>
 
       <Section title="Constantes" className="order-2">
-        <div className="grid gap-4 @md:grid-cols-2 @2xl:grid-cols-3">
-          <NumberStepper label="FC" unit="bpm" value={draft.hr} onChange={(hr) => set({ hr })} min={0} max={300} fallback={80} />
-          <NumberStepper label="PAS" unit="mmHg" value={draft.sbp} onChange={(sbp) => set({ sbp })} min={0} max={350} step={5} fallback={120} />
-          <NumberStepper label="PAD" unit="mmHg" value={draft.dbp} onChange={(dbp) => set({ dbp })} min={0} max={250} step={5} fallback={80} />
-          <NumberStepper label="SpO2" unit="%" value={draft.spo2} onChange={(spo2) => set({ spo2 })} min={0} max={100} fallback={97} />
-          <NumberStepper label="FR" unit="/min" value={draft.rr} onChange={(rr) => set({ rr })} min={0} max={80} fallback={16} />
+        <div className="grid grid-cols-1 gap-4">
+          <NumberStepper label="FC" unit="bpm" value={draft.hr} onChange={(hr) => set({ hr })} min={0} max={300} fallback={80} quickStep={10} />
+          <NumberStepper label="PAS" unit="mmHg" value={draft.sbp} onChange={(sbp) => set({ sbp })} min={0} max={350} step={5} fallback={120} quickStep={10} />
+          <NumberStepper label="PAD" unit="mmHg" value={draft.dbp} onChange={(dbp) => set({ dbp })} min={0} max={250} step={5} fallback={80} quickStep={10} />
+          <NumberStepper label="SpO2" unit="%" value={draft.spo2} onChange={(spo2) => set({ spo2 })} min={0} max={100} fallback={97} quickStep={10} />
+          <NumberStepper label="FR" unit="/min" value={draft.rr} onChange={(rr) => set({ rr })} min={0} max={80} fallback={16} quickStep={10} />
         </div>
         <div className="mt-4">
           <GcsPicker
             eye={draft.gcsParts.eye}
             verbal={draft.gcsParts.verbal}
             motor={draft.gcsParts.motor}
-            onChange={(parts) => set({ gcsParts: parts, gcs: gcsTotal(parts) })}
+            onChange={(gcsParts) => set({ gcsParts, gcs: gcsTotal(gcsParts) })}
           />
           {(draft.gcs !== null || draft.gcsParts.eye !== null || draft.gcsParts.verbal !== null || draft.gcsParts.motor !== null) && (
             <Button
@@ -241,7 +264,7 @@ export function BilanForm({
             </Button>
           )}
           {draft.gcs !== null && draft.gcsParts.eye === null && (
-            <p className="mt-1.5 text-xs text-muted-foreground">Glasgow enregistré : {draft.gcs} / 15 (le détail E/V/M n'est pas conservé).</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">Glasgow enregistré : {draft.gcs} / 15. Les détails E/V/M n'étaient pas conservés.</p>
           )}
         </div>
         <p className="mt-3 text-xs text-muted-foreground">Un champ vide veut dire « non mesuré » : il n'est jamais compté comme 0.</p>
@@ -332,10 +355,12 @@ export function BilanForm({
             Indiquez le motif pour enregistrer un autre hôpital que le recommandé.
           </p>
         )}
-        <Button type="button" size="lg" className="w-full sm:w-auto" onClick={onSave} disabled={saving || missingReason}>
-          {saving ? <LoaderCircleIcon className="animate-spin" aria-hidden="true" /> : <SaveIcon aria-hidden="true" />}
-          {saving ? "Enregistrement…" : "Enregistrer le bilan"}
-        </Button>
+        <div className="flex justify-end">
+          <Button type="button" size="lg" onClick={onSave} disabled={saving || missingReason}>
+            {saving ? <LoaderCircleIcon className="animate-spin" aria-hidden="true" /> : <SaveIcon aria-hidden="true" />}
+            {saving ? "Enregistrement…" : "Enregistrer le bilan"}
+          </Button>
+        </div>
       </div>
     </div>
   );

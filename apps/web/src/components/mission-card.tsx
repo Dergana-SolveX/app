@@ -4,9 +4,10 @@ import { Skeleton } from "@solvex-dergana/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { AlertTriangleIcon, ClipboardListIcon, FlagIcon, InboxIcon, MapPinIcon, UsersIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
-import LiveStatus from "@/components/live-status";
 import { placeLabel } from "@/lib/place";
 import { incidentRef, timeAgo } from "@/lib/time";
 import { trpc } from "@/utils/trpc";
@@ -32,12 +33,16 @@ export default function MissionCard({
   const mission = useQuery(trpc.dispatch.currentMission.queryOptions({ unitId }));
 
   // Snapshot + stream: on `ready`, `resync` and every assignment, fetch the mission again.
-  const stream = useSubscription(
+  useSubscription(
     trpc.dispatch.onUnit.subscriptionOptions(
       { unitId },
       { onData: () => queryClient.invalidateQueries({ queryKey: trpc.dispatch.currentMission.queryKey({ unitId }) }) },
     ),
   );
+  const [headerEl, setHeaderEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setHeaderEl(document.getElementById("header-center"));
+  }, []);
 
   const arrive = useMutation(
     trpc.dispatch.arrive.mutationOptions({
@@ -50,25 +55,20 @@ export default function MissionCard({
   const current = mission.data ?? null;
 
   return (
-    <section aria-labelledby="mission-title" className="space-y-3 p-4 pb-0 md:p-6 md:pb-0">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="mission-title" className="text-base font-bold">
-          Mission
-        </h2>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {mission.isPending && <Skeleton className="h-8 w-44" aria-hidden="true" />}
-          {mission.isSuccess && mission.data === null && (
-            <p
-              role="status"
-              className="inline-flex min-h-8 items-center gap-2 rounded-md border bg-card px-3 text-xs font-semibold text-muted-foreground"
-            >
-              <InboxIcon className="size-4" aria-hidden="true" />
-              Aucune mission pour l'instant
-            </p>
-          )}
-          <LiveStatus status={stream.status} />
-        </div>
-      </div>
+    <>
+      {headerEl && mission.isPending &&
+        createPortal(<Skeleton className="h-8 w-44" aria-hidden="true" />, headerEl)}
+      {headerEl && mission.isSuccess && mission.data === null &&
+        createPortal(
+          <p
+            role="status"
+            className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border bg-card px-3 text-xs font-semibold text-muted-foreground"
+          >
+            <InboxIcon className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">Aucune mission pour l'instant</span>
+          </p>,
+          headerEl,
+        )}
 
       {mission.isError && (
         <p role="alert" className="text-sm text-destructive">
@@ -77,10 +77,11 @@ export default function MissionCard({
       )}
 
       {mission.isSuccess && current && (
-        <article
-          aria-label={`Mission, incident ${incidentRef(current.incidentId)}`}
-          className="max-w-3xl space-y-4 rounded-lg border bg-card p-4"
-        >
+        <section className="p-4 pb-0 md:p-6 md:pb-0">
+          <article
+            aria-label={`Incident ${incidentRef(current.incidentId)}`}
+            className="max-w-3xl space-y-4 rounded-lg border bg-card p-4"
+          >
           <header className="flex flex-wrap items-center gap-3">
             <SeverityBadge severity={current.severity} />
             <h3 className="font-mono text-base font-bold">#{incidentRef(current.incidentId)}</h3>
@@ -166,8 +167,9 @@ export default function MissionCard({
               Ouvrir le bilan secouriste
             </Button>
           </div>
-        </article>
+          </article>
+        </section>
       )}
-    </section>
+    </>
   );
 }
