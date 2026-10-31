@@ -74,32 +74,32 @@ export default function SignInForm() {
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
       {/* Brand panel */}
       <aside
-        className="awn-grid-bg relative hidden overflow-hidden bg-sidebar p-12 text-sidebar-foreground lg:flex lg:flex-col lg:justify-between"
+        className="awn-grid-bg relative hidden overflow-hidden bg-[#042e2a] p-12 text-[#eaf5f2] lg:flex lg:flex-col lg:justify-between"
       >
         <Logo inverted subtitle="Assistance d'urgence" />
         <div className="max-w-lg">
-          <h2 className="text-4xl leading-tight font-bold text-sidebar-accent-foreground">
+          <h2 className="text-4xl leading-tight font-bold text-white">
             Du choc à l'hôpital,
             <br />
-            <span className="text-sidebar-primary">sans perdre une minute.</span>
+            <span className="text-[#2dd4bf]">sans perdre une minute.</span>
           </h2>
           <ol className="mt-10 space-y-5">
             {STEPS.map(({ icon: Icon, title, text }, i) => (
               <li key={title} className="flex items-start gap-4">
-                <span className="grid size-11 shrink-0 place-items-center rounded-md border border-sidebar-border bg-sidebar-accent text-sidebar-primary">
+                <span className="grid size-11 shrink-0 place-items-center rounded-md border border-[#164e48] bg-[#164e48] text-[#2dd4bf]">
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
                 <span>
-                  <span className="block font-bold text-sidebar-accent-foreground">
+                  <span className="block font-bold text-white">
                     {i + 1}. {title}
                   </span>
-                  <span className="block text-sidebar-muted">{text}</span>
+                  <span className="block text-[#a7c2bb]">{text}</span>
                 </span>
               </li>
             ))}
           </ol>
         </div>
-        <p className="text-sm text-sidebar-muted">
+        <p className="text-sm text-[#a7c2bb]">
           {BRAND_TAGLINE}
           <br />
           SolveX 3.0 · Prototype · Données de démonstration

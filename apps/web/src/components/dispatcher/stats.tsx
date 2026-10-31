@@ -14,6 +14,7 @@ import {
 import { Button } from "@solvex-dergana/ui/components/button";
 import { Card } from "@solvex-dergana/ui/components/card";
 import { EmulationBadge } from "@solvex-dergana/ui/components/emulation-badge";
+import { cn } from "@solvex-dergana/ui/lib/utils";
 import { trpc } from "@/utils/trpc";
 
 type DateRangeOption = "7d" | "30d" | "all";
