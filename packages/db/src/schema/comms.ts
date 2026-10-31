@@ -65,3 +65,23 @@ export const smsMenuSessions = pgTable("sms_menu_sessions", {
 });
 
 export type SmsMenuAnswers = { victims?: number; conscious?: number; fire?: boolean; trapped?: boolean };
+
+/**
+ * A USSD dialogue in progress (PRD FR-S3-15). The aggregator resends every answer so far with each request, but a
+ * session that goes silent is never announced: the record of when it last spoke is what lets us save a partial alert.
+ */
+export const ussdSessions = pgTable("ussd_sessions", {
+  /** The aggregator's session id. */
+  sessionId: text("session_id").primaryKey(),
+  /** sha256 of the phone number: the number itself is never stored. */
+  msisdnHash: text("msisdn_hash").notNull(),
+  /** The `*`-joined answers the aggregator last sent. */
+  text: text("text").notNull().default(""),
+  /** The cell the call came from (`mcc-mnc-lac-cid`), when the operator supplied it. */
+  cellId: text("cell_id"),
+  /** Honesty rule: true when the operator is our emulator. */
+  emulated: boolean("emulated").notNull().default(false),
+  status: text("status", { enum: ["open", "done"] }).notNull().default("open"),
+  incidentId: uuid("incident_id").references(() => masterIncidents.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

@@ -3,7 +3,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./*": "./src/*.ts"
+    "./*": "./src/*.ts",
+    "./services/*": "./src/services/*.ts",
+    "./routers/*": "./src/routers/*.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit",

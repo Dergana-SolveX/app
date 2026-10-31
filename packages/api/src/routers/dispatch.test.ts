@@ -234,7 +234,8 @@ describe("dispatch.approve: edge cases", () => {
 
     const error = await dispatch.approve({ incidentId, expectedVersion: version, unitIds: [harrach!.id] }).catch((e) => e);
 
-    expect(error).toMatchObject({ code: "CONFLICT", message: expect.stringMatching(/plus ouvert/i) });
+    expect(error.code).toBe("CONFLICT");
+    expect(error.message).toMatch(/plus ouvert/i);
     expect(error.message).not.toMatch(/déjà traité/i);
   });
 

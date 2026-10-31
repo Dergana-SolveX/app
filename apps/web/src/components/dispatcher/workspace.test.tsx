@@ -41,7 +41,7 @@ it("refreshes the selected profile when a live alert links new medical informati
   await userEvent.click(await within(queue).findByRole("button", { name: /Alger/ }));
   await userEvent.click(await screen.findByRole("tab", { name: "Profil" }));
   await screen.findByText("Aucun profil médical lié.");
-  profiles = [{ id: "profile-1", shortCode: "TEST0001", bloodType: "O+", allergies: [], anticoagulant: true, unreliableShockIndex: false, insulin: false }];
+  profiles = [{ id: "profile-1", shortCode: "TEST0001", bloodType: "O+", allergies: [], chronicConditions: [], anticoagulant: true, unreliableShockIndex: false, insulin: false }];
   await waitFor(() => expect(TestEventSource.current).toBeDefined());
   act(() => TestEventSource.current.update());
   expect(await screen.findByText("ANTICOAGULANT — risque hémorragique")).toBeTruthy();

@@ -87,6 +87,9 @@ export function IncidentDetailPanel({
           )}
           <p>Groupe sanguin : {p.bloodType ?? "inconnu"}</p>
           <p>Allergies : {p.allergies.join(", ") || "non renseignées"}</p>
+          {(p as any).chronicConditions?.length > 0 && (
+            <p>Maladies chroniques : {(p as any).chronicConditions.join(", ")}</p>
+          )}
           {p.unreliableShockIndex && (
             <p className="font-bold">SI peu fiable (bêtabloquant)</p>
           )}

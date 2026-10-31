@@ -256,9 +256,9 @@ describe("incidents.byId (the evaluation card)", () => {
     expect(card?.authorityNotification).toBeNull();
   });
 
-  it("returns null for an incident that does not exist", async () => {
+  it("says NOT_FOUND for an incident that does not exist", async () => {
     const { caller } = await setup();
-    expect(await caller.byId({ id: "00000000-0000-4000-8000-00000000dead" })).toBeNull();
+    await expect(caller.byId({ id: "00000000-0000-4000-8000-00000000dead" })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("refuses medics and hospital staff", async () => {

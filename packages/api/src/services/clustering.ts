@@ -133,6 +133,11 @@ export async function placeAlert(db: Database, input: PlacementInput): Promise<P
           position !== null &&
           (incident.locationUncertaintyM === null || position.accuracyM < incident.locationUncertaintyM);
 
+        const newLinkedProfiles =
+          alertRow.profileId && !incident.linkedProfileIds.includes(alertRow.profileId)
+            ? [...incident.linkedProfileIds, alertRow.profileId]
+            : incident.linkedProfileIds;
+
         const [updated] = await tx
           .update(masterIncidents)
           .set({
@@ -142,6 +147,7 @@ export async function placeAlert(db: Database, input: PlacementInput): Promise<P
             lastAlertAt: eventAt > incident.lastAlertAt ? eventAt : incident.lastAlertAt,
             estimatedVictims: largest(incident.estimatedVictims, alertRow.victims ?? null),
             confidenceScore: confidenceOf(alerts).toFixed(3),
+            linkedProfileIds: newLinkedProfiles,
             ...(moreAccurate
               ? {
                   lat: position.lat,
@@ -168,6 +174,7 @@ export async function placeAlert(db: Database, input: PlacementInput): Promise<P
           alertCount: 1,
           estimatedVictims: alertRow.victims ?? null,
           confidenceScore: confidenceOf([alertRow]).toFixed(3),
+          linkedProfileIds: alertRow.profileId ? [alertRow.profileId] : [],
         })
         .returning();
       const stored = await tx

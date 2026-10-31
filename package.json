@@ -38,6 +38,7 @@
     "db:migrate": "turbo run db:migrate -F @solvex-dergana/db --",
     "db:seed": "turbo run db:seed -F @solvex-dergana/db --",
     "db:reset": "turbo run db:reset -F @solvex-dergana/db --",
+    "db:import-cells": "cd packages/db && bun src/import-cells.ts",
     "db:start": "docker compose up -d postgres",
     "db:watch": "docker compose up postgres",
     "db:stop": "docker compose stop postgres",
