@@ -49,3 +49,19 @@ it("keeps hospital actions and clinical labels Arabic while isolating identifier
   expect(screen.getByText("حدد التخصص المشبع أو غير المتاح (إلزامي):")).toBeTruthy();
   expect(screen.getByRole("button", { name: "تأكيد إعادة التوجيه" }).hasAttribute("disabled")).toBe(true);
 });
+
+it("handles string mechanism and legacy atmist payload without crashing", () => {
+  renderBoard([{
+    id: "handover-2", incidentId: "incident-2", assessmentId: "assessment-2", hospitalId: "hospital-1", smsFallbackSentAt: null, status: "pending", etaMin: 12, createdAt: new Date().toISOString(), respondedAt: null, divertSpecialty: null,
+    atmist: {
+      age: 45,
+      sex: "M",
+      mechanism: "Collision frontale VL / PL",
+      injuries: ["Traumatisme crânien"],
+      signs: { hr: 90, sbp: 120, spo2: 98, gcs: 15 },
+      treatment: ["Collier cervical"],
+    },
+  }]);
+  expect(screen.getByText("Collision frontale VL / PL")).toBeTruthy();
+  expect(screen.getByText(/Collier cervical/)).toBeTruthy();
+});

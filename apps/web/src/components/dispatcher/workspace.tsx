@@ -147,8 +147,10 @@ export default function DispatcherWorkspace() {
       aria-selected={activeTab === value}
       onClick={() => setActiveTab(value)}
       className={cn(
-        "inline-flex min-h-10 items-center gap-2 rounded-sm px-4 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground",
-        activeTab === value && "bg-card text-foreground shadow-sm",
+        "inline-flex min-h-10 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors",
+        activeTab === value
+          ? "bg-card text-foreground shadow-xs border border-border"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       <Icon className="size-4" aria-hidden="true" />
@@ -159,7 +161,7 @@ export default function DispatcherWorkspace() {
   return (
     <div className="space-y-4 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-md bg-muted p-1" role="tablist" aria-label="Vue du poste">
+        <div className="inline-flex rounded-lg border border-border bg-muted/60 p-1" role="tablist" aria-label="Vue du poste">
           {tab("live", "Opérations directes", RadioTowerIcon)}
           {tab("stats", "Statistiques", BarChart3Icon)}
         </div>
