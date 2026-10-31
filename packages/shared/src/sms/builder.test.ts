@@ -91,4 +91,26 @@ describe("Witness SVX SMS Builder (FR-S4-04, FR-S4-06)", () => {
     expect(result.remainingChars).toBe(160 - result.charCount);
     expect(result.remainingChars).toBeGreaterThan(0);
   });
+
+  it("encodes serving cell tower ID when provided (FR-S4-05)", () => {
+    const report = {
+      victims: 1,
+      conscious: 1 as const,
+      fire: false,
+      trapped: false,
+      bleeding: false,
+      lat: 36.75,
+      lng: 3.05,
+      cell: { mcc: 603, mnc: 1, lac: 101, cid: 404 },
+    };
+
+    const alert = buildWitnessSvxAlert(report);
+    expect(alert.cell).toEqual({ mcc: 603, mnc: 1, lac: 101, cid: 404 });
+
+    const result = buildWitnessSvxString(report);
+    expect(result.svx).toContain("#CI:");
+
+    const decoded = decodeSvx(result.svx);
+    expect(decoded.alert.cell).toEqual({ mcc: 603, mnc: 1, lac: 101, cid: 404 });
+  });
 });

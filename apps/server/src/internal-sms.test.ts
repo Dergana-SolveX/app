@@ -233,3 +233,33 @@ describe("POST /internal/sms when the server texts through the modem", () => {
     expect(((await response.json()) as { replies: unknown[] }).replies).toEqual([]);
   });
 });
+
+describe("POST /internal/sms when the server texts through an android relay gateway", () => {
+  it("texts the phone once: the server sends through the android gateway /send, so replies in response is empty", async () => {
+    const db = await createTestDb();
+    const sent: { to: string; body: string }[] = [];
+    const transport = createTransport("android", {
+      db,
+      gateway: {
+        url: "http://android-gateway.test",
+        secret: SECRET,
+        fetch: (async (_url: unknown, init?: RequestInit) => {
+          sent.push(JSON.parse(String(init?.body)));
+          return Response.json({ ref: "AND-" + sent.length });
+        }) as unknown as typeof fetch,
+      },
+    });
+    const app = createInternalSmsApp({ secret: SECRET, db, transport, events: createEventBus() });
+
+    const response = await app.request("/internal/sms", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
+      body: JSON.stringify({ from: "+213550000009", body: "ACCIDENT" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(sent).toHaveLength(1); // the menu question, sent once through the android gateway
+    expect(sent[0]).toMatchObject({ to: "+213550000009" });
+    expect(((await response.json()) as { replies: unknown[] }).replies).toEqual([]);
+  });
+});

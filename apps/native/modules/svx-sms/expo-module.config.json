@@ -1,0 +1,8 @@
+{
+  "name": "svx-sms",
+  "platforms": ["android", "ios"],
+  "android": {
+    "package": "expo.modules.svxsms",
+    "modules": ["expo.modules.svxsms.SvxSmsModule"]
+  }
+}

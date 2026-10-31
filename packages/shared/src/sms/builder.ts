@@ -1,5 +1,5 @@
 import { geohashEncode } from "../geo/geohash";
-import { encodeSvx, MAX_SMS_LENGTH, type SvxAlert } from "./protocol";
+import { encodeSvx, MAX_SMS_LENGTH, type SvxAlert, type SvxCell } from "./protocol";
 
 export interface WitnessReportData {
   victims: number;
@@ -11,6 +11,7 @@ export interface WitnessReportData {
   lng?: number | null;
   timestamp?: number;
   profileCode?: string | null;
+  cell?: SvxCell | null;
 }
 
 export interface SvxStringResult {
@@ -48,7 +49,7 @@ export function buildWitnessSvxAlert(report: WitnessReportData): SvxAlert {
     bleeding: report.bleeding ? true : false,
     profileCode: report.profileCode ?? null,
     deltaVKmh: null,
-    cell: null,
+    cell: report.cell ?? null,
   };
 }
 

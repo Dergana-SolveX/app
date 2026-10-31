@@ -61,8 +61,11 @@ export function createInternalSmsApp({
     const result = await receiveSms({ db, events, transport, masterDeviceSecret }, parsed.data);
     const texts =
       result.kind === "alert" ? [result.ack] : result.kind === "menu" ? result.replies : [];
-    // The modem transport has already texted them through the gateway: returning them too would text the phone twice.
-    const replies = transport.kind === "modem" ? [] : texts.map((body) => ({ to: parsed.data.from, body }));
+    // The modem and android transports have already texted them through the gateway: returning them too would text the phone twice.
+    const replies =
+      transport.kind === "modem" || transport.kind === "android"
+        ? []
+        : texts.map((body) => ({ to: parsed.data.from, body }));
     return c.json({ result, replies });
   });
 

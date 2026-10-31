@@ -91,6 +91,51 @@ function createModemTransport({ db, gateway }: Deps): SmsTransport {
   };
 }
 
+/**
+ * A real SMS through an Android phone relay (PRD FR-S3-08 / issue #25): the server hands the text
+ * to the Android relay gateway (`POST /send`). The log row starts as `queued`, then moves to `sent`.
+ */
+function createAndroidTransport({ db, gateway }: Deps): SmsTransport {
+  if (!gateway) throw new Error("The android transport needs GATEWAY_URL: where does the Android relay gateway listen?");
+  const { url, secret, fetch: fetchImpl = fetch, timeoutMs = 40_000 } = gateway;
+
+  return {
+    kind: "android",
+    async send(to, body, meta) {
+      const [row] = await db
+        .insert(smsLog)
+        .values({ direction: "out", msisdnHash: hashOf(to), body, emulated: false, incidentId: meta?.incidentId ?? null, status: "queued" })
+        .returning({ id: smsLog.id });
+      const settle = (patch: Partial<typeof smsLog.$inferInsert>) => db.update(smsLog).set(patch).where(eq(smsLog.id, row!.id));
+      const fail = async (message: string): Promise<never> => {
+        await settle({ status: "failed" });
+        throw new Error(message);
+      };
+
+      let response: Response;
+      try {
+        response = await fetchImpl(new URL("/send", url), {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${secret}` },
+          body: JSON.stringify({ to, body }),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+      } catch (error) {
+        return fail(
+          error instanceof Error && error.name === "TimeoutError"
+            ? `The SMS gateway did not answer within ${timeoutMs} ms`
+            : `The SMS gateway could not be reached: ${error instanceof Error ? error.message : error}`,
+        );
+      }
+      if (!response.ok) return fail(`The SMS gateway refused the text (${response.status})`);
+
+      const answer = (await response.json().catch(() => null)) as { ref?: unknown } | null;
+      const ref = answer?.ref != null ? String(answer.ref) : "android-relay";
+      await settle({ status: "sent", modemRef: ref });
+    },
+  };
+}
+
 /** Picks the transport named by `SMS_TRANSPORT`. */
 export function createTransport(kind: string, deps: Deps): SmsTransport {
   switch (kind) {
@@ -99,7 +144,7 @@ export function createTransport(kind: string, deps: Deps): SmsTransport {
     case "modem":
       return createModemTransport(deps);
     case "android":
-      throw new Error(`SMS transport "${kind}" is not implemented yet (see issue #25)`);
+      return createAndroidTransport(deps);
     default:
       throw new Error(`Unknown SMS transport "${kind}" (expected emulator, android or modem)`);
   }
