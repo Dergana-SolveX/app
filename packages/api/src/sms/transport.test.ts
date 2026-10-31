@@ -30,9 +30,8 @@ describe("createTransport", () => {
     expect((await listOutbox(db)).every((m) => m.direction === "out")).toBe(true);
   });
 
-  it("refuses transports that are not built yet, and unknown names, with a clear error", async () => {
+  it("refuses unknown transport names with a clear error", async () => {
     const db = await createTestDb();
-    expect(() => createTransport("android", { db })).toThrow(/not implemented/i);
     expect(() => createTransport("fax", { db })).toThrow(/unknown sms transport/i);
   });
 });
@@ -129,5 +128,71 @@ describe("createTransport: modem (through apps/gateway)", () => {
 
     const outbox = await listOutbox(db);
     expect(outbox.map((m) => [m.body, m.status]).sort()).toEqual([["a", "failed"], ["b", "failed"]]);
+  });
+});
+
+describe("createTransport: android (relay phone gateway)", () => {
+  it("needs to know where the gateway is", async () => {
+    const db = await createTestDb();
+    expect(() => createTransport("android", { db })).toThrow(/GATEWAY_URL/);
+  });
+
+  it("sends through the android gateway with the shared secret, and logs a real (not emulated) SMS with the network reference", async () => {
+    const db = await createTestDb();
+    const gateway = fakeGateway(() => Response.json({ ref: "AND-42" }));
+    const transport = createTransport("android", { db, gateway: { url: "http://android-gateway.test", secret: SECRET, fetch: gateway.fetch } });
+    expect(transport.kind).toBe("android");
+
+    await transport.send("+213550000001", "SVXACK#3F9A12BC");
+
+    expect(gateway.calls).toEqual([
+      {
+        url: "http://android-gateway.test/send",
+        authorization: `Bearer ${SECRET}`,
+        body: { to: "+213550000001", body: "SVXACK#3F9A12BC" },
+      },
+    ]);
+    const outbox = await listOutbox(db);
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]).toMatchObject({ direction: "out", body: "SVXACK#3F9A12BC", emulated: false, status: "sent", modemRef: "AND-42" });
+    expect(JSON.stringify(outbox[0])).not.toContain("+213550000001");
+  });
+
+  it("has the text on record as queued before the gateway answers", async () => {
+    const db = await createTestDb();
+    let answer: (response: Response) => void = () => {};
+    const slow = (async () => new Promise<Response>((resolve) => (answer = resolve))) as unknown as typeof fetch;
+    const transport = createTransport("android", { db, gateway: { url: "http://android-gateway.test", secret: SECRET, fetch: slow } });
+
+    const sending = transport.send("+213550000001", "SVXACK#3F9A12BC");
+    await vi.waitFor(async () => expect((await listOutbox(db)).map((m) => m.status)).toEqual(["queued"]));
+
+    answer(Response.json({ ref: "AND-42" }));
+    await sending;
+    expect((await listOutbox(db)).map((m) => [m.status, m.modemRef])).toEqual([["sent", "AND-42"]]);
+  });
+
+  it("gives up on an android gateway that does not answer, and records the text as failed", async () => {
+    const db = await createTestDb();
+    const hangs = ((_url: unknown, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason)))) as unknown as typeof fetch;
+    const transport = createTransport("android", { db, gateway: { url: "http://android-gateway.test", secret: SECRET, fetch: hangs, timeoutMs: 20 } });
+
+    await expect(transport.send("+213550000001", "a")).rejects.toThrow(/did not answer/i);
+
+    expect((await listOutbox(db)).map((m) => m.status)).toEqual(["failed"]);
+  });
+
+  it("records a text the android gateway could not send as failed", async () => {
+    const db = await createTestDb();
+    const failed = createTransport("android", {
+      db,
+      gateway: { url: "http://android-gateway.test", secret: SECRET, fetch: fakeGateway(() => Response.json({ error: "relay_busy" }, { status: 503 })).fetch },
+    });
+
+    await expect(failed.send("+213550000001", "a")).rejects.toThrow(/gateway.*503/i);
+
+    const outbox = await listOutbox(db);
+    expect(outbox.map((m) => [m.body, m.status])).toEqual([["a", "failed"]]);
   });
 });
