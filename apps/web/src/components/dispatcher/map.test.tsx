@@ -19,7 +19,6 @@ it("selects a located incident on the map while excluding an unlocated report", 
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   const select = vi.fn();
   const highlight = vi.fn();
-  const locate = vi.fn();
   render(
     <DispatcherMap
       incidents={[
@@ -43,16 +42,16 @@ it("selects a located incident on the map while excluding an unlocated report", 
       layers={{ units: [], hospitals: [], zones: [] }}
       selectedId={null}
       onSelect={select}
-      onLocate={locate}
       onHighlight={highlight}
     />,
   );
-  const marker = screen.getByRole("button", { name: "Incident Rouiba — Rouge" });
+  const marker = screen.getByRole("button", {
+    name: "Incident Rouiba — Rouge",
+  });
   fireEvent.mouseOver(marker);
   expect(highlight).toHaveBeenCalledWith("a");
   fireEvent.click(marker, { clientX: 100, clientY: 100 });
   expect(select).toHaveBeenCalledWith("a");
-  expect(locate).toHaveBeenCalledWith("a");
   expect(screen.queryByRole("button", { name: /Incident b/ })).toBeNull();
   expect(screen.getByRole("link", { name: /OpenStreetMap/ })).toBeTruthy();
 });
