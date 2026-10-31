@@ -202,13 +202,7 @@ export default function IotShowcase() {
 
         {/* Center Column: 3D Vehicle Twin, Live G-Chart, State Strip */}
         <div className="flex min-w-0 flex-col gap-4">
-          <VehicleTwin
-            orientation={snapshot.orientation}
-            state={snapshot.state}
-            nowMs={snapshot.nowMs}
-            lastImpactMs={snapshot.lastImpactMs}
-            isImpacting={snapshot.isImpacting}
-          />
+          <VehicleTwin snapshot={snapshot} />
           <GChart chart={snapshot.chart} nowMs={snapshot.nowMs} rejected={snapshot.rejected} />
           <StateStrip snapshot={snapshot} onCancel={() => actions.press("cancel")} />
         </div>
