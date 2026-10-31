@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import type { Database } from "../index";
 import {
   dispatches,
@@ -7,6 +8,7 @@ import {
   medicAssessments,
   rawAlerts,
 } from "../schema";
+import { units } from "./units";
 
 const COMMUNE_COORDINATES: Array<{ commune: string; lat: number; lng: number; roadRef: string }> = [
   { commune: "Sidi M'Hamed", lat: 36.758, lng: 3.055, roadRef: "Boulevard Mohamed V" },
@@ -52,6 +54,9 @@ const UNIT_IDS: string[] = [
   "00000000-0000-4000-8000-000000000208",
 ];
 
+const unitMap = new Map(units.map((u) => [u.id, u]));
+const DEMO_DISPATCHER_ID = "00000000-0000-4000-8000-000000000601";
+
 const OVERRIDE_REASONS = [
   "Unité la plus proche indisponible (en intervention)",
   "Renfort VSR nécessaire pour désincarcération suspectée",
@@ -80,9 +85,16 @@ export async function seedDemoHistory(db: Database) {
     const incidentId = `00000000-0000-4000-9000-00000000${pad}`;
     const location = COMMUNE_COORDINATES[i % COMMUNE_COORDINATES.length]!;
 
-    // Spread over 30 days: from 29 days ago up to 2 hours ago
-    const daysAgo = 29 - (i * 28.5) / totalIncidents;
-    const alertTimeMs = now - Math.round(daysAgo * 24 * 60 * 60 * 1000);
+    // Spread closed history over 30 days, keep recent active incidents within the last hour
+    let alertTimeMs: number;
+    if (i >= 37) {
+      // Recent active missions: 15 to 45 minutes ago
+      const minutesAgo = (40 - i) * 15;
+      alertTimeMs = now - minutesAgo * 60 * 1000;
+    } else {
+      const daysAgo = 29 - (i * 28) / 36;
+      alertTimeMs = now - Math.round(daysAgo * 24 * 60 * 60 * 1000);
+    }
     const firstAlertAt = new Date(alertTimeMs);
 
     // Number of alerts: 1 to 3
@@ -90,7 +102,7 @@ export async function seedDemoHistory(db: Database) {
     const lastAlertAt = new Date(alertTimeMs + (alertCount - 1) * 12_000);
 
     // Severity distribution: red (~40%), yellow (~45%), green (~15%)
-    const recSeverity = i % 10 < 4 ? "red" : i % 10 < 8 ? "yellow" : "green";
+    let recSeverity = i % 10 < 4 ? "red" : i % 10 < 8 ? "yellow" : "green";
 
     // Rec authority: gendarmerie_nationale for highway/rural communes, surete_nationale for urban
     const recAuthority =
@@ -99,6 +111,26 @@ export async function seedDemoHistory(db: Database) {
         : "surete_nationale";
 
     const status = i < 37 ? "closed" : i === 37 ? "dispatched" : "on_scene";
+
+    let assignedUnitId: string;
+    if (i === 37) {
+      assignedUnitId = "00000000-0000-4000-8000-000000000201"; // PC-ALG-01 (Ambulance médicalisée, Secouriste 1)
+    } else if (i === 38) {
+      assignedUnitId = "00000000-0000-4000-8000-000000000204"; // PC-HRH-01 (Ambulance médicalisée, Secouriste 2)
+    } else if (i === 39) {
+      assignedUnitId = "00000000-0000-4000-8000-000000000202"; // PC-BEO-01 (VSAV)
+    } else {
+      assignedUnitId = UNIT_IDS[i % UNIT_IDS.length]!;
+    }
+
+    let estimatedVictims = (i % 3) + 1;
+    let linkedProfileIds: string[] = [];
+
+    if (i === 37) {
+      recSeverity = "red";
+      estimatedVictims = 1;
+      linkedProfileIds = ["00000000-0000-4000-8000-000000000301"]; // Profil démo 1 (anticoagulant)
+    }
 
     incidentRows.push({
       id: incidentId,
@@ -116,6 +148,8 @@ export async function seedDemoHistory(db: Database) {
       recAuthority,
       commune: location.commune,
       roadRef: location.roadRef,
+      estimatedVictims,
+      linkedProfileIds,
       emulated: true,
       version: 1,
     });
@@ -142,16 +176,44 @@ export async function seedDemoHistory(db: Database) {
 
     const isModified = i % 5 === 0; // 20% overrides
     const modificationReason = isModified ? OVERRIDE_REASONS[i % OVERRIDE_REASONS.length] : null;
-    const assignedUnitId = UNIT_IDS[i % UNIT_IDS.length]!;
+
+    const unitObj = unitMap.get(assignedUnitId);
+    const unitCallSign = unitObj?.callSign ?? `AMB-${pad}`;
+    const unitType = unitObj?.type ?? (isModified ? "ambulance_medicalisee" : "vsav_standard");
+
+    let dispatchNotes: string | null = null;
+    if (i === 37) {
+      dispatchNotes =
+        "Collision VL contre glissière de sécurité. 1 victime incarcérée consciente, douleur thoracique. Équipe médicale requise en priorité.";
+    } else if (i === 38) {
+      dispatchNotes = "Choc latéral 2 véhicules. Équipe sur place en cours de bilan.";
+    } else if (i === 39) {
+      dispatchNotes = "Malaise sur la voie publique, équipe sur les lieux.";
+    } else if (isModified) {
+      dispatchNotes = modificationReason;
+    }
+
+    const dispatchUnits = [
+      {
+        id: assignedUnitId,
+        callSign: unitCallSign,
+        type: unitType,
+      },
+    ];
 
     const dispatchId = `00000000-0000-4000-9100-00000000${pad}`;
     dispatchRows.push({
       id: dispatchId,
       incidentId,
       recommended: { units: [{ type: "vsav_standard", count: 1 }] },
-      decided: { units: [{ type: isModified ? "ambulance_medicalisee" : "vsav_standard", count: 1 }] },
+      decided: {
+        unitIds: [assignedUnitId],
+        units: dispatchUnits,
+        notes: dispatchNotes,
+      },
       modified: isModified,
       modificationReason,
+      dispatcherId: DEMO_DISPATCHER_ID,
       unitIds: [assignedUnitId],
       authorityNotified: true,
       authorityNotifiedAt: new Date(decidedAt.getTime() + 2000),
@@ -173,7 +235,7 @@ export async function seedDemoHistory(db: Database) {
       id: `00000000-0000-4000-9500-00000000${pad}`,
       incidentId,
       actorRole: "dispatcher",
-      actorId: "00000000-0000-4000-8000-000000000001",
+      actorId: DEMO_DISPATCHER_ID,
       type: "dispatch.approved",
       payload: { dispatchId, units: [assignedUnitId], modified: isModified },
       at: decidedAt,
@@ -249,10 +311,38 @@ export async function seedDemoHistory(db: Database) {
     }
   }
 
-  // Insert in dependency order with onConflictDoNothing for repeatability
-  await db.insert(masterIncidents).values(incidentRows).onConflictDoNothing();
+  // Insert in dependency order; update masterIncidents and dispatches on conflict so re-seeding refreshes active missions
+  await db
+    .insert(masterIncidents)
+    .values(incidentRows)
+    .onConflictDoUpdate({
+      target: masterIncidents.id,
+      set: {
+        status: sql`excluded.status`,
+        firstAlertAt: sql`excluded.first_alert_at`,
+        lastAlertAt: sql`excluded.last_alert_at`,
+        recSeverity: sql`excluded.rec_severity`,
+        estimatedVictims: sql`excluded.estimated_victims`,
+        linkedProfileIds: sql`excluded.linked_profile_ids`,
+        commune: sql`excluded.commune`,
+        roadRef: sql`excluded.road_ref`,
+      },
+    });
   await db.insert(rawAlerts).values(alertRows).onConflictDoNothing();
-  await db.insert(dispatches).values(dispatchRows).onConflictDoNothing();
+  await db
+    .insert(dispatches)
+    .values(dispatchRows)
+    .onConflictDoUpdate({
+      target: dispatches.id,
+      set: {
+        decided: sql`excluded.decided`,
+        decidedAt: sql`excluded.decided_at`,
+        dispatcherId: sql`excluded.dispatcher_id`,
+        unitIds: sql`excluded.unit_ids`,
+        modified: sql`excluded.modified`,
+        modificationReason: sql`excluded.modification_reason`,
+      },
+    });
   await db.insert(incidentEvents).values(eventRows).onConflictDoNothing();
   await db.insert(medicAssessments).values(assessmentRows).onConflictDoNothing();
   await db.insert(handovers).values(handoverRows).onConflictDoNothing();

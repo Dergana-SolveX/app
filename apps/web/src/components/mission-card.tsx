@@ -55,22 +55,25 @@ export default function MissionCard({
         <h2 id="mission-title" className="text-base font-bold">
           Mission
         </h2>
-        <LiveStatus status={stream.status} />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {mission.isPending && <Skeleton className="h-8 w-44" aria-hidden="true" />}
+          {mission.isSuccess && mission.data === null && (
+            <p
+              role="status"
+              className="inline-flex min-h-8 items-center gap-2 rounded-md border bg-card px-3 text-xs font-semibold text-muted-foreground"
+            >
+              <InboxIcon className="size-4" aria-hidden="true" />
+              Aucune mission pour l'instant
+            </p>
+          )}
+          <LiveStatus status={stream.status} />
+        </div>
       </div>
 
-      {mission.isPending && <Skeleton className="h-40 w-full max-w-3xl" aria-hidden="true" />}
       {mission.isError && (
         <p role="alert" className="text-sm text-destructive">
           Mission indisponible : {mission.error.message}
         </p>
-      )}
-
-      {mission.isSuccess && mission.data === null && (
-        <div role="status" className="grid max-w-3xl place-items-center rounded-lg border border-dashed bg-card/60 px-6 py-8 text-center">
-          <InboxIcon className="mb-2 size-6 text-muted-foreground" aria-hidden="true" />
-          <p className="font-semibold">Aucune mission pour l'instant</p>
-          <p className="text-sm text-muted-foreground">Dès que le dispatch vous assigne un incident, il apparaît ici.</p>
-        </div>
       )}
 
       {mission.isSuccess && current && (

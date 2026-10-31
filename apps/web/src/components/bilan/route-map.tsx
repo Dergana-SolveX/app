@@ -1,70 +1,255 @@
-import type { LatLng } from "@solvex-dergana/shared";
+import {
+  route,
+  type HospitalMatch,
+  type LatLng,
+  type MatchHospital,
+  type RoadGraph,
+} from "@solvex-dergana/shared";
+import { divIcon, latLngBounds } from "leaflet";
+import { MapIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
-const WIDTH = 640;
-const PAD = 36;
+export type SuggestedHospital = {
+  rank: number;
+  hospital: MatchHospital;
+  match: HospitalMatch;
+};
 
-/**
- * The route drawn on a plain background: no map tiles, so it works with no network and needs no map key.
- * Positions are projected so that east-west and north-south distances keep their proportions at this latitude.
- */
-export function RouteMap({
-  polyline,
-  from,
-  to,
-  fromLabel,
-  toLabel,
-  description,
-}: {
-  polyline: LatLng[];
-  from: LatLng;
-  to: LatLng;
-  fromLabel: string;
-  toLabel: string;
-  description: string;
-}) {
-  const points = polyline.length >= 2 ? polyline : [from, to];
-  const lats = points.map((p) => p[0]);
-  const lngs = points.map((p) => p[1]);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const lngScale = Math.cos((((minLat + maxLat) / 2) * Math.PI) / 180);
-  const spanX = Math.max((maxLng - minLng) * lngScale, 1e-4);
-  const spanY = Math.max(maxLat - minLat, 1e-4);
-  const scale = (WIDTH - 2 * PAD) / Math.max(spanX, spanY);
-  const height = Math.round(spanY * scale + 2 * PAD);
-  const width = Math.round(spanX * scale + 2 * PAD);
-  const project = ([lat, lng]: LatLng) => ({
-    x: PAD + (lng - minLng) * lngScale * scale,
-    y: PAD + (maxLat - lat) * scale,
+const minutes = (value: number) => `${Math.max(1, Math.round(value))} min`;
+const km = (metres: number) =>
+  `${(metres / 1000).toFixed(1).replace(".", ",")} km`;
+
+function markerIcon(
+  label: string,
+  accessibleName: string,
+  kind: "scene" | "recommended" | "hospital",
+) {
+  const element = document.createElement("span");
+  element.textContent = label;
+  element.setAttribute("aria-label", accessibleName);
+  const color =
+    kind === "scene"
+      ? "--sev-red"
+      : kind === "recommended"
+        ? "--brand"
+        : "--info";
+  element.style.cssText = [
+    "background:var(--card)",
+    `color:var(${color})`,
+    `border:3px solid var(${color})`,
+    "display:grid",
+    "place-items:center",
+    "width:38px",
+    "height:38px",
+    "border-radius:9999px",
+    "font-weight:800",
+    "font-size:14px",
+    "font-family:var(--font-sans)",
+    "box-shadow:var(--shadow-md)",
+  ].join(";");
+  return divIcon({
+    className: "hospital-route-map-marker",
+    html: element,
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
+    popupAnchor: [0, -20],
   });
+}
 
-  const path = points.map((p) => project(p)).map(({ x, y }, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
-  // A label on the right half of the picture is written towards the left, so it never runs off the edge.
-  const anchor = (x: number) => (x > width / 2 ? "end" : "start");
-  const labelX = (x: number) => (x > width / 2 ? x - 14 : x + 14);
-  const start = project(from);
-  const end = project(to);
+function MapViewport({ points }: { points: LatLng[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length > 1) {
+      map.fitBounds(latLngBounds(points), {
+        padding: [32, 32],
+        maxZoom: 14,
+        animate: false,
+      });
+    }
+  }, [map, points]);
+  useEffect(() => {
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+  return null;
+}
+
+/** Road map for the top hospital suggestions, using the same local A* routes as the ETA ranking. */
+export function HospitalRouteMap({
+  scene,
+  graph,
+  suggestions,
+  recommendedId,
+  chosenId,
+  onChoose,
+}: {
+  scene: LatLng;
+  graph: RoadGraph;
+  suggestions: SuggestedHospital[];
+  recommendedId: string | null;
+  chosenId: string | null;
+  onChoose: (hospitalId: string) => void;
+}) {
+  const [tilesFailed, setTilesFailed] = useState(false);
+  const routes = useMemo(
+    () =>
+      suggestions.map((suggestion) => ({
+        ...suggestion,
+        road: route(graph, scene, [
+          suggestion.hospital.lat,
+          suggestion.hospital.lng,
+        ]),
+      })),
+    [graph, scene, suggestions],
+  );
+  const viewportPoints = useMemo(
+    () => [
+      scene,
+      ...routes.flatMap(
+        ({ hospital, road }) =>
+          road?.polyline ?? ([[hospital.lat, hospital.lng]] as LatLng[]),
+      ),
+    ],
+    [routes, scene],
+  );
 
   return (
-    <figure className="m-0">
-      <svg
-        role="img"
-        aria-label={description}
-        viewBox={`0 0 ${width} ${height}`}
-        className="h-auto max-h-80 w-full rounded-lg border bg-raised"
+    <section
+      aria-label="Carte des hôpitaux suggérés"
+      className="overflow-hidden rounded-lg border bg-card shadow-sm"
+    >
+      <div className="border-b p-3 sm:p-4">
+        <h3 className="flex items-center gap-2 text-base font-bold">
+          <MapIcon className="size-5 text-primary" aria-hidden="true" />
+          Hôpitaux suggérés sur la carte
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Les trois meilleures options, avec leur itinéraire routier depuis
+          l'accident. Touchez un hôpital pour le retenir.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+          <span className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1">
+            <span
+              className="size-2.5 rounded-full bg-sev-red"
+              aria-hidden="true"
+            />
+            Accident
+          </span>
+          {routes.map(({ rank, hospital, match }) => (
+            <span
+              key={hospital.id}
+              className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1"
+            >
+              <span
+                className={`size-2.5 rounded-full ${hospital.id === recommendedId ? "bg-primary" : "bg-info"}`}
+                aria-hidden="true"
+              />
+              {rank}. {hospital.shortName} · {minutes(match.etaMin)}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <MapContainer
+        center={scene}
+        zoom={12}
+        scrollWheelZoom={false}
+        className="isolate z-0 h-[360px] w-full sm:h-[440px]"
+        aria-label="Routes entre l'accident et les hôpitaux suggérés"
       >
-        <path d={path} fill="none" className="stroke-primary" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx={start.x} cy={start.y} r={9} className="fill-sev-red stroke-card" strokeWidth={3} />
-        <circle cx={end.x} cy={end.y} r={9} className="fill-primary stroke-card" strokeWidth={3} />
-        <text x={labelX(start.x)} y={start.y - 14} textAnchor={anchor(start.x)} className="fill-foreground text-[16px] font-bold">
-          {fromLabel}
-        </text>
-        <text x={labelX(end.x)} y={end.y - 14} textAnchor={anchor(end.x)} className="fill-foreground text-[16px] font-bold">
-          {toLabel}
-        </text>
-      </svg>
-    </figure>
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributeurs'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          eventHandlers={{ tileerror: () => setTilesFailed(true) }}
+        />
+        <MapViewport points={viewportPoints} />
+
+        {routes.map(({ hospital, road }) => {
+          const selected = hospital.id === chosenId;
+          const recommended = hospital.id === recommendedId;
+          const positions =
+            road?.polyline ??
+            ([scene, [hospital.lat, hospital.lng]] as LatLng[]);
+          return (
+            <Polyline
+              key={`route-${hospital.id}`}
+              positions={positions}
+              pathOptions={{
+                color: selected || recommended ? "var(--brand)" : "var(--info)",
+                weight: selected ? 7 : recommended ? 6 : 4,
+                opacity: selected || recommended ? 0.95 : 0.65,
+                dashArray: road ? undefined : "8 8",
+              }}
+            >
+              <Tooltip sticky>
+                {hospital.name} ·{" "}
+                {road ? "route calculée" : "estimation directe"}
+              </Tooltip>
+            </Polyline>
+          );
+        })}
+
+        <Marker
+          position={scene}
+          icon={markerIcon("A", "Lieu de l'accident", "scene")}
+          title="Lieu de l'accident"
+          alt="Lieu de l'accident"
+          zIndexOffset={1000}
+        >
+          <Popup>
+            <strong>Lieu de l'accident</strong>
+          </Popup>
+        </Marker>
+
+        {routes.map(({ rank, hospital, match }) => {
+          const recommended = hospital.id === recommendedId;
+          return (
+            <Marker
+              key={hospital.id}
+              position={[hospital.lat, hospital.lng]}
+              icon={markerIcon(
+                String(rank),
+                `${rank}. ${hospital.name}, ${minutes(match.etaMin)}`,
+                recommended ? "recommended" : "hospital",
+              )}
+              title={`${rank}. ${hospital.name}`}
+              alt={`${rank}. ${hospital.name}`}
+              eventHandlers={{ click: () => onChoose(hospital.id) }}
+              zIndexOffset={recommended ? 800 : 500}
+            >
+              <Popup>
+                <strong>
+                  {rank}. {hospital.name}
+                </strong>
+                <br />
+                {minutes(match.etaMin)} · {km(match.distanceM)}
+                <br />
+                {recommended ? "Hôpital recommandé" : "Alternative suggérée"}
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
+
+      <p
+        role={tilesFailed ? "status" : undefined}
+        className="border-t px-3 py-2 text-xs text-muted-foreground sm:px-4"
+      >
+        {tilesFailed
+          ? "Fond de carte indisponible : les itinéraires calculés restent visibles."
+          : "Routes calculées localement sur le réseau OSM · sans trafic en temps réel."}
+      </p>
+    </section>
   );
 }

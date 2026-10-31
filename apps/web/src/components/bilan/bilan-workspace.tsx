@@ -4,7 +4,7 @@ import { Skeleton } from "@solvex-dergana/ui/components/skeleton";
 import { cn } from "@solvex-dergana/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { ArrowLeftIcon, InboxIcon, PlusIcon, UserRoundIcon } from "lucide-react";
+import { ArrowLeftIcon, InboxIcon, MinusIcon, PlusIcon, UserRoundIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -129,6 +129,21 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
     setDrafts((current) => ({ ...current, [next]: emptyDraft() }));
     setActive(next);
   };
+  const removeVictim = () => {
+    if (victims.length === 1) return;
+    const activePosition = victims.indexOf(active);
+    const nextActive =
+      victims[activePosition - 1] ?? victims[activePosition + 1]!;
+    setDrafts((current) => {
+      const { [active]: _removed, ...remaining } = current;
+      return remaining;
+    });
+    setAssessmentIds((current) => {
+      const { [active]: _removed, ...remaining } = current;
+      return remaining;
+    });
+    setActive(nextActive);
+  };
 
   const payload = () => ({
       incidentId,
@@ -171,47 +186,101 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
         <SeverityBadge severity={mission.data.incident.recSeverity} />
       </div>
 
-      <div role="group" aria-label="Victimes" className="mb-4 flex flex-wrap gap-2">
-        {victims.map((n) => (
-          <button
-            key={n}
-            type="button"
-            aria-current={n === active ? "true" : undefined}
-            onClick={() => setActive(n)}
-            className={cn(
-              "inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-md border px-4 text-sm font-bold transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-              n === active ? "border-primary bg-accent text-accent-foreground" : "border-input bg-card hover:border-primary/60",
-            )}
-          >
-            <UserRoundIcon className="size-4" aria-hidden="true" />
-            Victime {n}
-          </button>
-        ))}
-        <Button type="button" variant="outline" size="lg" onClick={addVictim}>
-          <PlusIcon aria-hidden="true" />
-          Ajouter une victime
-        </Button>
-      </div>
+      <div className="grid max-w-7xl grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
+        <aside
+          role="group"
+          aria-label="Victimes"
+          className="sticky top-3 rounded-lg border bg-card p-2 shadow-xs sm:p-3"
+        >
+          <div className="mb-2 flex items-center justify-between gap-2 px-1">
+            <h2 className="text-xs font-bold text-muted-foreground sm:text-sm">
+              Victimes
+            </h2>
+            <span
+              className="tabular text-xs font-semibold text-muted-foreground"
+              aria-label={`${victims.length} victime${victims.length > 1 ? "s" : ""}`}
+            >
+              {victims.length}
+            </span>
+          </div>
 
-      <div className="max-w-7xl">
-        <BilanForm
-          key={active}
-          assessmentId={assessmentId}
-          draft={draft}
-          onChange={update}
-          profiles={mission.data.profiles}
-          sensors={mission.data.incident.vittelPrefill}
-          onSave={submit}
-          saving={save.isPending}
-          now={now}
-          scene={mission.data.incident.lat !== null && mission.data.incident.lng !== null ? [mission.data.incident.lat, mission.data.incident.lng] : null}
-          severity={mission.data.incident.recSeverity}
-          orientationData={orientationData}
-          graph={graph}
-          handovers={handovers.data ?? []}
-          onSend={saveAndSend}
-          sending={save.isPending || send.isPending}
-        />
+          <div className="flex flex-col gap-2">
+            {victims.map((n) => (
+              <button
+                key={n}
+                type="button"
+                aria-current={n === active ? "true" : undefined}
+                onClick={() => setActive(n)}
+                className={cn(
+                  "inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-md border px-2 text-sm font-bold transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:justify-start sm:px-3",
+                  n === active
+                    ? "border-primary bg-accent text-accent-foreground"
+                    : "border-input bg-background hover:border-primary/60",
+                )}
+              >
+                <UserRoundIcon className="size-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Victime </span>
+                {n}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 border-t pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="w-full"
+              onClick={removeVictim}
+              disabled={victims.length === 1}
+              aria-label={`Supprimer la victime ${active}`}
+              title={
+                victims.length === 1
+                  ? "Une victime au minimum"
+                  : `Supprimer la victime ${active}`
+              }
+            >
+              <MinusIcon aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="w-full"
+              onClick={addVictim}
+              aria-label="Ajouter une victime"
+              title="Ajouter une victime"
+            >
+              <PlusIcon aria-hidden="true" />
+            </Button>
+          </div>
+        </aside>
+
+        <div className="min-w-0">
+          <BilanForm
+            key={active}
+            assessmentId={assessmentId}
+            draft={draft}
+            onChange={update}
+            profiles={mission.data.profiles}
+            sensors={mission.data.incident.vittelPrefill}
+            onSave={submit}
+            saving={save.isPending}
+            now={now}
+            scene={
+              mission.data.incident.lat !== null &&
+              mission.data.incident.lng !== null
+                ? [mission.data.incident.lat, mission.data.incident.lng]
+                : null
+            }
+            severity={mission.data.incident.recSeverity}
+            orientationData={orientationData}
+            graph={graph}
+            handovers={handovers.data ?? []}
+            onSend={saveAndSend}
+            sending={save.isPending || send.isPending}
+          />
+        </div>
       </div>
     </section>
   );
