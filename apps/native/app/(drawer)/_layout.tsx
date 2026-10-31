@@ -1,3 +1,4 @@
+import { useLocale } from "@/contexts/locale-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Link } from "expo-router";
 import { Drawer } from "expo-router/drawer";
@@ -8,6 +9,7 @@ import { Pressable, Text } from "react-native";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 function DrawerLayout() {
+  const { navigation, direction } = useLocale();
   const themeColorForeground = useThemeColor("foreground");
   const themeColorBackground = useThemeColor("background");
 
@@ -16,6 +18,7 @@ function DrawerLayout() {
   return (
     <Drawer
       screenOptions={{
+        drawerPosition: direction === "rtl" ? "right" : "left",
         headerTintColor: themeColorForeground,
         headerStyle: { backgroundColor: themeColorBackground },
         headerTitleStyle: {
@@ -29,9 +32,9 @@ function DrawerLayout() {
       <Drawer.Screen
         name="index"
         options={{
-          headerTitle: "Alerte Témoin (3-Tap)",
+          headerTitle: navigation.witness,
           drawerLabel: ({ color, focused }) => (
-            <Text style={{ color: focused ? color : themeColorForeground }}>Alerte Témoin</Text>
+            <Text style={{ color: focused ? color : themeColorForeground }}>{navigation.witness}</Text>
           ),
           drawerIcon: ({ size, color, focused }) => (
             <Ionicons
@@ -45,9 +48,9 @@ function DrawerLayout() {
       <Drawer.Screen
         name="(tabs)"
         options={{
-          headerTitle: "Tabs",
+          headerTitle: navigation.tabs,
           drawerLabel: ({ color, focused }) => (
-            <Text style={{ color: focused ? color : themeColorForeground }}>Tabs</Text>
+            <Text style={{ color: focused ? color : themeColorForeground }}>{navigation.tabs}</Text>
           ),
           drawerIcon: ({ size, color, focused }) => (
             <MaterialIcons
@@ -58,7 +61,7 @@ function DrawerLayout() {
           ),
           headerRight: () => (
             <Link href="/modal" asChild>
-              <Pressable className="mr-4">
+              <Pressable accessibilityRole="button" accessibilityLabel={navigation.modal} style={{ marginEnd: 16 }}>
                 <Ionicons name="add-outline" size={24} style={{ color: themeColorForeground }} />
               </Pressable>
             </Link>

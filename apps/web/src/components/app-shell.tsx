@@ -1,3 +1,5 @@
+import { getLabels } from "@solvex-dergana/shared";
+import { useLocale } from "@/components/locale-provider";
 import { Logo, LogoMark } from "@solvex-dergana/ui/components/logo";
 import { cn } from "@solvex-dergana/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
@@ -6,7 +8,7 @@ import type { ReactNode } from "react";
 import AccountMenu from "@/components/account-menu";
 import ConnectionStatus from "@/components/connection-status";
 import ThemeToggle from "@/components/theme-toggle";
-import { navFor, ROLE_LABEL } from "@/lib/nav";
+import { navFor } from "@/lib/nav";
 import type { RoleHolder } from "@solvex-dergana/shared";
 
 type Props = {
@@ -19,18 +21,20 @@ const navLink =
   "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[status=active]:bg-sidebar-accent data-[status=active]:text-sidebar-accent-foreground";
 
 export default function AppShell({ user, appUser, children }: Props) {
-  const items = navFor(appUser);
+  const { locale } = useLocale();
+  const t = getLabels(locale, "shell");
+  const items = navFor(appUser).map(item => ({ ...item, label: appUser.role === "hospital" ? getLabels(locale, "hospital").title : item.label }));
 
   return (
-    <div className="grid h-dvh grid-rows-[auto_1fr_auto] md:grid-cols-[16rem_1fr] md:grid-rows-[auto_1fr]">
+    <div lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className="grid h-dvh grid-rows-[auto_1fr_auto] md:grid-cols-[16rem_1fr] md:grid-rows-[auto_1fr]">
       {/* Sidebar (md and up) */}
       <aside className="row-span-2 hidden flex-col bg-sidebar text-sidebar-foreground md:flex">
         <div className="border-b border-sidebar-border px-5 py-5">
-          <Logo inverted />
+          <Logo inverted subtitle={getLabels(locale, "victim").emergency} />
         </div>
-        <nav aria-label="Navigation principale" className="flex-1 space-y-1 p-3">
+        <nav aria-label={t.nav} className="flex-1 space-y-1 p-3">
           <p className="px-3 pt-2 pb-2 text-xs font-bold tracking-[0.14em] text-sidebar-muted uppercase">
-            {ROLE_LABEL[appUser.role]}
+            {t[appUser.role]}
           </p>
           {items.map(({ label, icon: Icon, link }) => (
             <Link key={label} {...link} className={navLink}>
@@ -44,9 +48,9 @@ export default function AppShell({ user, appUser, children }: Props) {
           ))}
         </nav>
         <p className="border-t border-sidebar-border px-5 py-4 text-xs leading-relaxed text-sidebar-muted">
-          Prototype SolveX 3.0.
+          {t.prototype}
           <br />
-          Données de démonstration.
+          {t.demo}
         </p>
       </aside>
 
@@ -71,7 +75,7 @@ export default function AppShell({ user, appUser, children }: Props) {
       {/* Bottom navigation (below md), only when there is more than one screen */}
       {items.length > 1 && (
         <nav
-          aria-label="Navigation principale"
+          aria-label={t.nav}
           className="grid border-t bg-sidebar md:hidden"
           style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
         >

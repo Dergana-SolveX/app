@@ -1,3 +1,5 @@
+import { getLabels } from "@solvex-dergana/shared";
+import { useLocale } from "@/components/locale-provider";
 import { cn } from "@solvex-dergana/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 
@@ -5,6 +7,8 @@ import { trpc } from "@/utils/trpc";
 
 /** Live API reachability. Shows a word as well as a color. */
 export default function ConnectionStatus({ className }: { className?: string }) {
+  const { locale } = useLocale();
+  const t = getLabels(locale, "shell");
   const health = useQuery({ ...trpc.healthCheck.queryOptions(), refetchInterval: 15_000 });
   const online = health.isSuccess;
   const checking = health.isPending;
@@ -29,7 +33,7 @@ export default function ConnectionStatus({ className }: { className?: string }) 
           online ? "bg-sev-green" : checking ? "bg-muted-foreground" : "bg-sev-red",
         )}
       />
-      {online ? "API connectée" : checking ? "Connexion…" : "API hors ligne"}
+      {online ? t.online : checking ? t.connecting : t.offline}
     </span>
   );
 }

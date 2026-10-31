@@ -38,3 +38,5 @@ export * from "./witness/i18n";
 export * from "./witness/state";
 export * from "./crash/countdown";
 export * from "./outbox/manager";
+
+export * from "./i18n/labels";

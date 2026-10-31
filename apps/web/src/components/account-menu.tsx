@@ -1,3 +1,5 @@
+import { getLabels } from "@solvex-dergana/shared";
+import { useLocale } from "@/components/locale-provider";
 import { Button } from "@solvex-dergana/ui/components/button";
 import {
   DropdownMenu,
@@ -13,7 +15,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, LogOutIcon } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
-import { ROLE_LABEL } from "@/lib/nav";
+
 
 const initials = (name: string) =>
   name
@@ -32,11 +34,13 @@ export default function AccountMenu({
   email: string;
   role: AppRole;
 }) {
+  const { locale } = useLocale();
+  const t = getLabels(locale, "shell");
   const navigate = useNavigate();
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" className="h-11 gap-2.5 px-2" />}>
+      <DropdownMenuTrigger render={<Button aria-label={t.account} variant="ghost" className="h-11 gap-2.5 px-2" />}>
         <span
           aria-hidden="true"
           className="grid size-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
@@ -45,16 +49,16 @@ export default function AccountMenu({
         </span>
         <span className="hidden text-start leading-tight sm:block">
           <span className="block text-sm font-semibold">{name}</span>
-          <span className="block text-xs font-medium text-muted-foreground">{ROLE_LABEL[role]}</span>
+          <span className="block text-xs font-medium text-muted-foreground">{t[role]}</span>
         </span>
         <ChevronDownIcon className="size-4 text-muted-foreground" aria-hidden="true" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent dir={locale === "ar" ? "rtl" : "ltr"} lang={locale} align="end" className="w-64">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Compte</DropdownMenuLabel>
+          <DropdownMenuLabel>{t.account}</DropdownMenuLabel>
           <div className="px-2.5 pb-2">
             <p className="font-semibold">{name}</p>
-            <p className="truncate text-xs text-muted-foreground">{email}</p>
+            <p dir="ltr" className="truncate text-xs text-muted-foreground">{email}</p>
           </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -66,7 +70,7 @@ export default function AccountMenu({
             }
           >
             <LogOutIcon />
-            Se déconnecter
+            {t.logout}
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

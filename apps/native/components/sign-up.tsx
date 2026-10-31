@@ -1,3 +1,5 @@
+import { getLabels } from "@solvex-dergana/shared";
+import { useLocale } from "@/contexts/locale-context";
 import { useForm } from "@tanstack/react-form";
 import {
   Button,
@@ -17,11 +19,7 @@ import z from "zod";
 import { authClient } from "@/lib/auth-client";
 import { queryClient } from "@/utils/trpc";
 
-const signUpSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").min(2, "Name must be at least 2 characters"),
-  email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
-  password: z.string().min(1, "Password is required").min(8, "Use at least 8 characters"),
-});
+
 
 function getErrorMessage(error: unknown): string | null {
   if (!error) return null;
@@ -51,6 +49,13 @@ function getErrorMessage(error: unknown): string | null {
 }
 
 export function SignUp() {
+  const { locale, direction } = useLocale();
+  const t = getLabels(locale, "auth");
+  const signUpSchema = z.object({
+  name: z.string().trim().min(1, t.nameRequired).min(2, t.nameLength),
+  email: z.string().trim().min(1, t.emailRequired).email(t.emailInvalid),
+  password: z.string().min(1, t.passwordRequired).min(8, t.passwordLength),
+});
   const emailInputRef = useRef<InputRef>(null);
   const passwordInputRef = useRef<InputRef>(null);
   const { toast } = useToast();
@@ -72,17 +77,17 @@ export function SignUp() {
           password: value.password,
         },
         {
-          onError(error) {
+          onError() {
             toast.show({
               variant: "danger",
-              label: error.error?.message || "Failed to sign up",
+              label: t.signUpFailed,
             });
           },
           onSuccess() {
             formApi.reset();
             toast.show({
               variant: "success",
-              label: "Account created successfully",
+              label: t.created,
             });
             queryClient.refetchQueries();
           },
@@ -92,8 +97,8 @@ export function SignUp() {
   });
 
   return (
-    <Surface variant="secondary" className="p-4 rounded-lg">
-      <Text className="text-foreground font-medium mb-4">Create Account</Text>
+    <Surface style={{ direction }} variant="secondary" className="p-4 rounded-lg">
+      <Text className="text-foreground font-medium mb-4">{t.signUp}</Text>
 
       <form.Subscribe
         selector={(state) => ({
@@ -114,12 +119,12 @@ export function SignUp() {
                 <form.Field name="name">
                   {(field) => (
                     <TextField>
-                      <Label>Name</Label>
+                      <Label>{t.name}</Label>
                       <Input
                         value={field.state.value}
                         onBlur={field.handleBlur}
                         onChangeText={field.handleChange}
-                        placeholder="John Doe"
+                        placeholder={t.nameExample}
                         autoComplete="name"
                         textContentType="name"
                         returnKeyType="next"
@@ -135,13 +140,14 @@ export function SignUp() {
                 <form.Field name="email">
                   {(field) => (
                     <TextField>
-                      <Label>Email</Label>
+                      <Label>{t.email}</Label>
                       <Input
                         ref={emailInputRef}
                         value={field.state.value}
                         onBlur={field.handleBlur}
                         onChangeText={field.handleChange}
                         placeholder="email@example.com"
+                        style={{ writingDirection: "ltr", textAlign: "left" }}
                         keyboardType="email-address"
                         autoCapitalize="none"
                         autoComplete="email"
@@ -159,7 +165,7 @@ export function SignUp() {
                 <form.Field name="password">
                   {(field) => (
                     <TextField>
-                      <Label>Password</Label>
+                      <Label>{t.password}</Label>
                       <Input
                         ref={passwordInputRef}
                         value={field.state.value}
@@ -180,7 +186,7 @@ export function SignUp() {
                   {isSubmitting ? (
                     <Spinner size="sm" color="default" />
                   ) : (
-                    <Button.Label>Create Account</Button.Label>
+                    <Button.Label>{t.signUp}</Button.Label>
                   )}
                 </Button>
               </View>

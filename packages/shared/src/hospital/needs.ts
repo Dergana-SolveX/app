@@ -1,3 +1,4 @@
+import { getLabels } from "../i18n/labels";
 import { THRESHOLDS } from "../thresholds";
 import type { VittelState } from "../clinical/vittel";
 
@@ -15,16 +16,7 @@ export const NEEDS = [
 export type Need = (typeof NEEDS)[number];
 
 /** French names, for the cards and the reasons. */
-export const NEED_LABELS: Record<Need, string> = {
-  neurosurgery: "Neurochirurgie",
-  ct_scanner: "Scanner",
-  burn_unit: "Centre de brûlés",
-  icu: "Réanimation",
-  trauma_surgery: "Chirurgie traumatologique",
-  obstetrics: "Obstétrique",
-  blood_bank: "Banque de sang",
-  pediatric: "Pédiatrie",
-};
+export const NEED_LABELS: Record<Need, string> = getLabels("fr", "needs");
 
 type Region = "head" | "neck" | "spine" | "thorax" | "abdomen" | "pelvis" | "limbs";
 

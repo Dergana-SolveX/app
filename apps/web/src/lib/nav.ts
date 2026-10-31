@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 export const ROLE_LABEL: Record<AppRole, string> = {
-  dispatcher: "Dispatcher",
+  dispatcher: "Régulateur",
   medic: "Secouriste",
   hospital: "Urgences hôpital",
   admin: "Administrateur",
@@ -59,7 +59,7 @@ export function navFor(user: RoleHolder): NavItem[] {
       return [
         dispatcher,
         { label: "Console de démo", icon: TerminalSquareIcon, link: linkOptions({ to: "/console" }) },
-        { label: "IoT Showcase", icon: CpuIcon, link: linkOptions({ to: "/iot" }) },
+        { label: "Démonstration IoT", icon: CpuIcon, link: linkOptions({ to: "/iot" }) },
       ];
   }
 }
