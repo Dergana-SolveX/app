@@ -60,9 +60,9 @@ export function VehicleTwin({
   const flashPhase = Math.floor(nowMs / 150) % 2 === 0;
 
   return (
-    <section aria-labelledby="vehicle-twin-title" className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-      <div className="mb-3 flex items-center justify-between border-b pb-2">
-        <div>
+    <section aria-labelledby="vehicle-twin-title" className="min-w-0 rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+        <div className="min-w-0">
           <h2 id="vehicle-twin-title" className="text-sm font-bold tracking-tight">
             Jumeau Numérique 3D
           </h2>
@@ -169,14 +169,15 @@ export function VehicleTwin({
         </div>
 
         {/* Live Orientation HUD Overlays */}
-        <div className="absolute bottom-2 left-2 flex items-center gap-2 rounded bg-background/60 px-2 py-1 font-mono text-xs text-muted-foreground backdrop-blur-sm">
-          <span>Roulis (Roll) :</span>
-          <strong className="text-brand">{formatDegrees(rollDeg)}</strong>
-        </div>
-
-        <div className="absolute bottom-2 right-2 flex items-center gap-2 rounded bg-background/60 px-2 py-1 font-mono text-xs text-muted-foreground backdrop-blur-sm">
-          <span>Tangage (Pitch) :</span>
-          <strong className="text-brand">{formatDegrees(pitchDeg)}</strong>
+        <div className="absolute inset-x-2 bottom-2 flex flex-wrap justify-between gap-1 font-mono text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 rounded bg-background/60 px-2 py-1 backdrop-blur-sm">
+            <span>Roulis :</span>
+            <strong className="text-brand">{formatDegrees(rollDeg)}</strong>
+          </div>
+          <div className="flex items-center gap-1.5 rounded bg-background/60 px-2 py-1 backdrop-blur-sm">
+            <span>Tangage :</span>
+            <strong className="text-brand">{formatDegrees(pitchDeg)}</strong>
+          </div>
         </div>
       </div>
     </section>

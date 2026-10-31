@@ -121,6 +121,12 @@
       "skillPath": "skills/engineering/research/SKILL.md",
       "computedHash": "c219850f3a5effcdf4180ca550e92a375fbc8b5b1ec999f68804c37351363018"
     },
+    "responsive-design": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/ui-design/skills/responsive-design/SKILL.md",
+      "computedHash": "155eff4b1bc8d867ae6bea9900c485ab1081de0b4873c1900adb66bf62466aed"
+    },
     "retro": {
       "source": "mattpocock/skills",
       "sourceType": "github",
