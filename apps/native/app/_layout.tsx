@@ -1,4 +1,4 @@
-import { LocaleProvider, useLocale } from "@/contexts/locale-context";
+import { LocaleProvider } from "@/contexts/locale-context";
 import "@/global.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
@@ -9,20 +9,6 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { AppThemeProvider } from "@/contexts/app-theme-context";
 import { queryClient } from "@/utils/trpc";
 
-export const unstable_settings = {
-  anchor: "(drawer)",
-};
-
-function StackLayout() {
-  const { navigation } = useLocale();
-  return (
-    <Stack screenOptions={{}}>
-      <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-      <Stack.Screen name="modal" options={{ title: navigation.modal, presentation: "modal" }} />
-    </Stack>
-  );
-}
-
 export default function Layout() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -30,7 +16,20 @@ export default function Layout() {
         <KeyboardProvider>
           <AppThemeProvider>
             <HeroUINativeProvider>
-              <LocaleProvider><StackLayout /></LocaleProvider>
+              <LocaleProvider>
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: "#ffffff" },
+                    animation: "fade_from_bottom",
+                  }}
+                >
+                  <Stack.Screen name="index" options={{ headerShown: false }} />
+                  <Stack.Screen name="emergency" options={{ headerShown: false }} />
+                  <Stack.Screen name="witness" options={{ headerShown: false }} />
+                  <Stack.Screen name="modal" options={{ headerShown: false, presentation: "modal" }} />
+                </Stack>
+              </LocaleProvider>
             </HeroUINativeProvider>
           </AppThemeProvider>
         </KeyboardProvider>

@@ -48,7 +48,7 @@ export type WitnessFlowState = {
   idempotencyKey: string;
   lang: "fr" | "ar";
   profileCode: string | null;
-  victims: 1 | 2 | 3 | null;
+  victims: number | null;
   conscious: 0 | 1 | 2 | null;
   dangers: DangerType[];
   coords: Coords | null;
@@ -67,7 +67,7 @@ export type WitnessFlowState = {
 };
 
 export type WitnessFlowAction =
-  | { type: "SELECT_VICTIMS"; count: 1 | 2 | 3 }
+  | { type: "SELECT_VICTIMS"; count: number }
   | { type: "SELECT_CONSCIOUS"; value: 0 | 1 | 2 }
   | { type: "TOGGLE_DANGER"; danger: DangerType }
   | { type: "TICK_GPS_TIMER" }
@@ -88,7 +88,8 @@ export type WitnessFlowAction =
       };
     }
   | { type: "SUBMISSION_ERROR"; error: string }
-  | { type: "RESET"; idempotencyKey?: string };
+  | { type: "RESET"; idempotencyKey?: string }
+  | { type: "GO_BACK" };
 
 function toPayload(state: Omit<WitnessFlowState, "toSubmissionPayload">): SubmissionPayload {
   const hasGps = state.gpsStatus === "acquired" && state.coords !== null;
@@ -244,6 +245,17 @@ export function flowReducer(
 
     case "RESET": {
       return createWitnessFlowState(action.idempotencyKey, updated.profileCode);
+    }
+
+    case "GO_BACK": {
+      if (updated.step === 2) {
+        updated.step = 1;
+      } else if (updated.step === 3) {
+        updated.step = 2;
+      } else if (updated.step === "location_prompt") {
+        updated.step = 3;
+      }
+      break;
     }
   }
 

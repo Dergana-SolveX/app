@@ -8,6 +8,7 @@ vi.mock("expo-haptics", () => ({}));
 vi.mock("expo-location", () => ({ requestForegroundPermissionsAsync: async () => ({ status: "denied" }) }));
 vi.mock("expo-sensors", () => ({ Accelerometer: { setUpdateInterval: () => {}, addListener: () => ({ remove() {} }) } }));
 vi.mock("@expo/vector-icons", () => ({ Ionicons: () => null, MaterialCommunityIcons: () => null }));
+vi.mock("expo-router", () => ({ router: { back: vi.fn(), push: vi.fn(), canGoBack: vi.fn(() => false) } }));
 vi.mock("../../../native/src/env", () => ({ ENV: { EXPO_PUBLIC_SERVER_URL: "http://localhost:3000" } }));
 vi.mock("@/lib/auth-client", () => ({ authClient: { getCookie: () => "" } }));
 
