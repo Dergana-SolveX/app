@@ -108,7 +108,7 @@ export default function DispatchForm({ incidentId }: { incidentId: string }) {
       <header className="flex flex-wrap items-center gap-2">
         <SirenIcon className="size-5 text-primary" aria-hidden="true" />
         <h3 className="text-base font-bold">Décision de dispatch</h3>
-        <span className="ms-auto text-xs font-semibold text-muted-foreground uppercase">Vous décidez</span>
+        <span className="ms-auto text-xs font-semibold text-muted-foreground">Vous décidez</span>
       </header>
 
       {notice && (

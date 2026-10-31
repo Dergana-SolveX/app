@@ -30,7 +30,7 @@ export const USSD_TIMEOUT_MS = 120_000;
 const sha = (algorithm: "sha1" | "sha256", text: string) => createHash(algorithm).update(text).digest("hex");
 
 const QUESTIONS = [
-  "SVX Rescue - accident de la route\nCombien de victimes ?\n1. Une\n2. Deux\n3. Trois ou plus",
+  "AWN - accident de la route\nCombien de victimes ?\n1. Une\n2. Deux\n3. Trois ou plus",
   "Victimes conscientes ?\n1. Oui\n2. Non\n3. Ne sait pas",
   "Danger ?\n1. Feu\n2. Incarcere\n3. Saignement\n4. Aucun",
   "Commune ou PK ? (ex: Rouiba, RN5 PK 12)\n0. Passer",

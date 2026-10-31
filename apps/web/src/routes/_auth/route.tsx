@@ -30,13 +30,13 @@ function AuthLayout() {
   if (!appUser || !landingPathFor(appUser)) {
     return (
       <main className="grid min-h-dvh place-items-center p-6">
-        <div className="max-w-md rounded-lg border bg-card p-8 text-center">
-          <span className="mx-auto mb-4 grid size-12 place-items-center rounded-lg bg-sev-red-soft text-sev-red">
+        <div className="max-w-md rounded-xl border bg-card p-8 text-center shadow-md">
+          <span className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-sev-red-soft text-sev-red">
             <ShieldOffIcon className="size-6" aria-hidden="true" />
           </span>
-          <h1 className="text-lg font-extrabold">Accès refusé</h1>
+          <h1 className="text-2xl font-bold">Accès refusé</h1>
           <p className="mt-2 text-muted-foreground">
-            Ce compte n'a aucun rôle dans SVX Rescue. Contactez l'administrateur.
+            Ce compte n'a aucun rôle dans AWN. Contactez l'administrateur.
           </p>
         </div>
       </main>

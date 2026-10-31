@@ -153,7 +153,11 @@ export async function notifyAuthority(
 
   // Summary SMS text (FR-S5-05)
   const ref = incident.id.slice(0, 8).toUpperCase();
-  const place = incident.commune ?? (incident.lat && incident.lng ? `${incident.lat.toFixed(4)},${incident.lng.toFixed(4)}` : "Position à confirmer");
+  const place =
+    incident.commune ??
+    (incident.lat !== null && incident.lng !== null
+      ? `${incident.lat.toFixed(4)},${incident.lng.toFixed(4)}`
+      : "Position à confirmer");
   const victims = incident.estimatedVictims ? `${incident.estimatedVictims} victime(s)` : "victimes non précisées";
   const units = (incident.recUnits ?? []).map((u) => `${u.type} (${u.count})`).join(", ") || "VSAV";
   const body = `SVX ALERTE #${ref} - Gravite ${incident.recSeverity.toUpperCase()} - Lieu: ${place} - ${victims} - Moyens: ${units}`;
@@ -163,7 +167,7 @@ export async function notifyAuthority(
   const now = new Date();
   await db.insert(incidentEvents).values({
     incidentId,
-    actorRole: "dispatcher",
+    actorRole: appUser.role,
     actorId: appUser.id,
     type: "authority.notified",
     payload: {

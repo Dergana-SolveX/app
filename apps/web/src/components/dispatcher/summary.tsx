@@ -1,5 +1,8 @@
+import { CircleAlertIcon, ClockIcon, SirenIcon } from "lucide-react";
+
 import LiveStatus, { type StreamStatus } from "@/components/live-status";
 import { isActive, type Incident } from "./types";
+
 export function DispatcherSummary({
   incidents,
   status,
@@ -8,19 +11,22 @@ export function DispatcherSummary({
   status: StreamStatus;
 }) {
   const active = incidents.filter(isActive);
+  const red = active.filter((i) => i.recSeverity === "red").length;
+  const waiting = active.filter((i) => i.status === "open").length;
+  const tile = "flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-sm";
   return (
-    <div
-      className="mb-4 flex flex-wrap items-center gap-3 text-sm"
-      aria-label="Synthèse opérationnelle"
-    >
-      <span className="rounded-md border bg-card px-3 py-2 font-bold">
-        {active.length} en cours
+    <div className="flex flex-wrap items-center gap-2" aria-label="Synthèse opérationnelle">
+      <span className={`${tile} bg-card font-semibold shadow-xs`}>
+        <SirenIcon className="size-4 text-primary" aria-hidden="true" />
+        <span className="tabular text-base">{active.length}</span> en cours
       </span>
-      <span className="rounded-md border border-sev-red/40 bg-sev-red-soft px-3 py-2 font-bold text-sev-red">
-        {active.filter((i) => i.recSeverity === "red").length} RED
+      <span className={`${tile} border-sev-red/40 bg-sev-red-soft font-semibold text-sev-red`}>
+        <CircleAlertIcon className="size-4" aria-hidden="true" />
+        <span className="tabular text-base">{red}</span> RED
       </span>
-      <span className="rounded-md border bg-card px-3 py-2">
-        {active.filter((i) => i.status === "open").length} en attente
+      <span className={`${tile} bg-card shadow-xs`}>
+        <ClockIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+        <span className="tabular text-base font-semibold">{waiting}</span> en attente
       </span>
       <LiveStatus status={status} />
     </div>

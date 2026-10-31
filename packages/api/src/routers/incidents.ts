@@ -5,7 +5,6 @@ import { roleProcedure, router } from "../index";
 import { markFalseAlarm, mergeIncidents, splitIncident } from "../services/incident-corrections";
 import {
   getEvaluation,
-  getIncident,
   getIncidentProfiles,
   getMapLayers,
   listIncidents,
@@ -81,9 +80,10 @@ export const incidentsRouter = router({
   byId: dispatcherAccess
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const [evaluation, detail] = await Promise.all([getEvaluation(ctx.db, input.id), getIncident(ctx.db, input.id)]);
-      if (!evaluation || !detail) throw new TRPCError({ code: "NOT_FOUND", message: "Incident introuvable" });
-      return { ...evaluation, alerts: detail.alerts, journal: detail.journal };
+      // getEvaluation already carries the raw alerts and the journal.
+      const evaluation = await getEvaluation(ctx.db, input.id);
+      if (!evaluation) throw new TRPCError({ code: "NOT_FOUND", message: "Incident introuvable" });
+      return evaluation;
     }),
 
   /** Notifies the relevant authority (Police / Gendarmerie) by SMS summary and logs it (FR-S5-05). */

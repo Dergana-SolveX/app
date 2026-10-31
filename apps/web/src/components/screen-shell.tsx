@@ -13,9 +13,9 @@ export function PageHeader({
   badges?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-card px-4 py-5 md:px-6">
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-card px-4 py-6 md:px-6">
       <div>
-        <h1 className="text-xl font-extrabold tracking-tight md:text-2xl">{title}</h1>
+        <h1 className="text-2xl font-bold md:text-3xl">{title}</h1>
         {description && <p className="mt-1 max-w-2xl text-muted-foreground">{description}</p>}
       </div>
       {badges}
@@ -45,10 +45,10 @@ export default function ScreenShell({
       />
       <div className="p-4 md:p-6">
         <div className="grid place-items-center rounded-lg border border-dashed bg-card/60 px-6 py-16 text-center">
-          <span className="mb-4 grid size-12 place-items-center rounded-lg bg-accent text-accent-foreground">
+          <span className="mb-4 grid size-12 place-items-center rounded-full bg-brand-soft text-brand-soft-foreground">
             <ConstructionIcon className="size-6" aria-hidden="true" />
           </span>
-          <p className="text-base font-bold">Écran en cours de construction</p>
+          <p className="text-lg font-semibold">Écran en cours de construction</p>
           <p className="mt-1 max-w-md text-muted-foreground">
             Cet écran sera construit dans l'issue {issue}. Votre rôle et vos accès fonctionnent déjà.
           </p>

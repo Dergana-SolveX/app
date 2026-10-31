@@ -12,7 +12,7 @@ export function EmulationBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border border-emulation/50 bg-emulation-soft px-2 py-0.5 text-xs font-bold tracking-wide text-emulation uppercase",
+        "inline-flex items-center gap-1.5 rounded-full border border-emulation/40 bg-emulation-soft px-2.5 py-0.5 text-xs font-semibold text-emulation",
         className,
       )}
     >

@@ -100,7 +100,7 @@ export function EnRoutePanel({
     <div className="flex flex-col gap-3">
       {latest?.status === "diverted" && (
         <div role="alert" className="rounded-lg border-2 border-sev-red bg-sev-red-soft px-3 py-2">
-          <p className="flex items-center gap-2 text-sm font-extrabold uppercase text-sev-red">
+          <p className="flex items-center gap-2 text-sm font-bold text-sev-red">
             <CircleAlertIcon className="size-5 shrink-0" aria-hidden="true" />
             {nameOf(latest.hospitalId)} a dérouté le patient
           </p>
@@ -125,7 +125,7 @@ export function EnRoutePanel({
             En attente de la réponse de {nameOf(latest.hospitalId)} · envoyé {timeAgo(latest.createdAt, now)}
           </p>
           {latest.smsFallbackSentAt && (
-            <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300">
+            <span className="inline-flex items-center gap-1 rounded bg-sev-yellow/20 px-2 py-0.5 text-xs font-bold text-sev-yellow">
               <RadioIcon className="size-3" aria-hidden="true" />
               Envoyé aussi par SMS
             </span>
@@ -140,7 +140,7 @@ export function EnRoutePanel({
             {nameOf(latest.hospitalId)} a accepté : en route
           </p>
           {latest.smsFallbackSentAt && (
-            <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300">
+            <span className="inline-flex items-center gap-1 rounded bg-sev-yellow/20 px-2 py-0.5 text-xs font-bold text-sev-yellow">
               <RadioIcon className="size-3" aria-hidden="true" />
               Envoyé aussi par SMS
             </span>

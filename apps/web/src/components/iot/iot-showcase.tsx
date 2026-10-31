@@ -134,7 +134,7 @@ export default function IotShowcase() {
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-extrabold tracking-tight md:text-2xl">IoT Showcase</h1>
+            <h1 className="text-xl font-bold tracking-tight md:text-2xl">IoT Showcase</h1>
             <span className="flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
               <TvIcon className="h-3 w-3" />
               16:9 Projecteur
@@ -176,7 +176,7 @@ export default function IotShowcase() {
             ) : (
               <ol className="flex max-h-52 flex-col-reverse gap-0.5 overflow-y-auto text-xs">
                 {snapshot.records.slice(-12).map((record, i) => (
-                  <li key={`${record.tMs}-${i}`} className="flex gap-2 font-mono text-[11px]">
+                  <li key={`${record.tMs}-${i}`} className="flex gap-2 font-mono text-xs">
                     <span className="tabular text-muted-foreground">{clockTime(new Date(Date.now() - (snapshot.nowMs - record.tMs)))}</span>
                     <span>
                       {record.type === "state_change"
@@ -189,7 +189,7 @@ export default function IotShowcase() {
             )}
           </section>
 
-          <div className="rounded-md border border-border/40 bg-muted/20 p-2.5 text-[11px] text-muted-foreground">
+          <div className="rounded-md border border-border/40 bg-muted/20 p-2.5 text-xs text-muted-foreground">
             <div className="font-semibold text-foreground mb-1">Raccourcis Présentation :</div>
             <div><kbd className="font-mono bg-muted px-1 rounded">1</kbd>–<kbd className="font-mono bg-muted px-1 rounded">5</kbd> Scénarios</div>
             <div><kbd className="font-mono bg-muted px-1 rounded">Espace</kbd> Annuler alerte (CONFIRM)</div>

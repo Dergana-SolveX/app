@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "solvex-dergana",
+    "name": "AWN",
     "slug": "solvex-dergana",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,7 +13,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#042E2A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -35,7 +35,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Permettre à SVX Rescue de localiser précisément le lieu de l'accident."
+          "locationAlwaysAndWhenInUsePermission": "Permettre à AWN de localiser précisément le lieu de l'accident."
         }
       ],
       [
@@ -44,9 +44,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#F7FAF9",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#071B19"
           }
         }
       ]

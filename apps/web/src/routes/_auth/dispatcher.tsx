@@ -16,7 +16,7 @@ function DispatcherScreen() {
     <>
       <PageHeader
         title="Poste de commandement"
-        description="Incidents en direct, signaux reçus et coordination sur la carte."
+        description="Alertes en direct par ordre d'arrivée, évaluation et décision de dispatch."
       />
       <DispatcherWorkspace />
     </>

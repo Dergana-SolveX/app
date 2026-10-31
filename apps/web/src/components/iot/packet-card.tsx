@@ -68,7 +68,7 @@ export function PacketCard({ transmissions }: { transmissions: Transmission[] })
           <ul className="flex flex-wrap gap-1.5" aria-label="Champs du message SVX">
             {anatomy.fields.map((field) => (
               <li key={field.key} className={cn("rounded-md border px-2 py-1", KIND_STYLE[field.kind])}>
-                <span className="tabular font-mono text-sm font-extrabold">
+                <span className="tabular font-mono text-sm font-bold">
                   {field.key}
                   {field.value && `:${field.value}`}
                 </span>

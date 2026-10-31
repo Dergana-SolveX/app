@@ -108,12 +108,12 @@ export function MedicalProfileModal({
       aria-modal="true"
       aria-labelledby="profile-modal-title"
       dir={isAr ? "rtl" : "ltr"}
-      className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm"
+      className="absolute inset-0 z-50 bg-background/80 flex items-center justify-center p-4 backdrop-blur-sm"
     >
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm max-h-[90%] overflow-y-auto p-5 text-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+      <div className="bg-card border border-border-strong rounded-2xl w-full max-w-sm max-h-[90%] overflow-y-auto p-5 text-foreground shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
           <div className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-red-500 fill-red-500/20" />
+            <Heart className="w-5 h-5 text-sev-red fill-sev-red/20" />
             <h2 id="profile-modal-title" className="font-semibold text-lg">
               {isAr ? "الملف الطبي للطوارئ" : "Profil d'urgence"}
             </h2>
@@ -121,7 +121,7 @@ export function MedicalProfileModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition"
             aria-label={isAr ? "إغلاق" : "Fermer"}
           >
             <X className="w-5 h-5" />
@@ -131,18 +131,18 @@ export function MedicalProfileModal({
         {/* Existing registered code view */}
         {generatedCode ? (
           <div className="space-y-4">
-            <div className="bg-emerald-950/40 border border-emerald-600/30 rounded-xl p-4 text-center">
-              <ShieldCheck className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-              <p className="text-xs text-emerald-300 font-medium uppercase tracking-wider mb-1">
+            <div className="bg-sev-green-soft border border-sev-green/30 rounded-xl p-4 text-center">
+              <ShieldCheck className="w-8 h-8 text-sev-green mx-auto mb-2" />
+              <p className="text-xs text-sev-green font-medium mb-1">
                 {isAr ? "رمز الطوارئ الخاص بك (UID)" : "Votre code d'urgence (UID)"}
               </p>
               <div
                 data-testid="profile-short-code-display"
-                className="text-2xl font-mono font-bold tracking-widest text-emerald-200 py-1"
+                className="text-2xl font-mono font-bold text-foreground py-1"
               >
                 {generatedCode}
               </div>
-              <p className="text-[11px] text-slate-400 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 {isAr
                   ? "يتم إرفاق هذا الرمز تلقائيًا بإنذاراتك لإخطار الإسعاف بتاريخك الطبي."
                   : "Ce code est rattaché automatiquement à vos signalements pour alerter les secours de vos antécédents médicaux."}
@@ -151,7 +151,7 @@ export function MedicalProfileModal({
               <button
                 type="button"
                 onClick={handleCopyCode}
-                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 text-xs font-medium transition"
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sev-green/30 hover:bg-sev-green/50 text-foreground text-xs font-medium transition"
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? (isAr ? "تم النسخ !" : "Copié !") : isAr ? "نسخ الرمز" : "Copier le code"}
@@ -162,7 +162,7 @@ export function MedicalProfileModal({
               <button
                 type="button"
                 onClick={handleClearProfile}
-                className="flex-1 py-2 px-3 rounded-xl border border-red-900/50 bg-red-950/20 text-red-300 text-xs hover:bg-red-900/40 flex items-center justify-center gap-1.5 transition"
+                className="flex-1 py-2 px-3 rounded-xl border border-sev-red/50 bg-sev-red-soft text-sev-red text-xs hover:bg-sev-red-soft flex items-center justify-center gap-1.5 transition"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 {isAr ? "حذف من هذا الجهاز" : "Supprimer de cet appareil"}
@@ -170,7 +170,7 @@ export function MedicalProfileModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium transition"
+                className="flex-1 py-2 px-3 rounded-xl bg-muted hover:bg-accent text-foreground text-xs font-medium transition"
               >
                 {isAr ? "إنهاء" : "Terminer"}
               </button>
@@ -178,8 +178,8 @@ export function MedicalProfileModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3.5">
-            <div className="bg-slate-800/60 rounded-lg p-2.5 text-[11px] text-slate-300 border border-slate-700/60">
-              <span className="font-semibold text-amber-400">
+            <div className="bg-muted/60 rounded-lg p-2.5 text-xs text-muted-foreground border border-border-strong/60">
+              <span className="font-semibold text-sev-yellow">
                 {isAr ? "اختياري — لا يلزم وجود حساب." : "Optionnel — Aucun compte requis."}
               </span>{" "}
               {isAr
@@ -188,13 +188,13 @@ export function MedicalProfileModal({
             </div>
 
             {errorMsg && (
-              <div className="bg-red-900/30 border border-red-500/40 text-red-300 text-xs rounded-lg p-2.5">
+              <div className="bg-sev-red-soft border border-sev-red/40 text-sev-red text-xs rounded-lg p-2.5">
                 {errorMsg}
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
                 {isAr ? "الاسم واللقب *" : "Nom & Prénom *"}
               </label>
               <input
@@ -203,19 +203,19 @@ export function MedicalProfileModal({
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder={isAr ? "مثال: أمينة بن علي" : "Ex. Amina Benali"}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
+                className="w-full bg-muted border border-border-strong rounded-lg px-3 py-1.5 text-xs text-foreground focus-visible:border-brand"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   {isAr ? "الجنس *" : "Sexe *"}
                 </label>
                 <select
                   value={sex}
                   onChange={(e) => setSex(e.target.value as any)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
+                  className="w-full bg-muted border border-border-strong rounded-lg px-3 py-1.5 text-xs text-foreground focus-visible:border-brand"
                 >
                   <option value="male">{isAr ? "ذكر" : "Homme"}</option>
                   <option value="female">{isAr ? "أنثى" : "Femme"}</option>
@@ -223,13 +223,13 @@ export function MedicalProfileModal({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   {isAr ? "فصيلة الدم" : "Groupe sanguin"}
                 </label>
                 <select
                   value={bloodType}
                   onChange={(e) => setBloodType(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
+                  className="w-full bg-muted border border-border-strong rounded-lg px-3 py-1.5 text-xs text-foreground focus-visible:border-brand"
                 >
                   <option value="A+">A+</option>
                   <option value="A-">A-</option>
@@ -244,7 +244,7 @@ export function MedicalProfileModal({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
                 {isAr ? "رقم الهاتف *" : "Numéro de téléphone *"}
               </label>
               <input
@@ -253,12 +253,12 @@ export function MedicalProfileModal({
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder={isAr ? "مثال: 0555123456" : "Ex. 0555 12 34 56"}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
+                className="w-full bg-muted border border-border-strong rounded-lg px-3 py-1.5 text-xs text-foreground focus-visible:border-brand"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
                 {isAr ? "الأمراض المزمنة (مفصولة بفواصل)" : "Maladies chroniques (séparées par virgule)"}
               </label>
               <input
@@ -266,22 +266,22 @@ export function MedicalProfileModal({
                 value={chronicInput}
                 onChange={(e) => setChronicInput(e.target.value)}
                 placeholder={isAr ? "مثال: سكري، ربو، ضغط الدم" : "Ex. diabète, asthme, hypertension"}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500"
+                className="w-full bg-muted border border-border-strong rounded-lg px-3 py-1.5 text-xs text-foreground focus-visible:border-brand"
               />
             </div>
 
             {/* Law 18-07 explicit consent */}
-            <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-2.5">
+            <div className="bg-background/40 border border-border rounded-lg p-2.5">
               <label className="flex items-start gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   required
                   checked={consent}
                   onChange={(e) => setConsent(e.target.checked)}
-                  className="mt-0.5 rounded border-slate-700 bg-slate-800 text-red-500 focus:ring-0"
+                  className="mt-0.5 rounded border-border-strong bg-muted text-sev-red focus:ring-0"
                 />
-                <span className="text-[10px] text-slate-300 leading-tight">
-                  <strong className="text-white">
+                <span className="text-xs text-muted-foreground leading-tight">
+                  <strong className="text-foreground">
                     {isAr ? "الموافقة وفق القانون 18-07: " : "Consentement Loi 18-07 : "}
                   </strong>
                   {isAr
@@ -295,14 +295,14 @@ export function MedicalProfileModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-2 px-3 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 transition"
+                className="flex-1 py-2 px-3 rounded-xl border border-border-strong bg-muted text-muted-foreground text-xs hover:bg-accent transition"
               >
                 {isAr ? "إلغاء" : "Annuler"}
               </button>
               <button
                 type="submit"
                 disabled={registerMutation.isPending || !consent}
-                className="flex-1 py-2 px-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-red-600/30 transition"
+                className="flex-1 py-2 px-3 rounded-xl bg-danger-solid hover:bg-danger-solid/90 disabled:opacity-50 text-solid-foreground text-xs font-semibold shadow-lg transition"
               >
                 {registerMutation.isPending
                   ? isAr

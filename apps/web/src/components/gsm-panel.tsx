@@ -169,7 +169,7 @@ export default function GsmPanel() {
             <li key={m.id} className="rounded-md border bg-raised px-3 py-2">
               <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                 <span className="tabular font-mono">{clockTime(m.at)}</span>
-                <span className="font-semibold uppercase">
+                <span className="font-semibold">
                   {m.status === "sent" ? "Envoyé" : m.status}
                   {m.incidentId ? ` · incident #${incidentRef(m.incidentId)}` : ""}
                 </span>

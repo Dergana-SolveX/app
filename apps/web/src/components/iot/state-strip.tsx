@@ -24,7 +24,7 @@ function CountdownRing({ remainingMs }: { remainingMs: number }) {
           strokeDasharray={CIRCUMFERENCE} strokeDashoffset={CIRCUMFERENCE * (1 - remainingMs / total)}
         />
       </svg>
-      <span className="tabular font-mono text-3xl font-extrabold">{seconds}</span>
+      <span className="tabular font-mono text-3xl font-bold">{seconds}</span>
     </div>
   );
 }
@@ -75,7 +75,7 @@ export function StateStrip({
             </p>
             <CountdownRing remainingMs={confirmRemainingMs} />
             <div className="min-w-0 flex-1">
-              <p className="text-base font-extrabold">Impact détecté : l'alerte part dans {Math.ceil(confirmRemainingMs / 1000)} s</p>
+              <p className="text-base font-bold">Impact détecté : l'alerte part dans {Math.ceil(confirmRemainingMs / 1000)} s</p>
               <p className="text-sm text-muted-foreground">Le conducteur peut annuler une fausse alerte avec le bouton (touche Espace).</p>
             </div>
             <Button type="button" size="lg" variant="destructive" onClick={onCancel}>

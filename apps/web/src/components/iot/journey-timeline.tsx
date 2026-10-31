@@ -162,7 +162,7 @@ export function JourneyTimeline({
           </p>
         </div>
         {isCompleted && finalHop.totalLatencyMs !== null && (
-          <div className="flex items-center gap-1.5 rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400">
+          <div className="flex items-center gap-1.5 rounded bg-sev-green/10 px-2 py-0.5 text-xs font-semibold text-sev-green">
             <CheckCircle2Icon className="h-3.5 w-3.5" />
             <span>Délai total : {finalHop.totalLatencyMs} ms</span>
           </div>
@@ -182,20 +182,20 @@ export function JourneyTimeline({
           let badgeClass = "bg-muted text-muted-foreground";
 
           if (isDone) {
-            borderClass = "border-emerald-500/50 bg-emerald-950/20";
-            iconClass = "text-emerald-400";
+            borderClass = "border-sev-green/50 bg-sev-green-soft";
+            iconClass = "text-sev-green";
             badgeText = "Reçu ✓";
-            badgeClass = "bg-emerald-500/20 text-emerald-300";
+            badgeClass = "bg-sev-green/20 text-sev-green";
           } else if (isActive) {
-            borderClass = "border-amber-500/70 bg-amber-950/20 animate-pulse";
-            iconClass = "text-amber-400";
+            borderClass = "border-sev-yellow/70 bg-sev-yellow-soft animate-pulse";
+            iconClass = "text-sev-yellow";
             badgeText = "En cours...";
-            badgeClass = "bg-amber-500/20 text-amber-300";
+            badgeClass = "bg-sev-yellow/20 text-sev-yellow";
           } else if (isFailed) {
-            borderClass = "border-red-500/70 bg-red-950/20";
-            iconClass = "text-red-400";
+            borderClass = "border-sev-red/70 bg-sev-red-soft";
+            iconClass = "text-sev-red";
             badgeText = "Échec";
-            badgeClass = "bg-red-500/20 text-red-300";
+            badgeClass = "bg-sev-red/20 text-sev-red";
           }
 
           return (
@@ -209,38 +209,38 @@ export function JourneyTimeline({
                     <Icon className={`h-4 w-4 ${iconClass}`} />
                     <span className="text-xs font-bold">{index + 1}. {hop.id.toUpperCase()}</span>
                   </div>
-                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}`}>
+                  <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeClass}`}>
                     {badgeText}
                   </span>
                 </div>
 
                 <div className="mt-2 text-xs font-semibold">{hop.title}</div>
-                <div className="text-[11px] text-muted-foreground" dir="rtl">{hop.titleAr}</div>
-                <p className="mt-1 text-[11px] text-muted-foreground leading-tight">{hop.subtitle}</p>
+                <div className="text-xs text-muted-foreground" dir="rtl">{hop.titleAr}</div>
+                <p className="mt-1 text-xs text-muted-foreground leading-tight">{hop.subtitle}</p>
               </div>
 
-              <div className="mt-3 border-t border-border/40 pt-2 text-[11px] font-mono">
+              <div className="mt-3 border-t border-border/40 pt-2 text-xs font-mono">
                 {hop.latencyMs !== null ? (
                   <div className="text-foreground">
                     <span className="text-muted-foreground">Saut : </span>
-                    <strong className="text-emerald-400">{hop.latencyMs} ms</strong>
+                    <strong className="text-sev-green">{hop.latencyMs} ms</strong>
                   </div>
                 ) : (
                   <span className="text-muted-foreground">-- ms</span>
                 )}
 
                 {hop.incidentId && (
-                  <div className="truncate text-[10px] text-muted-foreground">
+                  <div className="truncate text-xs text-muted-foreground">
                     Incident : <span className="text-foreground">{hop.incidentId.slice(0, 8)}...</span>
                   </div>
                 )}
                 {hop.ack && (
-                  <div className="truncate text-[10px] text-muted-foreground">
-                    ACK : <span className="text-emerald-400">{hop.ack}</span>
+                  <div className="truncate text-xs text-muted-foreground">
+                    ACK : <span className="text-sev-green">{hop.ack}</span>
                   </div>
                 )}
                 {isFailed && hop.error && (
-                  <div className="flex items-center gap-1 text-[10px] text-red-400">
+                  <div className="flex items-center gap-1 text-xs text-sev-red">
                     <AlertCircleIcon className="h-3 w-3 shrink-0" />
                     <span className="truncate">{hop.error}</span>
                   </div>

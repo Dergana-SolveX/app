@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, ScrollView, Text, Vibration, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { getLabels, type Locale, type CrashCountdownState } from "@solvex-dergana/shared";
 
 interface CrashCountdownOverlayProps {
@@ -111,7 +112,7 @@ export function CrashCountdownOverlay({
                 pressed && styles.cancelButtonPressed,
               ]}
             >
-              <Text style={styles.cancelButtonIcon}>✋</Text>
+              <Ionicons name="hand-left" size={32} color="#B91C1C" style={styles.cancelButtonIcon} />
               <Text style={styles.cancelButtonMainText}>
                 {t.cancel}
               </Text>
@@ -127,7 +128,7 @@ export function CrashCountdownOverlay({
 
         {isCancelled && (
           <View style={styles.resultCard}>
-            <Text style={styles.resultIcon}>✅</Text>
+            <Ionicons name="checkmark-circle" size={54} color="#4ADE80" style={styles.resultIcon} />
             <Text style={styles.resultTitle}>{t.cancelled}</Text>
             <Text style={styles.resultDescription}>{t.cancelledHelp}</Text>
             <Pressable
@@ -143,7 +144,7 @@ export function CrashCountdownOverlay({
 
         {(isSending || isExpired) && (
           <View style={styles.resultCard}>
-            <Text style={styles.resultIcon}>📡</Text>
+            <Ionicons name="cellular" size={54} color="#60A5FA" style={styles.resultIcon} />
             <Text style={styles.resultTitle}>{t.sending}</Text>
             <Text style={styles.resultDescription}>{t.sendingHelp}</Text>
           </View>
@@ -161,7 +162,7 @@ export function CrashCountdownOverlay({
 
         {isSent && (
           <View style={styles.resultCard}>
-            <Text style={styles.resultIcon}>🚨</Text>
+            <Ionicons name="megaphone" size={54} color="#2DD4BF" style={styles.resultIcon} />
             <Text style={styles.resultTitle}>{t.sent}</Text>
             <Text style={styles.resultDescription}>{t.sentHelp}</Text>
             <Pressable
@@ -205,22 +206,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerBadge: {
-    backgroundColor: "#ef4444",
+    backgroundColor: "#B91C1C",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#fca5a5",
+    borderColor: "#FEE2E2",
     marginBottom: 8,
   },
   headerBadgeText: {
     color: "#ffffff",
-    fontWeight: "900",
+    fontWeight: "700",
     fontSize: 13,
     letterSpacing: 0.5,
   },
   arabicHeader: {
-    color: "#fecaca",
+    color: "#FEE2E2",
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 28,
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
     width: 170,
     height: 170,
     borderRadius: 85,
-    backgroundColor: "#b91c1c",
+    backgroundColor: "#991B1B",
     borderWidth: 4,
     borderColor: "#ffffff",
     justifyContent: "center",
@@ -245,17 +246,17 @@ const styles = StyleSheet.create({
   timerNumber: {
     color: "#ffffff",
     fontSize: 72,
-    fontWeight: "900",
+    fontWeight: "700",
     lineHeight: 76,
   },
   timerUnit: {
-    color: "#fca5a5",
+    color: "#FEE2E2",
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "700",
     letterSpacing: 1,
   },
   helperText: {
-    color: "#fecaca",
+    color: "#FEE2E2",
     fontSize: 15,
     textAlign: "center",
     marginBottom: 32,
@@ -279,10 +280,10 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
     borderWidth: 2,
-    borderColor: "#fca5a5",
+    borderColor: "#FEE2E2",
   },
   cancelButtonPressed: {
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#EFF5F3",
     transform: [{ scale: 0.98 }],
   },
   cancelButtonIcon: {
@@ -290,14 +291,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cancelButtonMainText: {
-    color: "#991b1b",
+    color: "#B91C1C",
     fontSize: 22,
-    fontWeight: "900",
+    fontWeight: "700",
     letterSpacing: 0.5,
     textAlign: "center",
   },
   cancelButtonSubText: {
-    color: "#dc2626",
+    color: "#B91C1C",
     fontSize: 16,
     fontWeight: "700",
     marginTop: 4,
@@ -310,12 +311,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   simulatedTagText: {
-    color: "#fca5a5",
+    color: "#FEE2E2",
     fontSize: 11,
     fontWeight: "600",
   },
   resultCard: {
-    backgroundColor: "rgba(30, 41, 59, 0.95)",
+    backgroundColor: "rgba(11, 37, 34, 0.96)",
     padding: 32,
     borderRadius: 24,
     alignItems: "center",
@@ -330,26 +331,26 @@ const styles = StyleSheet.create({
   resultTitle: {
     color: "#ffffff",
     fontSize: 24,
-    fontWeight: "900",
+    fontWeight: "700",
     marginBottom: 6,
     textAlign: "center",
   },
   resultArabic: {
-    color: "#94a3b8",
+    color: "#A7C2BB",
     fontSize: 17,
     fontWeight: "600",
     marginBottom: 16,
     textAlign: "center",
   },
   resultDescription: {
-    color: "#cbd5e1",
+    color: "#EAF5F2",
     fontSize: 15,
     textAlign: "center",
     lineHeight: 22,
     marginBottom: 24,
   },
   returnButton: {
-    backgroundColor: "#3b82f6",
+    backgroundColor: "#1D4ED8",
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 12,

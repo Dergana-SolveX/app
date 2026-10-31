@@ -41,7 +41,7 @@ function Line({ letter, label, children }: { letter: string; label: string; chil
   return (
     <div className="flex gap-2 py-0.5 text-sm">
       <dt className="flex w-24 shrink-0 items-baseline gap-1.5 text-muted-foreground">
-        <span className="tabular w-4 font-mono text-base font-extrabold text-foreground" aria-hidden="true">
+        <span className="tabular w-4 font-mono text-base font-bold text-foreground" aria-hidden="true">
           {letter}
         </span>
         {label}
@@ -96,17 +96,17 @@ function HandoverCard({ handover, now, hospitalId, locale }: { handover: Incomin
     <li className={cn("rounded-lg border bg-card p-4", pending && "border-primary/60 ring-2 ring-primary/20")}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="flex flex-wrap items-center gap-2 text-base font-extrabold">
+          <p className="flex flex-wrap items-center gap-2 text-base font-bold">
             <AmbulanceIcon className="size-5 text-primary" aria-hidden="true" />
             <bdi dir="ltr">{atmist.unit}</bdi> · {t.victim} <bdi dir="ltr">{atmist.victimIndex}</bdi>
             {atmist.severe && (
-              <span className="inline-flex items-center gap-1 rounded-md border border-sev-red/40 bg-sev-red-soft px-2 py-0.5 text-xs font-bold tracking-wide text-sev-red uppercase">
+              <span className="inline-flex items-center gap-1 rounded-md border border-sev-red/40 bg-sev-red-soft px-2 py-0.5 text-xs font-bold text-sev-red">
                 <CircleAlertIcon className="size-3.5" aria-hidden="true" />
                 {t.severe}
               </span>
             )}
             {handover.smsFallbackSentAt && (
-              <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-bold tracking-wide text-amber-700 dark:text-amber-300">
+              <span className="inline-flex items-center gap-1 rounded-md border border-sev-yellow/40 bg-sev-yellow/10 px-2 py-0.5 text-xs font-bold text-sev-yellow">
                 <RadioIcon className="size-3.5" aria-hidden="true" />
                 {t.smsSent}
               </span>
@@ -120,7 +120,7 @@ function HandoverCard({ handover, now, hospitalId, locale }: { handover: Incomin
               <ClockIcon className="size-3.5" aria-hidden="true" />
               {countdown.late ? t.late : t.arriving}
             </p>
-            <p dir="ltr" className={cn("tabular font-mono text-2xl font-extrabold", countdown.late && "text-sev-yellow")}>{countdown.text}</p>
+            <p dir="ltr" className={cn("tabular font-mono text-2xl font-bold", countdown.late && "text-sev-yellow")}>{countdown.text}</p>
           </div>
         )}
       </div>
@@ -162,7 +162,7 @@ function HandoverCard({ handover, now, hospitalId, locale }: { handover: Incomin
           )}
           {atmist.prep.length > 0 && (
             <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
-              <p className="font-extrabold text-primary uppercase tracking-wide">{t.prepare}</p>
+              <p className="font-bold text-primary">{t.prepare}</p>
               <ul className="mt-1 list-disc list-inside space-y-0.5">
                 {atmist.prep.map((p) => (
                   <li key={p}><bdi dir="auto">{p}</bdi></li>
@@ -293,9 +293,9 @@ export default function HospitalBoard({ hospitalId }: { hospitalId: string }) {
         <div className="mb-6 rounded-lg border bg-card p-4 shadow-sm">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-base font-extrabold flex items-center gap-2">
+              <h2 className="text-base font-bold flex items-center gap-2">
                 <span>{hospital.data.name}</span>
-                <span className="text-xs font-normal text-muted-foreground uppercase tracking-wider">
+                <span className="text-xs font-normal text-muted-foreground">
                   ({hospital.data.commune})
                 </span>
               </h2>
@@ -307,7 +307,7 @@ export default function HospitalBoard({ hospitalId }: { hospitalId: string }) {
             {hospital.data.staleDivert && (
               <div
                 role="alert"
-                className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-300"
+                className="flex items-center gap-1.5 rounded-md border border-sev-yellow/40 bg-sev-yellow/15 px-3 py-1 text-xs font-bold text-sev-yellow"
               >
                 <CircleAlertIcon className="size-4 shrink-0" aria-hidden="true" />
                 {t.stale}
@@ -339,7 +339,7 @@ export default function HospitalBoard({ hospitalId }: { hospitalId: string }) {
                 >
                   <span className={cn("size-2 rounded-full", isDiverted ? "bg-sev-red" : "bg-sev-green")} />
                   {needs[need]}
-                  <span className="font-mono text-[10px] uppercase opacity-75">
+                  <span className="font-mono text-xs opacity-75">
                     {isDiverted ? t.diverted : t.accepting}
                   </span>
                 </button>

@@ -58,7 +58,7 @@ export default function EvaluationCard({ incidentId }: { incidentId: string }) {
       <header className="flex flex-wrap items-center gap-3">
         <SeverityBadge severity={view.severity} />
         <h3 className="text-base font-bold">{view.headline}</h3>
-        <span className="ms-auto text-xs font-semibold text-muted-foreground uppercase">Recommandation automatique</span>
+        <span className="ms-auto text-xs font-semibold text-muted-foreground">Recommandation automatique</span>
       </header>
 
       {escalationTo && (
@@ -126,7 +126,7 @@ export default function EvaluationCard({ incidentId }: { incidentId: string }) {
               )}
               {view.authority.notification ? (
                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-sev-green/40 bg-sev-green/10 px-2 py-0.5 text-xs font-semibold text-sev-green">
                     <CheckCircle2Icon className="size-3.5" aria-hidden="true" />
                     Notifiée à {new Date(view.authority.notification.notifiedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </span>

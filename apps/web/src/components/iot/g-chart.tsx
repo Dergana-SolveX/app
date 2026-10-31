@@ -32,7 +32,7 @@ export function GChart({ chart, nowMs, rejected }: { chart: Snapshot["chart"]; n
     <figure className="m-0">
       <div className="mb-1 flex items-baseline justify-between gap-3">
         <figcaption className="text-sm font-bold">Accélération (g)</figcaption>
-        <p className="tabular font-mono text-2xl font-extrabold">
+        <p className="tabular font-mono text-2xl font-bold">
           {current.toFixed(1).replace(".", ",")} <span className="text-sm font-semibold text-muted-foreground">g</span>
         </p>
       </div>

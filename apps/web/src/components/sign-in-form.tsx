@@ -20,6 +20,7 @@ import { useState } from "react";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
+import { BRAND_TAGLINE } from "@/lib/brand";
 import { DEMO_PASSWORD, QUICK_LOGINS } from "@/lib/demo-accounts";
 
 import Loader from "./loader";
@@ -73,11 +74,11 @@ export default function SignInForm() {
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
       {/* Brand panel */}
       <aside
-        className="relative hidden overflow-hidden bg-sidebar p-12 text-sidebar-foreground lg:flex lg:flex-col lg:justify-between"
+        className="awn-grid-bg relative hidden overflow-hidden bg-sidebar p-12 text-sidebar-foreground lg:flex lg:flex-col lg:justify-between"
       >
-        <Logo inverted />
+        <Logo inverted subtitle="Assistance d'urgence" />
         <div className="max-w-lg">
-          <h2 className="text-3xl leading-[1.1] font-extrabold tracking-tight text-sidebar-accent-foreground">
+          <h2 className="text-4xl leading-tight font-bold text-sidebar-accent-foreground">
             Du choc à l'hôpital,
             <br />
             <span className="text-sidebar-primary">sans perdre une minute.</span>
@@ -85,7 +86,7 @@ export default function SignInForm() {
           <ol className="mt-10 space-y-5">
             {STEPS.map(({ icon: Icon, title, text }, i) => (
               <li key={title} className="flex items-start gap-4">
-                <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-sidebar-border bg-sidebar-accent text-sidebar-primary">
+                <span className="grid size-11 shrink-0 place-items-center rounded-md border border-sidebar-border bg-sidebar-accent text-sidebar-primary">
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
                 <span>
@@ -99,6 +100,8 @@ export default function SignInForm() {
           </ol>
         </div>
         <p className="text-sm text-sidebar-muted">
+          {BRAND_TAGLINE}
+          <br />
           SolveX 3.0 · Prototype · Données de démonstration
         </p>
       </aside>
@@ -106,8 +109,8 @@ export default function SignInForm() {
       {/* Form column */}
       <main id="main" className="flex items-center justify-center px-5 py-10 sm:px-8">
         <div className="w-full max-w-md">
-          <Logo className="mb-10 lg:hidden" />
-          <h1 className="text-3xl font-extrabold tracking-tight">Connexion</h1>
+          <Logo className="mb-10 lg:hidden" subtitle="Assistance d'urgence" />
+          <h1 className="text-3xl font-bold">Connexion</h1>
           <p className="mt-2 text-muted-foreground">Accédez à votre poste de travail.</p>
 
           <form
@@ -213,7 +216,7 @@ export default function SignInForm() {
             <div className="flex items-center gap-3">
               <h2
                 id="demo-accounts"
-                className="text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase"
+                className="text-sm font-semibold text-muted-foreground"
               >
                 Accès démo
               </h2>
@@ -227,11 +230,11 @@ export default function SignInForm() {
                     disabled={busy}
                     onClick={() => signIn(email, DEMO_PASSWORD, email)}
                     className={cn(
-                      "group flex min-h-14 w-full cursor-pointer items-center gap-3.5 rounded-lg border bg-card px-3.5 py-2.5 text-start transition-colors",
-                      "hover:border-primary/60 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50",
+                      "group flex min-h-14 w-full cursor-pointer items-center gap-3.5 rounded-md border bg-card px-3.5 py-2.5 text-start shadow-xs transition-colors",
+                      "hover:border-brand hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50",
                     )}
                   >
-                    <span className="grid size-9 shrink-0 place-items-center rounded-md bg-secondary text-primary group-hover:bg-card">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-sm bg-brand-soft text-brand-soft-foreground">
                       {signingIn === email ? (
                         <Loader2Icon className="size-5 animate-spin" aria-hidden="true" />
                       ) : (

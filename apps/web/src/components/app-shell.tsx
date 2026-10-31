@@ -18,7 +18,7 @@ type Props = {
 };
 
 const navLink =
-  "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[status=active]:bg-sidebar-accent data-[status=active]:text-sidebar-accent-foreground";
+  "group relative flex min-h-11 items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-sidebar-ring data-[status=active]:bg-sidebar-accent data-[status=active]:text-sidebar-accent-foreground";
 
 export default function AppShell({ user, appUser, children }: Props) {
   const { locale } = useLocale();
@@ -33,14 +33,14 @@ export default function AppShell({ user, appUser, children }: Props) {
           <Logo inverted subtitle={getLabels(locale, "victim").emergency} />
         </div>
         <nav aria-label={t.nav} className="flex-1 space-y-1 p-3">
-          <p className="px-3 pt-2 pb-2 text-xs font-bold tracking-[0.14em] text-sidebar-muted uppercase">
+          <p className="px-3 pt-2 pb-2 text-xs font-medium text-sidebar-muted">
             {t[appUser.role]}
           </p>
           {items.map(({ label, icon: Icon, link }) => (
             <Link key={label} {...link} className={navLink}>
               <span
                 aria-hidden="true"
-                className="absolute inset-y-2 start-0 w-1 rounded-sm bg-sidebar-primary opacity-0 group-data-[status=active]:opacity-100"
+                className="absolute inset-y-2 start-0 w-1 rounded-full bg-sidebar-primary opacity-0 group-data-[status=active]:opacity-100"
               />
               <Icon className="size-5 shrink-0" aria-hidden="true" />
               {label}
@@ -56,9 +56,14 @@ export default function AppShell({ user, appUser, children }: Props) {
 
       {/* Top bar */}
       <header className="flex h-16 items-center justify-between gap-3 border-b bg-card px-4 md:px-6">
-        <div className="flex items-center gap-3 md:hidden">
-          <LogoMark className="size-8" />
-          <span className="text-sm font-extrabold tracking-tight">SVX Rescue</span>
+        <div className="flex items-center gap-2.5 md:hidden">
+          <LogoMark className="size-9" />
+          <span className="text-base font-bold">
+            AWN{" "}
+            <span lang="ar" dir="rtl" className="font-semibold text-muted-foreground">
+              عون
+            </span>
+          </span>
         </div>
         <div className="hidden md:block" />
         <div className="flex items-center gap-2">
@@ -84,7 +89,7 @@ export default function AppShell({ user, appUser, children }: Props) {
               key={label}
               {...link}
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-xs font-semibold text-sidebar-foreground/75 data-[status=active]:text-sidebar-primary",
+                "flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-xs font-semibold text-sidebar-foreground/75 data-[status=active]:text-sidebar-primary",
               )}
             >
               <Icon className="size-5" aria-hidden="true" />

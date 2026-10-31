@@ -1,121 +1,159 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@fontsource-variable/figtree";
-@import "@fontsource-variable/jetbrains-mono";
-@import "@fontsource-variable/noto-sans-arabic";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource/ibm-plex-sans-arabic/400.css";
+@import "@fontsource/ibm-plex-sans-arabic/500.css";
+@import "@fontsource/ibm-plex-sans-arabic/600.css";
+@import "@fontsource/ibm-plex-sans-arabic/700.css";
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
 
 /*
- * SVX Rescue design tokens. See design-system/svx-rescue/MASTER.md.
- * Brand = clinical teal. Red is reserved for severity/danger, never decoration.
+ * AWN (عون) design tokens. Source of truth: docs/design_system.md.
+ * Teal = brand and normal interaction. Red/amber/green/blue are semantic only, never decoration.
+ * Light-mode --primary uses Teal Dark (#0F766E) so teal text on white keeps 4.5:1 contrast;
+ * Primary Teal (#0D9488) stays available as --brand for non-text accents.
  */
 :root {
-  --background: #f3f6f8;
-  --foreground: #0b1b26;
+  --brand: #0d9488;
+  --brand-soft: #ccfbf1;
+  --brand-soft-foreground: #115e59;
+
+  --background: #f7faf9;
+  --foreground: #102a27;
   --card: #ffffff;
-  --card-foreground: #0b1b26;
+  --card-foreground: #102a27;
   --popover: #ffffff;
-  --popover-foreground: #0b1b26;
-  --raised: #eef3f6;
-  --primary: #0a7186;
+  --popover-foreground: #102a27;
+  --raised: #eff5f3;
+  --primary: #0f766e;
   --primary-foreground: #ffffff;
-  --secondary: #e6edf1;
-  --secondary-foreground: #14303f;
-  --muted: #e9eff3;
-  --muted-foreground: #475a68;
-  --accent: #d9eef2;
-  --accent-foreground: #07505f;
-  --destructive: #c62828;
+  --primary-action: #0f766e;
+  --primary-action-foreground: #ffffff;
+  --primary-hover: #115e59;
+  --secondary: #eff5f3;
+  --secondary-foreground: #102a27;
+  --muted: #eff5f3;
+  --muted-foreground: #526b66;
+  --subtle-foreground: #78908a;
+  --accent: #e5efec;
+  --accent-foreground: #102a27;
+  --destructive: #b91c1c;
   --destructive-foreground: #ffffff;
-  --border: #d3dde4;
-  --input: #bccad4;
-  --ring: #0a7186;
+  --border: #dce8e4;
+  --border-strong: #b8cdc6;
+  --input: #b8cdc6;
+  --ring: #0d9488;
 
-  /* Severity: always paired with an icon or text, never color alone. */
-  --sev-red: #c62828;
-  --sev-red-soft: #fdecea;
-  --sev-yellow: #9a5b00;
-  --sev-yellow-soft: #fff3d6;
-  --sev-green: #17724a;
-  --sev-green-soft: #e1f3e9;
-  --sev-unknown: #51626f;
-  --sev-unknown-soft: #e9eff3;
-  --sev-ai: #5b3fb0;
-  --sev-ai-soft: #ece8fa;
-  --emulation: #a14d00;
-  --emulation-soft: #fff0dd;
+  /* Severity / status: always paired with an icon and a word, never color alone. */
+  --sev-red: #b91c1c;
+  --sev-red-soft: #fee2e2;
+  --sev-yellow: #b45309;
+  --sev-yellow-soft: #fef3c7;
+  --sev-green: #15803d;
+  --sev-green-soft: #dcfce7;
+  --sev-unknown: #526b66;
+  --sev-unknown-soft: #eff5f3;
+  --info: #1d4ed8;
+  --info-soft: #dbeafe;
+  /* Filled semantic surfaces carry white text in both themes, so they keep the light-theme values. */
+  --danger-solid: #b91c1c;
+  --warning-solid: #b45309;
+  --success-solid: #15803d;
+  --info-solid: #1d4ed8;
+  --solid-foreground: #ffffff;
+  /* AI suggestions and emulated data are neutral information. */
+  --sev-ai: var(--info);
+  --sev-ai-soft: var(--info-soft);
+  --emulation: var(--info);
+  --emulation-soft: var(--info-soft);
 
-  --chart-1: #0a7186;
-  --chart-2: #c62828;
-  --chart-3: #9a5b00;
-  --chart-4: #17724a;
-  --chart-5: #5b3fb0;
+  --chart-1: #0d9488;
+  --chart-2: #b91c1c;
+  --chart-3: #b45309;
+  --chart-4: #15803d;
+  --chart-5: #1d4ed8;
 
-  --radius: 0.5rem;
-
-  /* The sidebar is the brand anchor: deep navy in both themes. */
-  --sidebar: #0a1620;
-  --sidebar-foreground: #dbe6ed;
-  --sidebar-muted: #8aa0af;
-  --sidebar-primary: #3cc4da;
-  --sidebar-primary-foreground: #04161b;
-  --sidebar-accent: #14283a;
+  /* The sidebar is the brand anchor: Deep Forest in both themes. */
+  --sidebar: #042e2a;
+  --sidebar-foreground: #eaf5f2;
+  --sidebar-muted: #a7c2bb;
+  --sidebar-primary: #2dd4bf;
+  --sidebar-primary-foreground: #042e2a;
+  --sidebar-accent: #164e48;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1b3345;
-  --sidebar-ring: #3cc4da;
+  --sidebar-border: #164e48;
+  --sidebar-ring: #2dd4bf;
+
+  --shadow-color: 16 42 39;
 }
 
 .dark {
-  --background: #091119;
-  --foreground: #e6eef3;
-  --card: #0f1a24;
-  --card-foreground: #e6eef3;
-  --popover: #132230;
-  --popover-foreground: #e6eef3;
-  --raised: #152634;
-  --primary: #35bdd3;
-  --primary-foreground: #04161b;
-  --secondary: #172a39;
-  --secondary-foreground: #e6eef3;
-  --muted: #13222f;
-  --muted-foreground: #94a8b6;
-  --accent: #123642;
-  --accent-foreground: #8fe0ee;
-  --destructive: #ff6b6b;
-  --destructive-foreground: #1a0505;
-  --border: #22364a;
-  --input: #34506a;
-  --ring: #35bdd3;
+  --brand: #2dd4bf;
+  --brand-soft: #164039;
+  --brand-soft-foreground: #99f6e4;
 
-  --sev-red: #ff6b6b;
-  --sev-red-soft: #2c1417;
-  --sev-yellow: #f5b544;
-  --sev-yellow-soft: #2a2110;
-  --sev-green: #4cc38a;
-  --sev-green-soft: #11291e;
-  --sev-unknown: #94a8b6;
-  --sev-unknown-soft: #172633;
-  --sev-ai: #b7a2ff;
-  --sev-ai-soft: #221b3f;
-  --emulation: #ffb25e;
-  --emulation-soft: #2e1f0e;
+  --background: #071b19;
+  --foreground: #eaf5f2;
+  --card: #0b2522;
+  --card-foreground: #eaf5f2;
+  --popover: #10312d;
+  --popover-foreground: #eaf5f2;
+  --raised: #10312d;
+  --primary: #2dd4bf;
+  --primary-foreground: #042e2a;
+  --primary-action: #0f766e;
+  --primary-action-foreground: #ffffff;
+  --primary-hover: #0d9488;
+  --secondary: #10312d;
+  --secondary-foreground: #eaf5f2;
+  --muted: #10312d;
+  --muted-foreground: #a7c2bb;
+  --subtle-foreground: #789b92;
+  --accent: #164039;
+  --accent-foreground: #eaf5f2;
+  --destructive: #f87171;
+  --destructive-foreground: #021c19;
+  --border: #1e4841;
+  --border-strong: #32645b;
+  --input: #32645b;
+  --ring: #2dd4bf;
 
-  --chart-1: #35bdd3;
-  --chart-2: #ff6b6b;
-  --chart-3: #f5b544;
-  --chart-4: #4cc38a;
-  --chart-5: #b7a2ff;
+  --sev-red: #f87171;
+  --sev-red-soft: #3b191b;
+  --sev-yellow: #fbbf24;
+  --sev-yellow-soft: #3b2b12;
+  --sev-green: #4ade80;
+  --sev-green-soft: #123522;
+  --sev-unknown: #a7c2bb;
+  --sev-unknown-soft: #10312d;
+  --info: #60a5fa;
+  --info-soft: #172c49;
 
-  --sidebar: #070e15;
-  --sidebar-border: #162838;
+  --chart-1: #2dd4bf;
+  --chart-2: #f87171;
+  --chart-3: #fbbf24;
+  --chart-4: #4ade80;
+  --chart-5: #60a5fa;
+
+  --sidebar: #021c19;
+  --sidebar-accent: #10312d;
+  --sidebar-border: #10312d;
+
+  --shadow-color: 0 0 0;
 }
 
 @theme inline {
-  --font-sans: "Figtree Variable", "Noto Sans Arabic Variable", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-sans: "Geist Variable", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-arabic: "IBM Plex Sans Arabic", "Geist Variable", system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-soft-foreground: var(--brand-soft-foreground);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -126,15 +164,20 @@
   --color-raised: var(--raised);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-action: var(--primary-action);
+  --color-primary-action-foreground: var(--primary-action-foreground);
+  --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
@@ -146,6 +189,13 @@
   --color-sev-green-soft: var(--sev-green-soft);
   --color-sev-unknown: var(--sev-unknown);
   --color-sev-unknown-soft: var(--sev-unknown-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-danger-solid: var(--danger-solid);
+  --color-warning-solid: var(--warning-solid);
+  --color-success-solid: var(--success-solid);
+  --color-info-solid: var(--info-solid);
+  --color-solid-foreground: var(--solid-foreground);
   --color-sev-ai: var(--sev-ai);
   --color-sev-ai-soft: var(--sev-ai-soft);
   --color-emulation: var(--emulation);
@@ -167,13 +217,22 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --radius-sm: calc(var(--radius) - 3px);
-  --radius-md: calc(var(--radius) - 1px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Radius scale (design system §5). */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius: var(--radius-sm);
 
-  --shadow-panel: 0 1px 0 0 color-mix(in srgb, var(--foreground) 4%, transparent);
-  --shadow-pop: 0 8px 24px -6px color-mix(in srgb, #000 35%, transparent);
+  /* Elevation (design system §7): soft in light mode, borders carry hierarchy in dark mode. */
+  --shadow-xs: 0 1px 2px 0 rgb(var(--shadow-color) / 0.06);
+  --shadow-sm: 0 1px 2px 0 rgb(var(--shadow-color) / 0.06), 0 1px 3px 0 rgb(var(--shadow-color) / 0.08);
+  --shadow-md: 0 4px 12px -2px rgb(var(--shadow-color) / 0.1), 0 2px 4px -2px rgb(var(--shadow-color) / 0.06);
+  --shadow-lg: 0 16px 40px -8px rgb(var(--shadow-color) / 0.18), 0 4px 12px -4px rgb(var(--shadow-color) / 0.08);
+  --shadow-panel: var(--shadow-sm);
+  --shadow-pop: var(--shadow-lg);
 }
 
 @layer base {
@@ -185,9 +244,15 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    @apply bg-background font-sans text-sm leading-relaxed text-foreground antialiased;
+    @apply bg-background font-sans text-base leading-relaxed text-foreground antialiased;
   }
-  /* Right-to-left screens (Arabic) flip automatically with dir="rtl". */
+  /* Arabic: its own typeface, taller line height, no letter-spacing (it breaks shaping). */
+  :lang(ar),
+  [dir="rtl"] {
+    font-family: var(--font-arabic);
+    line-height: 1.8;
+    letter-spacing: 0 !important;
+  }
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
@@ -203,5 +268,19 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+}
+
+@layer components {
+  /* Very subtle brand grid (design system §10). Never place behind emergency instructions. */
+  .awn-grid-bg {
+    background-image:
+      radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 45%),
+      linear-gradient(color-mix(in srgb, var(--brand) 6%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--brand) 6%, transparent) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      32px 32px,
+      32px 32px;
   }
 }

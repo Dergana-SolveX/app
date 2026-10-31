@@ -1,8 +1,10 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { createCrashCountdownState, countdownReducer } from "@solvex-dergana/shared";
+
+vi.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 import { CrashCountdownOverlay } from "../../../native/components/crash-countdown-overlay";
 
 it("announces the native crash cancellation in Arabic with RTL text", async () => {

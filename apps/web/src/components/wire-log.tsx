@@ -14,7 +14,7 @@ const STATUS_LABEL = {
   failed: "Échec",
 } as const;
 
-const chip = "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-bold tracking-wide";
+const chip = "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-bold";
 
 /** Checksum verdict. A word and an icon, never color alone. */
 function CrcBadge({ valid }: { valid: boolean }) {

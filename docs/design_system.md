@@ -331,6 +331,29 @@ The visual identity must be consistent across the entire application.
 9. Build reusable components rather than duplicating styles.
 10. Keep the implementation and documentation synchronized.
 
+## 14. Implementation Map
+
+Tokens are defined once and consumed as Tailwind classes. Never write hex values or raw palette classes (`bg-slate-900`, `text-red-500`) in components.
+
+- Web tokens: `packages/ui/src/styles/globals.css`
+- Native (HeroUI Native) tokens: `apps/native/global.css`
+- Logo: `LogoMark` / `Logo` in `packages/ui/src/components/logo.tsx`, serving `public/images/logobright.svg` and `logodark.svg` (the web app's Vite `publicDir` is the repository's `public/`).
+
+| Design token | Web class | Notes |
+|---|---|---|
+| Background / Surface / Surface Secondary / Surface Tertiary | `bg-background` / `bg-card` / `bg-muted` or `bg-raised` / `bg-accent` | |
+| Text Primary / Secondary / Muted | `text-foreground` / `text-muted-foreground` / `text-subtle-foreground` | |
+| Border / Border Strong | `border-border` / `border-border-strong` | |
+| Primary (brand accent) | `text-primary`, `border-brand`, `bg-brand-soft` | Light mode `primary` uses Teal Dark `#0F766E` so teal text keeps 4.5:1 on white. `brand` is Primary Teal `#0D9488` for non-text accents (focus ring, map zones). |
+| Primary Action / Hover | `bg-primary-action` / `hover:bg-primary-hover` | Used by the default `Button`. |
+| Success / Warning / Danger / Information | `text-sev-green` / `text-sev-yellow` / `text-sev-red` / `text-info` (+ `bg-*-soft`) | Severity badges use these with an icon and a word. |
+| Filled semantic surfaces | `bg-danger-solid`, `bg-warning-solid`, `bg-success-solid`, `bg-info-solid` with `text-solid-foreground` | Keep the light-theme values in both themes so white text stays readable. |
+| Radius XS → 2XL / Full | `rounded-xs` 6 · `rounded-sm` 8 · `rounded-md` 12 · `rounded-lg` 16 · `rounded-xl` 20 · `rounded-2xl` 24 · `rounded-full` | |
+| Elevation | `shadow-xs` / `shadow-sm` / `shadow-md` / `shadow-lg` | Green-tinted in light mode, near-invisible in dark mode. |
+| Subtle grid background | `awn-grid-bg` | Brand panels only, never behind emergency instructions. |
+
+AI suggestions and emulated data use the Information colors (`sev-ai` and `emulation` are aliases of `info`).
+
 ---
 
 **AWN — عون**

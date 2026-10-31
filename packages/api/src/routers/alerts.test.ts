@@ -1,4 +1,4 @@
-import { masterIncidents, medicalProfiles, rawAlerts } from "@solvex-dergana/db/schema/index";
+import { masterIncidents, rawAlerts } from "@solvex-dergana/db/schema/index";
 import { createTestDb } from "@solvex-dergana/db/testing";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";

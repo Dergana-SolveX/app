@@ -4,7 +4,7 @@ import { WitnessReport } from "@/components/witness-report";
 
 export default function Home() {
   return (
-    <View style={{ flex: 1, backgroundColor: "#020617" }}>
+    <View className="flex-1 bg-background">
       <WitnessReport />
     </View>
   );

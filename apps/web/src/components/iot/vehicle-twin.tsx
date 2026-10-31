@@ -72,7 +72,7 @@ export function VehicleTwin({
         </div>
         <div className="flex items-center gap-2">
           {impacting ? (
-            <span className="flex items-center gap-1 rounded bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-400 animate-pulse">
+            <span className="flex items-center gap-1 rounded bg-sev-red/20 px-2 py-0.5 text-xs font-bold text-sev-red animate-pulse">
               <ShieldAlertIcon className="h-3.5 w-3.5" />
               CHOC / IMPACT
             </span>
@@ -80,10 +80,10 @@ export function VehicleTwin({
             <span
               className={`rounded px-2 py-0.5 text-xs font-semibold ${
                 status === "TONNEAU"
-                  ? "bg-amber-500/20 text-amber-300"
+                  ? "bg-sev-yellow/20 text-sev-yellow"
                   : status === "INCLINÉ"
-                  ? "bg-blue-500/20 text-blue-300"
-                  : "bg-emerald-500/20 text-emerald-300"
+                  ? "bg-info/20 text-info"
+                  : "bg-sev-green/20 text-sev-green"
               }`}
             >
               {status}
@@ -94,7 +94,7 @@ export function VehicleTwin({
 
       {/* 3D Viewport with CSS 3D perspective */}
       <div
-        className="relative flex h-52 w-full items-center justify-center overflow-hidden rounded-md border border-border/50 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950"
+        className="relative flex h-52 w-full items-center justify-center overflow-hidden rounded-md border border-border/50 bg-gradient-to-b from-background via-card to-background"
         style={{ perspective: "900px" }}
       >
         {/* Background Grid & Horizon */}
@@ -104,7 +104,7 @@ export function VehicleTwin({
         {impacting && (
           <div
             className={`absolute inset-0 pointer-events-none transition-opacity duration-100 ${
-              flashPhase ? "bg-red-600/30" : "bg-white/20"
+              flashPhase ? "bg-sev-red/30" : "bg-foreground/20"
             }`}
           />
         )}
@@ -119,7 +119,7 @@ export function VehicleTwin({
         >
           {/* Shadow plane beneath vehicle */}
           <div
-            className="absolute -bottom-10 left-1/2 h-16 w-32 -translate-x-1/2 rounded-full bg-black/60 blur-md pointer-events-none"
+            className="absolute -bottom-10 left-1/2 h-16 w-32 -translate-x-1/2 rounded-full bg-background/60 blur-md pointer-events-none"
             style={{ transform: "rotateX(90deg) translateZ(-20px)" }}
           />
 
@@ -128,55 +128,55 @@ export function VehicleTwin({
             className={`relative h-20 w-36 rounded-xl border transition-colors duration-100 ${
               impacting
                 ? flashPhase
-                  ? "border-red-400 bg-red-600 shadow-[0_0_25px_#ef4444]"
-                  : "border-white bg-slate-100 text-slate-900 shadow-[0_0_25px_#ffffff]"
-                : "border-cyan-500/40 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 shadow-[0_0_20px_rgba(6,182,212,0.15)]"
+                  ? "border-sev-red bg-danger-solid"
+                  : "border-sev-yellow bg-sev-yellow-soft"
+                : "border-brand/40 bg-gradient-to-r from-muted via-accent to-muted"
             }`}
           >
             {/* Front Headlights */}
             <div className="absolute right-0 top-2 flex flex-col gap-2">
               <span
                 className={`h-3 w-2 rounded-l-sm ${
-                  impacting ? (flashPhase ? "bg-red-300" : "bg-yellow-200") : "bg-cyan-300 shadow-[0_0_8px_#67e8f9]"
+                  impacting ? (flashPhase ? "bg-sev-red" : "bg-sev-yellow") : "bg-brand"
                 }`}
               />
               <span
                 className={`h-3 w-2 rounded-l-sm ${
-                  impacting ? (flashPhase ? "bg-red-300" : "bg-yellow-200") : "bg-cyan-300 shadow-[0_0_8px_#67e8f9]"
+                  impacting ? (flashPhase ? "bg-sev-red" : "bg-sev-yellow") : "bg-brand"
                 }`}
               />
             </div>
 
             {/* Rear Taillights */}
             <div className="absolute left-0 top-2 flex flex-col gap-2">
-              <span className="h-3 w-2 rounded-r-sm bg-red-500 shadow-[0_0_8px_#ef4444]" />
-              <span className="h-3 w-2 rounded-r-sm bg-red-500 shadow-[0_0_8px_#ef4444]" />
+              <span className="h-3 w-2 rounded-r-sm bg-danger-solid" />
+              <span className="h-3 w-2 rounded-r-sm bg-danger-solid" />
             </div>
 
             {/* Cabin / Windshield Roof */}
-            <div className="absolute left-6 top-3 h-14 w-20 rounded-md border border-cyan-400/30 bg-slate-900/80 p-1">
-              <div className="flex h-full w-full items-center justify-center font-mono text-[9px] font-bold text-cyan-300">
+            <div className="absolute left-6 top-3 h-14 w-20 rounded-md border border-brand/30 bg-card/80 p-1">
+              <div className="flex h-full w-full items-center justify-center font-mono text-xs font-bold text-brand">
                 SVX · 001
               </div>
             </div>
 
             {/* 4 Wheels */}
-            <div className="absolute -bottom-2.5 left-4 h-5 w-7 rounded-sm bg-slate-950 border border-slate-700" />
-            <div className="absolute -bottom-2.5 right-4 h-5 w-7 rounded-sm bg-slate-950 border border-slate-700" />
-            <div className="absolute -top-2.5 left-4 h-5 w-7 rounded-sm bg-slate-950 border border-slate-700" />
-            <div className="absolute -top-2.5 right-4 h-5 w-7 rounded-sm bg-slate-950 border border-slate-700" />
+            <div className="absolute -bottom-2.5 left-4 h-5 w-7 rounded-sm bg-background border border-border-strong" />
+            <div className="absolute -bottom-2.5 right-4 h-5 w-7 rounded-sm bg-background border border-border-strong" />
+            <div className="absolute -top-2.5 left-4 h-5 w-7 rounded-sm bg-background border border-border-strong" />
+            <div className="absolute -top-2.5 right-4 h-5 w-7 rounded-sm bg-background border border-border-strong" />
           </div>
         </div>
 
         {/* Live Orientation HUD Overlays */}
-        <div className="absolute bottom-2 left-2 flex items-center gap-2 rounded bg-black/60 px-2 py-1 font-mono text-xs text-muted-foreground backdrop-blur-sm">
+        <div className="absolute bottom-2 left-2 flex items-center gap-2 rounded bg-background/60 px-2 py-1 font-mono text-xs text-muted-foreground backdrop-blur-sm">
           <span>Roulis (Roll) :</span>
-          <strong className="text-cyan-300">{formatDegrees(rollDeg)}</strong>
+          <strong className="text-brand">{formatDegrees(rollDeg)}</strong>
         </div>
 
-        <div className="absolute bottom-2 right-2 flex items-center gap-2 rounded bg-black/60 px-2 py-1 font-mono text-xs text-muted-foreground backdrop-blur-sm">
+        <div className="absolute bottom-2 right-2 flex items-center gap-2 rounded bg-background/60 px-2 py-1 font-mono text-xs text-muted-foreground backdrop-blur-sm">
           <span>Tangage (Pitch) :</span>
-          <strong className="text-cyan-300">{formatDegrees(pitchDeg)}</strong>
+          <strong className="text-brand">{formatDegrees(pitchDeg)}</strong>
         </div>
       </div>
     </section>

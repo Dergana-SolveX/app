@@ -27,7 +27,7 @@ export function VittelBanner({ result }: { result: VittelResult }) {
     <div role="status">
       {result.severe && (
         <div className="rounded-lg border-2 border-sev-red bg-sev-red-soft px-4 py-3 text-sev-red">
-          <p className="flex items-center gap-2 text-base font-extrabold tracking-wide uppercase">
+          <p className="flex items-center gap-2 text-base font-bold">
             <CircleAlertIcon className="size-6 shrink-0" aria-hidden="true" />
             Traumatisé grave (Vittel)
           </p>

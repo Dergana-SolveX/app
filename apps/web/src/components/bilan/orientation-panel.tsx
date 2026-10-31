@@ -100,7 +100,7 @@ function HospitalCard({
             )}
           </p>
           <p className="mt-0.5 text-sm">
-            <span className="tabular font-mono text-lg font-extrabold">{minutes(etaMin)}</span>{" "}
+            <span className="tabular font-mono text-lg font-bold">{minutes(etaMin)}</span>{" "}
             <span className="text-muted-foreground">· {km(match.distanceM)}</span>{" "}
             {match.etaSource === "straight_line" ? (
               <span className="rounded-md border border-emulation/40 bg-emulation-soft px-1.5 py-0.5 text-xs font-bold text-emulation">
@@ -224,7 +224,7 @@ export function OrientationPanel({
 
       {result.stabiliseFirst && result.stabilisation && (
         <div role="alert" className="rounded-lg border-2 border-sev-yellow bg-sev-yellow-soft px-3 py-2">
-          <p className="flex items-center gap-2 text-sm font-extrabold uppercase text-sev-yellow">
+          <p className="flex items-center gap-2 text-sm font-bold text-sev-yellow">
             <TriangleAlertIcon className="size-5 shrink-0" aria-hidden="true" />
             Stabiliser d'abord
           </p>

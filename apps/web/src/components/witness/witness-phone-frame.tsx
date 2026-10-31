@@ -13,7 +13,15 @@ import {
   Clock,
   Sparkles,
   Heart,
+  Smartphone,
+  Zap,
+  Droplet,
+  MailCheck,
+  Hand,
+  SatelliteDish,
+  Siren,
 } from "lucide-react";
+import { LogoMark } from "@solvex-dergana/ui/components/logo";
 import { MedicalProfileModal } from "./medical-profile-modal";
 import {
   createWitnessFlowState,
@@ -72,7 +80,8 @@ export default function WitnessPhoneFrame({
     }
   };
 
-  const t = WITNESS_TEXT[state.lang];
+  const t = { ...WITNESS_TEXT[state.lang], ...getLabels(state.lang, "victim") };
+  const crash = getLabels(state.lang, "crash");
   const isRtl = state.lang === "ar";
 
   // tRPC mutation (Online)
@@ -305,21 +314,21 @@ export default function WitnessPhoneFrame({
       {/* Presentation Control Bar */}
       <div className="mb-4 flex flex-wrap items-center justify-center gap-2 rounded-full border border-border/40 bg-card/80 px-4 py-2 text-xs backdrop-blur-md shadow-sm">
         <span className="font-semibold text-muted-foreground flex items-center gap-1.5">
-          <Sparkles className="size-3.5 text-amber-500" />
+          <Sparkles className="size-3.5 text-sev-yellow" />
           {t.mirror}
         </span>
         <span className="text-muted-foreground/40">•</span>
         <button
           type="button"
           onClick={simulateGpsFix}
-          className="rounded-md bg-emerald-500/10 px-2.5 py-1 font-medium text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition"
+          className="rounded-md bg-sev-green/10 px-2.5 py-1 font-medium text-sev-green hover:bg-sev-green/20 active:scale-95 transition"
         >
           {t.gpsFix}
         </button>
         <button
           type="button"
           onClick={simulateGpsTimeout}
-          className="rounded-md bg-amber-500/10 px-2.5 py-1 font-medium text-amber-400 hover:bg-amber-500/20 active:scale-95 transition"
+          className="rounded-md bg-sev-yellow/10 px-2.5 py-1 font-medium text-sev-yellow hover:bg-sev-yellow/20 active:scale-95 transition"
         >
           {t.gpsTimeout}
         </button>
@@ -329,11 +338,11 @@ export default function WitnessPhoneFrame({
           onClick={() => setForcedSms((prev) => !prev)}
           className={`rounded-md px-2.5 py-1 font-semibold transition flex items-center gap-1 active:scale-95 border ${
             forcedSms
-              ? "bg-purple-600 border-purple-500 text-white shadow-sm"
-              : "bg-purple-500/15 border-purple-500/30 text-purple-400 hover:bg-purple-500/25"
+              ? "bg-info-solid border-info/40 text-solid-foreground shadow-sm"
+              : "bg-info/15 border-info/30 text-info hover:bg-info/25"
           }`}
         >
-          <span aria-hidden="true">📱</span> {t.forceSms}
+          <Smartphone className="size-3.5" aria-hidden="true" /> {t.forceSms}
         </button>
         <button
           type="button"
@@ -349,9 +358,9 @@ export default function WitnessPhoneFrame({
               },
             });
           }}
-          className="rounded-md bg-red-500/15 px-2.5 py-1 font-semibold text-red-400 hover:bg-red-500/25 border border-red-500/30 active:scale-95 transition flex items-center gap-1"
+          className="rounded-md bg-sev-red/15 px-2.5 py-1 font-semibold text-sev-red hover:bg-sev-red/25 border border-sev-red/30 active:scale-95 transition flex items-center gap-1"
         >
-          <span aria-hidden="true">💥</span> {t.simulate}
+          <Zap className="size-3.5" aria-hidden="true" /> {t.simulate}
         </button>
         <button
           type="button"
@@ -364,41 +373,39 @@ export default function WitnessPhoneFrame({
 
       {/* Galaxy A71 Smartphone Mockup Frame */}
       <div
-        className="relative w-full max-w-[390px] h-[780px] rounded-[48px] bg-slate-950 p-3 shadow-2xl ring-1 ring-slate-800 ring-offset-8 ring-offset-slate-900 overflow-hidden flex flex-col select-none"
+        className="relative w-full max-w-[390px] h-[780px] rounded-[48px] bg-background p-3 shadow-2xl ring-1 ring-border ring-offset-8 ring-offset-border overflow-hidden flex flex-col select-none"
         dir={isRtl ? "rtl" : "ltr"}
       >
         {/* Phone Speaker & Camera punch-hole */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center">
-          <div className="size-4 rounded-full bg-black ring-2 ring-slate-900 flex items-center justify-center">
-            <div className="size-1 rounded-full bg-slate-950" />
+          <div className="size-4 rounded-full bg-background ring-2 ring-border flex items-center justify-center">
+            <div className="size-1 rounded-full bg-background" />
           </div>
         </div>
 
         {/* Screen Bezel & Container */}
-        <div className="relative flex flex-col flex-1 rounded-[40px] bg-slate-900 border border-slate-800 text-slate-100 overflow-hidden font-sans">
+        <div className="relative flex flex-col flex-1 rounded-[40px] bg-card border border-border text-foreground overflow-hidden font-sans">
           {/* Status Bar */}
-          <div className="h-9 px-6 pt-2 flex items-center justify-between text-[11px] font-semibold text-slate-400 z-20">
+          <div className="h-9 px-6 pt-2 flex items-center justify-between text-xs font-semibold text-muted-foreground z-20">
             <span>12:42</span>
             <div className="flex items-center gap-1.5">
-              <Radio className="size-3 text-emerald-400 animate-pulse" />
+              <Radio className="size-3 text-sev-green animate-pulse" />
               <span>4G</span>
-              <div className="w-5 h-2.5 rounded-sm border border-slate-500 p-0.5 flex items-center">
-                <div className="h-full w-full bg-emerald-400 rounded-2xs" />
+              <div className="w-5 h-2.5 rounded-sm border border-border-strong p-0.5 flex items-center">
+                <div className="h-full w-full bg-sev-green rounded-2xs" />
               </div>
             </div>
           </div>
 
           {/* Emergency Header */}
-          <div className="px-4 py-3 bg-slate-950/70 border-b border-slate-800 flex items-center justify-between z-10">
+          <div className="px-4 py-3 bg-background/70 border-b border-border flex items-center justify-between z-10">
             <div className="flex items-center gap-2">
-              <span className="flex size-7 items-center justify-center rounded-lg bg-red-600 text-white shadow-md shadow-red-900/40">
-                <ShieldAlert className="size-4" />
-              </span>
+              <LogoMark className="size-8" />
               <div>
-                <h1 className="text-sm font-black tracking-wide text-white uppercase">
+                <h1 className="text-sm font-bold text-foreground">
                   {t.brand}
                 </h1>
-                <p className="text-[10px] text-red-400 font-medium">{t.emergency}</p>
+                <p className="text-xs text-sev-red font-medium">{t.emergency}</p>
               </div>
             </div>
 
@@ -409,24 +416,24 @@ export default function WitnessPhoneFrame({
                 data-testid="open-profile-modal-btn"
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
                   profileCode
-                    ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-300"
-                    : "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
+                    ? "bg-sev-green-soft border-sev-green/40 text-sev-green"
+                    : "bg-muted border-border-strong text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Heart className="size-3 text-red-500 fill-red-500/20" />
+                <Heart className="size-3 text-sev-red fill-sev-red/20" />
                 <span>{profileCode ? `UID: ${profileCode}` : "Profil"}</span>
               </button>
 
             {/* Bilingual Language Switcher */}
-            <div className="flex items-center rounded-full bg-slate-800 p-0.5 text-xs font-bold border border-slate-700">
+            <div className="flex items-center rounded-full bg-muted p-0.5 text-xs font-bold border border-border-strong">
               <button
                 type="button"
                 lang="fr" aria-pressed={state.lang === "fr"}
                 onClick={() => { dispatch({ type: "SET_LANG", lang: "fr" }); onLocaleChange?.("fr"); }}
                 className={`rounded-full px-2.5 py-1 transition ${
                   state.lang === "fr"
-                    ? "bg-red-600 text-white shadow"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-primary-action text-primary-action-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 FR
@@ -437,8 +444,8 @@ export default function WitnessPhoneFrame({
                 onClick={() => { dispatch({ type: "SET_LANG", lang: "ar" }); onLocaleChange?.("ar"); }}
                 className={`rounded-full px-2.5 py-1 transition ${
                   state.lang === "ar"
-                    ? "bg-red-600 text-white shadow"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-primary-action text-primary-action-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 عربي
@@ -448,34 +455,34 @@ export default function WitnessPhoneFrame({
           </div>
 
           {/* GPS Status Indicator Banner */}
-          <div className="px-4 py-2 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between text-xs">
+          <div className="px-4 py-2 bg-card/90 border-b border-border/80 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               {state.gpsStatus === "acquired" ? (
                 <>
-                  <Crosshair className="size-3.5 text-emerald-400" />
-                  <span className="text-emerald-300 font-medium text-[11px]">
+                  <Crosshair className="size-3.5 text-sev-green" />
+                  <span className="text-sev-green font-medium text-xs">
                     {t.gps_acquired} ({state.coords?.lat.toFixed(4)},{" "}
                     {state.coords?.lng.toFixed(4)})
                   </span>
                 </>
               ) : state.gpsStatus === "timeout" ? (
                 <>
-                  <AlertTriangle className="size-3.5 text-amber-400" />
-                  <span className="text-amber-300 font-medium text-[11px]">
+                  <AlertTriangle className="size-3.5 text-sev-yellow" />
+                  <span className="text-sev-yellow font-medium text-xs">
                     {t.gps_timeout}
                   </span>
                 </>
               ) : (
                 <>
-                  <Clock className="size-3.5 text-sky-400 animate-spin" />
-                  <span className="text-sky-300 font-medium text-[11px]">
+                  <Clock className="size-3.5 text-info animate-spin" />
+                  <span className="text-info font-medium text-xs">
                     {t.gps_searching} ({20 - state.gpsSecondsElapsed} {t.seconds})
                   </span>
                 </>
               )}
             </div>
             {state.manualCommune && (
-              <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700 truncate max-w-[110px]">
+              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full border border-border-strong truncate max-w-[110px]">
                 {state.manualCommune}
               </span>
             )}
@@ -485,20 +492,20 @@ export default function WitnessPhoneFrame({
           {forcedSms && (
             <div
               data-testid="raw-sms-preview"
-              className="px-4 py-2 bg-purple-950/40 border-b border-purple-800/80 text-xs"
+              className="px-4 py-2 bg-info-soft border-b border-info/80 text-xs"
             >
-              <div className="flex items-center justify-between text-[10px] font-bold text-purple-300 uppercase tracking-wider mb-1">
+              <div className="flex items-center justify-between text-xs font-bold text-info mb-1">
                 <span className="flex items-center gap-1">
-                  <span aria-hidden="true">📱</span> {t.smsForced}
+                  <Smartphone className="size-3.5" aria-hidden="true" /> {t.smsForced}
                 </span>
                 <span
                   data-testid="sms-char-counter"
-                  className="font-mono text-purple-200"
+                  className="font-mono text-foreground"
                 >
                   {svxStringResult.charCount} / 160 {t.chars}
                 </span>
               </div>
-              <div dir="ltr" className="font-mono text-[11px] text-white bg-slate-950/80 p-2 rounded-lg border border-purple-700/50 break-all select-all">
+              <div dir="ltr" className="font-mono text-xs text-foreground bg-background/80 p-2 rounded-lg border border-info/50 break-all select-all">
                 {svxStringResult.svx}
               </div>
             </div>
@@ -507,7 +514,7 @@ export default function WitnessPhoneFrame({
           {/* Progress Indicator (3 Steps) */}
           {typeof state.step === "number" && (
             <div className="px-4 pt-3 pb-1">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 mb-1.5">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-1.5">
                 <span>
                   {t.step} {state.step} {t.of} 3
                 </span>
@@ -522,17 +529,17 @@ export default function WitnessPhoneFrame({
               <div className="grid grid-cols-3 gap-1.5 h-1.5">
                 <div
                   className={`rounded-full transition-all duration-300 ${
-                    state.step >= 1 ? "bg-red-600" : "bg-slate-800"
+                    state.step >= 1 ? "bg-danger-solid" : "bg-muted"
                   }`}
                 />
                 <div
                   className={`rounded-full transition-all duration-300 ${
-                    state.step >= 2 ? "bg-red-600" : "bg-slate-800"
+                    state.step >= 2 ? "bg-danger-solid" : "bg-muted"
                   }`}
                 />
                 <div
                   className={`rounded-full transition-all duration-300 ${
-                    state.step >= 3 ? "bg-red-600" : "bg-slate-800"
+                    state.step >= 3 ? "bg-danger-solid" : "bg-muted"
                   }`}
                 />
               </div>
@@ -545,10 +552,10 @@ export default function WitnessPhoneFrame({
             {state.step === 1 && (
               <div className="flex-1 flex flex-col justify-between">
                 <div>
-                  <h2 className="text-xl font-extrabold text-white mt-1 mb-1 leading-snug">
+                  <h2 className="text-xl font-bold text-foreground mt-1 mb-1 leading-snug">
                     {t.step1_title}
                   </h2>
-                  <p className="text-xs text-slate-400 mb-4">{t.step1_subtitle}</p>
+                  <p className="text-xs text-muted-foreground mb-4">{t.step1_subtitle}</p>
 
                   <div className="space-y-3.5">
                     <button
@@ -556,17 +563,17 @@ export default function WitnessPhoneFrame({
                       onClick={() => handleVictimSelect(1)}
                       className={`w-full min-h-24 py-3 rounded-2xl border-2 flex items-center justify-between px-5 font-bold text-lg active:scale-[0.98] transition shadow-lg ${
                         state.victims === 1
-                          ? "bg-red-600 border-red-500 text-white shadow-red-900/40"
-                          : "bg-slate-800/90 border-slate-700 text-slate-100 hover:border-slate-500"
+                          ? "bg-danger-solid border-sev-red/40 text-solid-foreground "
+                          : "bg-muted/90 border-border-strong text-foreground hover:border-border-strong"
                       }`}
                     >
                       <div className="flex items-center gap-4">
-                        <span className="flex size-12 items-center justify-center rounded-xl bg-slate-900/70 text-2xl font-black text-red-400 border border-slate-700/80">
+                        <span className="flex size-12 items-center justify-center rounded-xl bg-card/70 text-2xl font-bold text-sev-red border border-border-strong/80">
                           1
                         </span>
                         <span className="text-base text-start">{t.victims_1}</span>
                       </div>
-                      <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-900/60 text-slate-300 border border-slate-700">
+                      <span className="text-xs font-semibold px-3 py-1 rounded-full bg-card/60 text-muted-foreground border border-border-strong">
                         {t.solo}
                       </span>
                     </button>
@@ -576,17 +583,17 @@ export default function WitnessPhoneFrame({
                       onClick={() => handleVictimSelect(2)}
                       className={`w-full min-h-24 py-3 rounded-2xl border-2 flex items-center justify-between px-5 font-bold text-lg active:scale-[0.98] transition shadow-lg ${
                         state.victims === 2
-                          ? "bg-red-600 border-red-500 text-white shadow-red-900/40"
-                          : "bg-slate-800/90 border-slate-700 text-slate-100 hover:border-slate-500"
+                          ? "bg-danger-solid border-sev-red/40 text-solid-foreground "
+                          : "bg-muted/90 border-border-strong text-foreground hover:border-border-strong"
                       }`}
                     >
                       <div className="flex items-center gap-4">
-                        <span className="flex size-12 items-center justify-center rounded-xl bg-slate-900/70 text-2xl font-black text-amber-400 border border-slate-700/80">
+                        <span className="flex size-12 items-center justify-center rounded-xl bg-card/70 text-2xl font-bold text-sev-yellow border border-border-strong/80">
                           2
                         </span>
                         <span className="text-base text-start">{t.victims_2}</span>
                       </div>
-                      <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-900/60 text-slate-300 border border-slate-700">
+                      <span className="text-xs font-semibold px-3 py-1 rounded-full bg-card/60 text-muted-foreground border border-border-strong">
                         {t.duo}
                       </span>
                     </button>
@@ -596,17 +603,17 @@ export default function WitnessPhoneFrame({
                       onClick={() => handleVictimSelect(3)}
                       className={`w-full min-h-24 py-3 rounded-2xl border-2 flex items-center justify-between px-5 font-bold text-lg active:scale-[0.98] transition shadow-lg ${
                         state.victims === 3
-                          ? "bg-red-600 border-red-500 text-white shadow-red-900/40"
-                          : "bg-slate-800/90 border-slate-700 text-slate-100 hover:border-slate-500"
+                          ? "bg-danger-solid border-sev-red/40 text-solid-foreground "
+                          : "bg-muted/90 border-border-strong text-foreground hover:border-border-strong"
                       }`}
                     >
                       <div className="flex items-center gap-4">
-                        <span className="flex size-12 items-center justify-center rounded-xl bg-slate-900/70 text-2xl font-black text-red-500 border border-slate-700/80">
+                        <span className="flex size-12 items-center justify-center rounded-xl bg-card/70 text-2xl font-bold text-sev-red border border-border-strong/80">
                           3+
                         </span>
                         <span className="text-base text-start">{t.victims_3plus}</span>
                       </div>
-                      <span className="text-xs font-semibold px-3 py-1 rounded-full bg-red-950/70 text-red-300 border border-red-800">
+                      <span className="text-xs font-semibold px-3 py-1 rounded-full bg-sev-red-soft text-sev-red border border-sev-red/40">
                         Multi
                       </span>
                     </button>
@@ -619,10 +626,10 @@ export default function WitnessPhoneFrame({
             {state.step === 2 && (
               <div className="flex-1 flex flex-col justify-between">
                 <div>
-                  <h2 className="text-xl font-extrabold text-white mt-1 mb-1 leading-snug">
+                  <h2 className="text-xl font-bold text-foreground mt-1 mb-1 leading-snug">
                     {t.step2_title}
                   </h2>
-                  <p className="text-xs text-slate-400 mb-4">{t.step2_subtitle}</p>
+                  <p className="text-xs text-muted-foreground mb-4">{t.step2_subtitle}</p>
 
                   <div className="space-y-3.5">
                     <button
@@ -630,12 +637,12 @@ export default function WitnessPhoneFrame({
                       onClick={() => handleConsciousSelect(1)}
                       className={`w-full h-20 rounded-2xl border-2 flex items-center justify-between px-5 font-bold text-base active:scale-[0.98] transition shadow-lg ${
                         state.conscious === 1
-                          ? "bg-emerald-600 border-emerald-500 text-white shadow-emerald-900/40"
-                          : "bg-slate-800/90 border-slate-700 text-slate-100 hover:border-slate-500"
+                          ? "bg-success-solid border-sev-green/40 text-solid-foreground "
+                          : "bg-muted/90 border-border-strong text-foreground hover:border-border-strong"
                       }`}
                     >
                       <div className="flex items-center gap-3.5">
-                        <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-950/70 text-emerald-400 border border-emerald-800">
+                        <span className="flex size-10 items-center justify-center rounded-xl bg-sev-green-soft text-sev-green border border-sev-green/40">
                           <CheckCircle2 className="size-6" />
                         </span>
                         <span>{t.conscious_yes}</span>
@@ -647,17 +654,17 @@ export default function WitnessPhoneFrame({
                       onClick={() => handleConsciousSelect(0)}
                       className={`w-full h-20 rounded-2xl border-2 flex items-center justify-between px-5 font-bold text-base active:scale-[0.98] transition shadow-lg ${
                         state.conscious === 0
-                          ? "bg-red-600 border-red-500 text-white shadow-red-900/40"
-                          : "bg-slate-800/90 border-slate-700 text-slate-100 hover:border-slate-500"
+                          ? "bg-danger-solid border-sev-red/40 text-solid-foreground "
+                          : "bg-muted/90 border-border-strong text-foreground hover:border-border-strong"
                       }`}
                     >
                       <div className="flex items-center gap-3.5">
-                        <span className="flex size-10 items-center justify-center rounded-xl bg-red-950/70 text-red-400 border border-red-800">
+                        <span className="flex size-10 items-center justify-center rounded-xl bg-sev-red-soft text-sev-red border border-sev-red/40">
                           <UserX className="size-6" />
                         </span>
                         <span>{t.conscious_no}</span>
                       </div>
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-red-950 text-red-300 border border-red-800">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-sev-red-soft text-sev-red border border-sev-red/40">
                         Critique
                       </span>
                     </button>
@@ -667,12 +674,12 @@ export default function WitnessPhoneFrame({
                       onClick={() => handleConsciousSelect(2)}
                       className={`w-full h-20 rounded-2xl border-2 flex items-center justify-between px-5 font-bold text-base active:scale-[0.98] transition shadow-lg ${
                         state.conscious === 2
-                          ? "bg-amber-600 border-amber-500 text-white shadow-amber-900/40"
-                          : "bg-slate-800/90 border-slate-700 text-slate-100 hover:border-slate-500"
+                          ? "bg-warning-solid border-sev-yellow/40 text-solid-foreground "
+                          : "bg-muted/90 border-border-strong text-foreground hover:border-border-strong"
                       }`}
                     >
                       <div className="flex items-center gap-3.5">
-                        <span className="flex size-10 items-center justify-center rounded-xl bg-amber-950/70 text-amber-400 border border-amber-800">
+                        <span className="flex size-10 items-center justify-center rounded-xl bg-sev-yellow-soft text-sev-yellow border border-sev-yellow/40">
                           <AlertTriangle className="size-6" />
                         </span>
                         <span>{t.conscious_unknown}</span>
@@ -685,7 +692,7 @@ export default function WitnessPhoneFrame({
                   <button
                     type="button"
                     onClick={() => dispatch({ type: "SELECT_VICTIMS", count: state.victims ?? 1 })}
-                    className="w-full py-2.5 text-xs font-semibold text-slate-400 hover:text-white transition"
+                    className="w-full py-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition"
                   >
                     {isRtl ? "→" : "←"} {t.back}
                   </button>
@@ -697,10 +704,10 @@ export default function WitnessPhoneFrame({
             {state.step === 3 && (
               <div className="flex-1 flex flex-col justify-between">
                 <div>
-                  <h2 className="text-xl font-extrabold text-white mt-1 mb-1 leading-snug">
+                  <h2 className="text-xl font-bold text-foreground mt-1 mb-1 leading-snug">
                     {t.step3_title}
                   </h2>
-                  <p className="text-xs text-slate-400 mb-3">{t.step3_subtitle}</p>
+                  <p className="text-xs text-muted-foreground mb-3">{t.step3_subtitle}</p>
 
                   <div className="grid grid-cols-2 gap-2.5 mb-4">
                     <button
@@ -708,13 +715,13 @@ export default function WitnessPhoneFrame({
                       onClick={() => handleDangerToggle("fire")}
                       className={`p-3.5 rounded-xl border-2 flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition ${
                         state.dangers.includes("fire")
-                          ? "bg-red-600/30 border-red-500 text-white shadow-md shadow-red-900/30"
-                          : "bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-600"
+                          ? "bg-sev-red/30 border-sev-red/40 text-foreground shadow-md "
+                          : "bg-muted/80 border-border-strong text-muted-foreground hover:border-border-strong"
                       }`}
                     >
                       <Flame
                         className={`size-6 ${
-                          state.dangers.includes("fire") ? "text-red-400" : "text-slate-400"
+                          state.dangers.includes("fire") ? "text-sev-red" : "text-muted-foreground"
                         }`}
                       />
                       <span className="text-xs font-bold leading-tight">{t.danger_fire}</span>
@@ -725,13 +732,13 @@ export default function WitnessPhoneFrame({
                       onClick={() => handleDangerToggle("trapped")}
                       className={`p-3.5 rounded-xl border-2 flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition ${
                         state.dangers.includes("trapped")
-                          ? "bg-red-600/30 border-red-500 text-white shadow-md shadow-red-900/30"
-                          : "bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-600"
+                          ? "bg-sev-red/30 border-sev-red/40 text-foreground shadow-md "
+                          : "bg-muted/80 border-border-strong text-muted-foreground hover:border-border-strong"
                       }`}
                     >
                       <AlertTriangle
                         className={`size-6 ${
-                          state.dangers.includes("trapped") ? "text-amber-400" : "text-slate-400"
+                          state.dangers.includes("trapped") ? "text-sev-yellow" : "text-muted-foreground"
                         }`}
                       />
                       <span className="text-xs font-bold leading-tight">{t.danger_trapped}</span>
@@ -742,18 +749,18 @@ export default function WitnessPhoneFrame({
                       onClick={() => handleDangerToggle("bleeding")}
                       className={`p-3.5 rounded-xl border-2 flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition ${
                         state.dangers.includes("bleeding")
-                          ? "bg-red-600/30 border-red-500 text-white shadow-md shadow-red-900/30"
-                          : "bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-600"
+                          ? "bg-sev-red/30 border-sev-red/40 text-foreground shadow-md "
+                          : "bg-muted/80 border-border-strong text-muted-foreground hover:border-border-strong"
                       }`}
                     >
                       <div
                         className={`size-6 rounded-full flex items-center justify-center font-bold text-xs ${
                           state.dangers.includes("bleeding")
-                            ? "bg-red-600 text-white"
-                            : "bg-slate-700 text-slate-300"
+                            ? "bg-danger-solid text-solid-foreground"
+                            : "bg-accent text-muted-foreground"
                         }`}
                       >
-                        🩸
+                        <Droplet className="size-6" aria-hidden="true" />
                       </div>
                       <span className="text-xs font-bold leading-tight">{t.danger_bleeding}</span>
                     </button>
@@ -763,13 +770,13 @@ export default function WitnessPhoneFrame({
                       onClick={() => handleDangerToggle("none")}
                       className={`p-3.5 rounded-xl border-2 flex flex-col items-center justify-center text-center gap-2 active:scale-95 transition ${
                         state.dangers.includes("none")
-                          ? "bg-emerald-600/30 border-emerald-500 text-white shadow-md shadow-emerald-900/30"
-                          : "bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-600"
+                          ? "bg-sev-green/30 border-sev-green/40 text-foreground shadow-md "
+                          : "bg-muted/80 border-border-strong text-muted-foreground hover:border-border-strong"
                       }`}
                     >
                       <CheckCircle2
                         className={`size-6 ${
-                          state.dangers.includes("none") ? "text-emerald-400" : "text-slate-400"
+                          state.dangers.includes("none") ? "text-sev-green" : "text-muted-foreground"
                         }`}
                       />
                       <span className="text-xs font-bold leading-tight">{t.danger_none}</span>
@@ -782,7 +789,7 @@ export default function WitnessPhoneFrame({
                     type="button"
                     onClick={handleProceedSubmit}
                     disabled={isSubmitting}
-                    className="w-full min-h-16 py-3 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-base uppercase tracking-wider shadow-lg shadow-red-900/50 active:scale-[0.98] transition flex items-center justify-center gap-2 border-2 border-red-500 disabled:opacity-50"
+                    className="w-full min-h-16 py-3 rounded-2xl bg-danger-solid hover:bg-danger-solid/90 text-solid-foreground font-bold text-base shadow-lg active:scale-[0.98] transition flex items-center justify-center gap-2 border-2 border-sev-red/40 disabled:opacity-50"
                   >
                     <ShieldAlert className="size-5" />
                     {isSubmitting
@@ -800,7 +807,7 @@ export default function WitnessPhoneFrame({
                         value: state.conscious ?? 1,
                       })
                     }
-                    className="w-full py-2.5 text-xs font-semibold text-slate-400 hover:text-white transition mt-1"
+                    className="w-full py-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition mt-1"
                   >
                     {isRtl ? "→" : "←"} {t.back}
                   </button>
@@ -815,21 +822,21 @@ export default function WitnessPhoneFrame({
                 className="flex-1 flex flex-col justify-between"
               >
                 <div>
-                  <div className="flex items-center gap-2 text-amber-400 mb-2">
+                  <div className="flex items-center gap-2 text-sev-yellow mb-2">
                     <MapPin className="size-5" />
-                    <span className="text-xs font-bold uppercase tracking-wider">
+                    <span className="text-xs font-bold">
                       {t.gps_timeout}
                     </span>
                   </div>
 
-                  <h2 className="text-2xl font-black text-white mb-1">
+                  <h2 className="text-2xl font-bold text-foreground mb-1">
                     {t.gps_timeout_prompt}
                   </h2>
-                  <p className="text-xs text-slate-400 mb-5">{t.gps_timeout_helper}</p>
+                  <p className="text-xs text-muted-foreground mb-5">{t.gps_timeout_helper}</p>
 
                   <div className="space-y-4">
                     <div>
-                      <label htmlFor="witness-commune" className="block text-xs font-bold text-slate-300 mb-1.5">
+                      <label htmlFor="witness-commune" className="block text-xs font-bold text-muted-foreground mb-1.5">
                         {t.commune_label}
                       </label>
                       <input
@@ -838,12 +845,12 @@ export default function WitnessPhoneFrame({
                         value={communeInput}
                         onChange={(e) => setCommuneInput(e.target.value)}
                         placeholder={t.commune_placeholder}
-                        className="w-full h-12 rounded-xl bg-slate-800 border-2 border-slate-700 px-4 text-sm font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
+                        className="w-full h-12 rounded-xl bg-muted border-2 border-border-strong px-4 text-sm font-semibold text-foreground placeholder-subtle-foreground focus-visible:border-brand"
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="witness-marker" className="block text-xs font-bold text-slate-300 mb-1.5">
+                      <label htmlFor="witness-marker" className="block text-xs font-bold text-muted-foreground mb-1.5">
                         {t.pk_label}
                       </label>
                       <input
@@ -852,7 +859,7 @@ export default function WitnessPhoneFrame({
                         value={pkInput}
                         onChange={(e) => setPkInput(e.target.value)}
                         placeholder={t.pk_placeholder}
-                        className="w-full h-12 rounded-xl bg-slate-800 border-2 border-slate-700 px-4 text-sm font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
+                        className="w-full h-12 rounded-xl bg-muted border-2 border-border-strong px-4 text-sm font-semibold text-foreground placeholder-subtle-foreground focus-visible:border-brand"
                       />
                     </div>
                   </div>
@@ -862,7 +869,7 @@ export default function WitnessPhoneFrame({
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full min-h-14 py-3 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-red-900/40 active:scale-[0.98] transition flex items-center justify-center gap-2 border border-red-400 disabled:opacity-50"
+                    className="w-full min-h-14 py-3 rounded-2xl bg-danger-solid hover:bg-danger-solid/90 text-solid-foreground font-bold text-sm shadow-lg active:scale-[0.98] transition flex items-center justify-center gap-2 border border-sev-red disabled:opacity-50"
                   >
                     <CheckCircle2 className="size-5" />
                     {isSubmitting
@@ -878,11 +885,11 @@ export default function WitnessPhoneFrame({
             {/* Submitting state */}
             {state.step === "submitting" && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-                <div className="size-20 rounded-full bg-red-600/20 border-2 border-red-500 flex items-center justify-center mb-6 animate-pulse">
-                  <ShieldAlert className="size-10 text-red-500 animate-spin" />
+                <div className="size-20 rounded-full bg-sev-red/20 border-2 border-sev-red/40 flex items-center justify-center mb-6 animate-pulse">
+                  <ShieldAlert className="size-10 text-sev-red animate-spin" />
                 </div>
-                <h3 className="text-lg font-black text-white mb-2">{t.submitting}</h3>
-                <p className="text-xs text-slate-400 max-w-xs">
+                <h3 className="text-lg font-bold text-foreground mb-2">{t.submitting}</h3>
+                <p className="text-xs text-muted-foreground max-w-xs">
                   {t.sendingHelp}
                 </p>
               </div>
@@ -892,22 +899,22 @@ export default function WitnessPhoneFrame({
             {state.step === "submitted" && (
               <div className="flex-1 flex flex-col items-center justify-between text-center py-6">
                 <div className="flex-1 flex flex-col items-center justify-center">
-                  <div className="size-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mb-4">
-                    <CheckCircle2 className="size-10 text-emerald-400" />
+                  <div className="size-20 rounded-full bg-sev-green/20 border-2 border-sev-green/40 flex items-center justify-center mb-4">
+                    <CheckCircle2 className="size-10 text-sev-green" />
                   </div>
-                  <h3 className="text-2xl font-black text-white mb-2">{t.success_title}</h3>
-                  <p className="text-xs text-slate-300 mb-6">{t.success_desc}</p>
+                  <h3 className="text-2xl font-bold text-foreground mb-2">{t.success_title}</h3>
+                  <p className="text-xs text-muted-foreground mb-6">{t.success_desc}</p>
 
-                  <div className="w-full rounded-2xl bg-slate-800/80 border border-slate-700 p-4 mb-4 text-start">
+                  <div className="w-full rounded-2xl bg-muted/80 border border-border-strong p-4 mb-4 text-start">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-slate-400">{t.success_incident_id}</span>
-                      <span dir="ltr" className="text-xs font-mono font-bold text-emerald-400">
+                      <span className="text-xs text-muted-foreground">{t.success_incident_id}</span>
+                      <span dir="ltr" className="text-xs font-mono font-bold text-sev-green">
                         #{state.submissionResult?.incidentId.slice(0, 8).toUpperCase()}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-slate-300">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{t.status}</span>
-                      <span className="font-semibold text-white">
+                      <span className="font-semibold text-foreground">
                         {state.submissionResult?.merged ? t.merged : t.open}
                       </span>
                     </div>
@@ -915,30 +922,31 @@ export default function WitnessPhoneFrame({
 
                   {/* SMS Ack Card (FR-S4-06) */}
                   {smsAck && (
-                    <div className="w-full rounded-2xl bg-purple-950/40 border border-purple-800/80 p-3 mb-4 text-start">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-purple-300 uppercase tracking-wider mb-1.5">
+                    <div className="w-full rounded-2xl bg-info-soft border border-info/80 p-3 mb-4 text-start">
+                      <div className="flex items-center justify-between text-xs font-bold text-info mb-1.5">
                         <span className="flex items-center gap-1">
-                          <span>📨</span> {t.smsAck}
+                          <MailCheck className="size-3.5" aria-hidden="true" /> {t.smsAck}
                         </span>
-                        <span className="text-[10px] bg-purple-900/60 text-purple-200 px-2 py-0.5 rounded border border-purple-700/50">
+                        <span className="text-xs bg-info-soft text-foreground px-2 py-0.5 rounded border border-info/50">
                           {t.emulated}
                         </span>
                       </div>
-                      <div dir="ltr" className="font-mono text-xs font-bold text-white bg-slate-900/90 px-3 py-2 rounded-xl border border-purple-600/50">
+                      <div dir="ltr" className="font-mono text-xs font-bold text-foreground bg-card/90 px-3 py-2 rounded-xl border border-info/50">
                         {smsAck}
                       </div>
                     </div>
                   )}
 
-                  <p className="text-xs text-amber-300 bg-amber-950/40 border border-amber-900/60 rounded-xl p-3 font-medium">
-                    ⚠️ {t.success_stay_safe}
+                  <p className="flex items-start gap-2 text-base text-sev-yellow bg-sev-yellow-soft border border-sev-yellow/60 rounded-md p-3 font-medium">
+                    <AlertTriangle className="mt-1 size-4 shrink-0" aria-hidden="true" />
+                    {t.success_stay_safe}
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-700 active:scale-95 transition"
+                  className="w-full h-12 rounded-xl bg-muted hover:bg-accent text-foreground font-bold text-xs flex items-center justify-center gap-2 border border-border-strong active:scale-95 transition"
                 >
                   <RotateCcw className="size-4" />
                   {t.new_report}
@@ -949,16 +957,16 @@ export default function WitnessPhoneFrame({
             {/* Error screen */}
             {state.step === "error" && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-                <div className="size-16 rounded-full bg-red-600/20 border-2 border-red-500 flex items-center justify-center mb-4">
-                  <AlertTriangle className="size-8 text-red-400" />
+                <div className="size-16 rounded-full bg-sev-red/20 border-2 border-sev-red/40 flex items-center justify-center mb-4">
+                  <AlertTriangle className="size-8 text-sev-red" />
                 </div>
-                <h3 className="text-lg font-black text-white mb-2">{t.error_title}</h3>
-                <p className="text-xs text-red-300 mb-6">{t.transmissionError}</p>
+                <h3 className="text-lg font-bold text-foreground mb-2">{t.error_title}</h3>
+                <p className="text-xs text-sev-red mb-6">{t.transmissionError}</p>
 
                 <button
                   type="button"
                   onClick={handleProceedSubmit}
-                  className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg"
+                  className="w-full h-12 rounded-xl bg-danger-solid hover:bg-danger-solid/90 text-solid-foreground font-bold text-xs flex items-center justify-center gap-2 shadow-lg"
                 >
                   <RotateCcw className="size-4" />
                   {t.retry_button}
@@ -972,36 +980,36 @@ export default function WitnessPhoneFrame({
                 data-testid="crash-countdown-overlay"
                 className={`absolute inset-0 z-50 overflow-y-auto flex flex-col justify-between p-6 ${
                   crashState.status === "cancelled"
-                    ? "bg-slate-950/95"
+                    ? "bg-background/95"
                     : crashState.status === "sent"
-                      ? "bg-teal-950/95"
-                      : "bg-red-950/95"
+                      ? "bg-brand-soft"
+                      : "bg-sev-red-soft"
                 } backdrop-blur-md transition-colors animate-in fade-in duration-200`}
               >
                 {crashState.status === "countdown" && (
                   <div className="flex flex-col items-center justify-between h-full py-4 text-center">
                     <div className="flex flex-col items-center">
-                      <span className="px-3 py-1 rounded-full bg-red-600 text-white font-black text-[11px] tracking-wider uppercase border border-red-400 animate-pulse shadow-lg mb-2">
+                      <span className="px-3 py-1 rounded-full bg-danger-solid text-solid-foreground font-bold text-xs border border-sev-red animate-pulse shadow-lg mb-2">
                         {crash.detected}
                       </span>
                       
                     </div>
 
                     <div className="flex flex-col items-center my-6">
-                      <div className="relative size-44 rounded-full bg-red-700/80 border-4 border-white flex flex-col items-center justify-center shadow-2xl animate-pulse">
+                      <div className="relative size-44 rounded-full bg-danger-solid border-4 border-border-strong flex flex-col items-center justify-center shadow-2xl animate-pulse">
                         <span
                           data-testid="countdown-timer-value"
-                          className="text-7xl font-black text-white tracking-tighter leading-none"
+                          className="text-7xl font-bold text-foreground tracking-tighter leading-none"
                         >
                           {crashState.secondsRemaining}
                         </span>
-                        <span className="text-[11px] font-black text-red-200 uppercase tracking-widest mt-1">
+                        <span className="text-xs font-bold text-foreground mt-1">
                           {crash.seconds}
                         </span>
                       </div>
-                      <p className="text-xs text-red-200 mt-4 max-w-[280px]">
+                      <p className="text-xs text-foreground mt-4 max-w-[280px]">
                         {crash.helper}{" "}
-                        <strong className="text-white font-bold">{crashState.secondsRemaining} {t.seconds}</strong>.
+                        <strong className="text-foreground font-bold">{crashState.secondsRemaining} {t.seconds}</strong>.
                       </p>
                     </div>
 
@@ -1011,15 +1019,15 @@ export default function WitnessPhoneFrame({
                         type="button"
                         data-testid="cancel-crash-button"
                         onClick={() => crashDispatch({ type: "CANCEL" })}
-                        className="w-full py-5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-red-700 font-black text-xl tracking-tight shadow-2xl active:scale-95 transition border-2 border-red-300 flex flex-col items-center justify-center gap-1 cursor-pointer"
+                        className="w-full py-5 px-4 rounded-2xl bg-card hover:bg-accent text-sev-red font-bold text-xl shadow-lg active:scale-95 transition border-2 border-sev-red flex flex-col items-center justify-center gap-1 cursor-pointer"
                       >
-                        <span className="text-2xl leading-none">✋</span>
+                        <Hand className="size-7" aria-hidden="true" />
                         <span>{crash.cancel}</span>
                         
                       </button>
 
                       {crashState.simulated && (
-                        <span className="text-[10px] text-red-400/80 font-medium bg-black/30 px-2.5 py-0.5 rounded-md">
+                        <span className="text-xs text-sev-red/80 font-medium bg-background/30 px-2.5 py-0.5 rounded-md">
                           {crash.simulated}
                         </span>
                       )}
@@ -1029,18 +1037,18 @@ export default function WitnessPhoneFrame({
 
                 {crashState.status === "cancelled" && (
                   <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                    <div className="size-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-3xl mb-4">
-                      ✅
+                    <div className="size-16 rounded-full bg-sev-green-soft border-2 border-sev-green text-sev-green flex items-center justify-center mb-4">
+                      <CheckCircle2 className="size-8" aria-hidden="true" />
                     </div>
-                    <h3 className="text-xl font-black text-white mb-1">{crash.cancelled}</h3>
+                    <h3 className="text-xl font-bold text-foreground mb-1">{crash.cancelled}</h3>
                     
-                    <p className="text-xs text-slate-300 max-w-[280px] leading-relaxed mb-6">
+                    <p className="text-xs text-muted-foreground max-w-[280px] leading-relaxed mb-6">
                       {crash.cancelledHelp}
                     </p>
                     <button
                       type="button"
                       onClick={() => crashDispatch({ type: "RESET" })}
-                      className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition cursor-pointer"
+                      className="w-full py-3 rounded-xl bg-info-solid hover:bg-info-solid/90 text-solid-foreground font-bold text-xs active:scale-95 transition cursor-pointer"
                     >
                       {crash.home}
                     </button>
@@ -1049,12 +1057,12 @@ export default function WitnessPhoneFrame({
 
                 {(crashState.status === "sending" || crashState.status === "expired") && (
                   <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                    <div className="size-16 rounded-full bg-red-600/20 border-2 border-red-400 flex items-center justify-center text-3xl mb-4 animate-bounce">
-                      📡
+                    <div className="size-16 rounded-full bg-sev-red-soft border-2 border-sev-red text-sev-red flex items-center justify-center mb-4">
+                      <SatelliteDish className="size-8" aria-hidden="true" />
                     </div>
-                    <h3 className="text-xl font-black text-white mb-1">{crash.sending}</h3>
+                    <h3 className="text-xl font-bold text-foreground mb-1">{crash.sending}</h3>
                     
-                    <p className="text-xs text-slate-300 max-w-[280px] leading-relaxed">
+                    <p className="text-xs text-muted-foreground max-w-[280px] leading-relaxed">
                       {crash.sendingHelp}
                     </p>
                   </div>
@@ -1062,28 +1070,28 @@ export default function WitnessPhoneFrame({
 
                 {crashState.status === "error" && (
                   <div role="alert" className="flex flex-col items-center justify-center h-full text-center p-4 gap-4">
-                    <h3 className="text-xl font-black text-white">{crash.error}</h3>
-                    <p className="text-sm text-slate-300">{crash.errorHelp}</p>
+                    <h3 className="text-xl font-bold text-foreground">{crash.error}</h3>
+                    <p className="text-sm text-muted-foreground">{crash.errorHelp}</p>
                     <button type="button" onClick={() => crashDispatch({ type: "RESET" })}
-                      className="w-full p-3 rounded-xl bg-blue-600 text-white font-bold">
+                      className="w-full p-3 rounded-xl bg-info-solid text-solid-foreground font-bold">
                       {crash.home}
                     </button>
                   </div>
                 )}
                 {crashState.status === "sent" && (
                   <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                    <div className="size-16 rounded-full bg-teal-500/20 border-2 border-teal-400 flex items-center justify-center text-3xl mb-4">
-                      🚨
+                    <div className="size-16 rounded-full bg-brand-soft border-2 border-brand text-brand-soft-foreground flex items-center justify-center mb-4">
+                      <Siren className="size-8" aria-hidden="true" />
                     </div>
-                    <h3 className="text-xl font-black text-white mb-1">{crash.sent}</h3>
+                    <h3 className="text-xl font-bold text-foreground mb-1">{crash.sent}</h3>
                     
-                    <p className="text-xs text-slate-300 max-w-[280px] leading-relaxed mb-6">
+                    <p className="text-xs text-muted-foreground max-w-[280px] leading-relaxed mb-6">
                       {crash.sentHelp}
                     </p>
                     <button
                       type="button"
                       onClick={() => crashDispatch({ type: "RESET" })}
-                      className="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs uppercase tracking-wider active:scale-95 transition cursor-pointer"
+                      className="w-full py-3 rounded-xl bg-primary-action hover:bg-primary-hover text-solid-foreground font-bold text-xs active:scale-95 transition cursor-pointer"
                     >
                       {crash.done}
                     </button>

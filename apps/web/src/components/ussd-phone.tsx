@@ -98,7 +98,7 @@ export default function UssdPhone({ from }: { from: string }) {
 
       <div className="mx-auto w-64 rounded-[2rem] border-2 border-border bg-secondary p-4 shadow-sm">
         <div role="status" aria-label="Écran USSD" className="min-h-40 rounded-md border border-input bg-card p-2 font-mono text-xs whitespace-pre-wrap">
-          {session ? session.screen.message : "Composez *140# pour joindre le service SVX Rescue."}
+          {session ? session.screen.message : "Composez *140# pour joindre le service AWN."}
         </div>
 
         {session?.screen.tower && (

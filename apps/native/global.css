@@ -1,3 +1,95 @@
 @import "tailwindcss";
 @import "uniwind";
 @import "heroui-native/styles";
+
+/* AWN (عون) theme for HeroUI Native. Source of truth: docs/design_system.md. */
+@theme {
+  --radius: 0.5rem; /* 8px: md = 12px fields/buttons, 2xl = 16px cards */
+  --field-radius: 0.75rem;
+  /* Filled semantic surfaces carry white text in both themes. */
+  --color-danger-solid: #b91c1c;
+  --color-warning-solid: #b45309;
+  --color-success-solid: #15803d;
+  --color-info-solid: #1d4ed8;
+  --color-solid-foreground: #ffffff;
+}
+
+/* Neutral information (HeroUI has no "info" status). */
+@theme inline static {
+  --color-info: var(--info);
+  --color-info-soft: color-mix(in oklab, var(--info) 15%, transparent);
+}
+
+@layer theme {
+  :root {
+    @variant light {
+      --background: #f7faf9;
+      --foreground: #102a27;
+      --surface: #ffffff;
+      --surface-foreground: #102a27;
+      --surface-secondary: #eff5f3;
+      --surface-secondary-foreground: #102a27;
+      --surface-tertiary: #e5efec;
+      --surface-tertiary-foreground: #102a27;
+      --overlay: #ffffff;
+      --overlay-foreground: #102a27;
+      --muted: #526b66;
+      --default: #eff5f3;
+      --default-foreground: #102a27;
+      --accent: #0f766e;
+      --accent-foreground: #ffffff;
+      --field-background: #ffffff;
+      --field-foreground: #102a27;
+      --field-placeholder: #78908a;
+      --field-border: #b8cdc6;
+      --success: #15803d;
+      --success-foreground: #ffffff;
+      --warning: #b45309;
+      --warning-foreground: #ffffff;
+      --danger: #b91c1c;
+      --danger-foreground: #ffffff;
+      --segment: #ffffff;
+      --segment-foreground: #102a27;
+      --border: #dce8e4;
+      --separator: #b8cdc6;
+      --focus: #0d9488;
+      --link: #0f766e;
+      --info: #1d4ed8;
+    }
+
+    @variant dark {
+      --background: #071b19;
+      --foreground: #eaf5f2;
+      --surface: #0b2522;
+      --surface-foreground: #eaf5f2;
+      --surface-secondary: #10312d;
+      --surface-secondary-foreground: #eaf5f2;
+      --surface-tertiary: #164039;
+      --surface-tertiary-foreground: #eaf5f2;
+      --overlay: #10312d;
+      --overlay-foreground: #eaf5f2;
+      --muted: #a7c2bb;
+      --default: #10312d;
+      --default-foreground: #eaf5f2;
+      --accent: #0f766e;
+      --accent-foreground: #ffffff;
+      --field-background: #0b2522;
+      --field-foreground: #eaf5f2;
+      --field-placeholder: #789b92;
+      --field-border: #32645b;
+      --success: #4ade80;
+      --success-foreground: #021c19;
+      --warning: #fbbf24;
+      --warning-foreground: #021c19;
+      --danger: #f87171;
+      --danger-foreground: #021c19;
+      --segment: #164039;
+      --segment-foreground: #eaf5f2;
+      --border: #1e4841;
+      --separator: #32645b;
+      --focus: #2dd4bf;
+      --link: #2dd4bf;
+      --info: #60a5fa;
+    }
+  }
+}

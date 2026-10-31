@@ -33,8 +33,8 @@ function Reading({ result, locale }: { result: ShockIndex; locale: Locale }) {
       <div className="flex items-center gap-2">
         <Icon className="size-5 shrink-0" aria-hidden="true" />
         <p className="text-sm font-semibold">
-          {t.title} <span dir="ltr" className="tabular font-mono text-xl font-extrabold">{shown}</span>{" "}
-          <span className="font-bold uppercase">{t[result.flag]}</span>
+          {t.title} <span dir="ltr" className="tabular font-mono text-xl font-bold">{shown}</span>{" "}
+          <span className="font-bold">{t[result.flag]}</span>
         </p>
       </div>
       {result.caveats.length > 0 && (

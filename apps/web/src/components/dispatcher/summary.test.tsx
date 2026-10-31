@@ -13,8 +13,9 @@ it("counts active incidents and shows a lost live connection", () => {
       status="error"
     />,
   );
-  expect(screen.getByText("2 en cours")).toBeTruthy();
-  expect(screen.getByText("1 RED")).toBeTruthy();
-  expect(screen.getByText("1 en attente")).toBeTruthy();
+  const summary = screen.getByLabelText("Synthèse opérationnelle").textContent;
+  expect(summary).toContain("2 en cours");
+  expect(summary).toContain("1 RED");
+  expect(summary).toContain("1 en attente");
   expect(screen.getByText(/Flux interrompu/)).toBeTruthy();
 });

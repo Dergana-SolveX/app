@@ -5,6 +5,7 @@ import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { BRAND_TITLE } from "@/lib/brand";
 import type { trpc } from "@/utils/trpc";
 
 import "../index.css";
@@ -19,17 +20,18 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
     meta: [
       {
-        title: "SVX Rescue",
+        title: BRAND_TITLE,
       },
       {
         name: "description",
-        content: "Réponse aux urgences routières : du choc à l'hôpital.",
+        content: "AWN — signaler un accident et demander de l'aide, plus vite et plus simplement.",
       },
     ],
     links: [
       {
         rel: "icon",
-        href: "/favicon.ico",
+        type: "image/svg+xml",
+        href: "/images/logobright.svg",
       },
     ],
   }),

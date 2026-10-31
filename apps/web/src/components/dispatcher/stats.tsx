@@ -101,7 +101,7 @@ export function DispatcherStats() {
       {includeEmulated && (
         <div
           role="status"
-          className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200"
+          className="flex items-center gap-3 rounded-lg border border-sev-yellow/30 bg-sev-yellow/10 p-3 text-xs text-sev-yellow"
         >
           <EmulationBadge>DONNÉES DE DÉMONSTRATION</EmulationBadge>
           <span>
@@ -138,7 +138,7 @@ export function DispatcherStats() {
                 <span className="text-2xl font-bold tracking-tight text-foreground">
                   {data.decisionTimes.medianSeconds}s
                 </span>
-                <span className="text-xs text-emerald-600 font-medium">Objectif &lt; 60s</span>
+                <span className="text-xs text-sev-green font-medium">Objectif &lt; 60s</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 Temps écoulé du premier signal au clic de validation
@@ -164,7 +164,7 @@ export function DispatcherStats() {
             <Card className="p-4 shadow-xs">
               <div className="flex items-center justify-between text-muted-foreground">
                 <span className="text-xs font-medium">Taux d'ajustement</span>
-                <ShuffleIcon className="size-4 text-amber-500" aria-hidden="true" />
+                <ShuffleIcon className="size-4 text-sev-yellow" aria-hidden="true" />
               </div>
               <div className="mt-2 flex items-baseline gap-2">
                 <span className="text-2xl font-bold tracking-tight text-foreground">
@@ -221,16 +221,16 @@ export function DispatcherStats() {
                               style={{ height: `${heightPct}%` }}
                               className="w-full rounded-t bg-primary/80 transition-all hover:bg-primary group-hover:opacity-100"
                             />
-                            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 bg-popover text-popover-foreground text-[10px] px-1.5 py-0.5 rounded shadow pointer-events-none whitespace-nowrap z-10">
+                            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 bg-popover text-popover-foreground text-xs px-1.5 py-0.5 rounded shadow pointer-events-none whitespace-nowrap z-10">
                               {pt.date}: {pt.medianSeconds}s
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                    <div className="flex justify-between text-[11px] text-muted-foreground border-t pt-1">
+                    <div className="flex justify-between text-xs text-muted-foreground border-t pt-1">
                       <span>{data.decisionTimes.trend[0]?.date}</span>
-                      <span className="font-medium text-emerald-600">Seuil cible: 60s</span>
+                      <span className="font-medium text-sev-green">Seuil cible: 60s</span>
                       <span>{data.decisionTimes.trend[data.decisionTimes.trend.length - 1]?.date}</span>
                     </div>
                   </div>
@@ -262,38 +262,38 @@ export function DispatcherStats() {
                     <>
                       {/* Stacked bar */}
                       <div className="h-4 w-full rounded-full bg-muted flex overflow-hidden">
-                        <div style={{ width: `${intPct}%` }} className="bg-sky-500" title={`Internet: ${intPct}%`} />
-                        <div style={{ width: `${smsPct}%` }} className="bg-emerald-500" title={`SMS: ${smsPct}%`} />
-                        <div style={{ width: `${ussdPct}%` }} className="bg-amber-500" title={`USSD: ${ussdPct}%`} />
+                        <div style={{ width: `${intPct}%` }} className="bg-info-solid" title={`Internet: ${intPct}%`} />
+                        <div style={{ width: `${smsPct}%` }} className="bg-success-solid" title={`SMS: ${smsPct}%`} />
+                        <div style={{ width: `${ussdPct}%` }} className="bg-warning-solid" title={`USSD: ${ussdPct}%`} />
                       </div>
 
                       {/* Legend & counts */}
                       <div className="grid grid-cols-3 gap-2 pt-2 text-xs">
-                        <div className="rounded-lg border p-2.5 bg-sky-500/5">
-                          <div className="flex items-center gap-1.5 font-medium text-sky-700 dark:text-sky-300">
+                        <div className="rounded-lg border p-2.5 bg-info/5">
+                          <div className="flex items-center gap-1.5 font-medium text-info">
                             <WifiIcon className="size-3.5" />
                             <span>Internet</span>
                           </div>
                           <div className="mt-1 text-base font-bold text-foreground">{data.channelMix.internet}</div>
-                          <div className="text-[11px] text-muted-foreground">{intPct}% (IoT direct / App)</div>
+                          <div className="text-xs text-muted-foreground">{intPct}% (IoT direct / App)</div>
                         </div>
 
-                        <div className="rounded-lg border p-2.5 bg-emerald-500/5">
-                          <div className="flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-300">
+                        <div className="rounded-lg border p-2.5 bg-sev-green/5">
+                          <div className="flex items-center gap-1.5 font-medium text-sev-green">
                             <SmartphoneIcon className="size-3.5" />
                             <span>SMS</span>
                           </div>
                           <div className="mt-1 text-base font-bold text-foreground">{data.channelMix.sms}</div>
-                          <div className="text-[11px] text-muted-foreground">{smsPct}% (GSM fallback)</div>
+                          <div className="text-xs text-muted-foreground">{smsPct}% (GSM fallback)</div>
                         </div>
 
-                        <div className="rounded-lg border p-2.5 bg-amber-500/5">
-                          <div className="flex items-center gap-1.5 font-medium text-amber-700 dark:text-amber-300">
+                        <div className="rounded-lg border p-2.5 bg-sev-yellow/5">
+                          <div className="flex items-center gap-1.5 font-medium text-sev-yellow">
                             <RadioTowerIcon className="size-3.5" />
                             <span>USSD</span>
                           </div>
                           <div className="mt-1 text-base font-bold text-foreground">{data.channelMix.ussd}</div>
-                          <div className="text-[11px] text-muted-foreground">{ussdPct}% (Signal canal D)</div>
+                          <div className="text-xs text-muted-foreground">{ussdPct}% (Signal canal D)</div>
                         </div>
                       </div>
                     </>
@@ -326,31 +326,31 @@ export function DispatcherStats() {
                     <>
                       <div>
                         <div className="flex justify-between text-xs font-medium mb-1">
-                          <span className="text-red-600 dark:text-red-400">Urgence absolue (Rouge)</span>
+                          <span className="text-sev-red">Urgence absolue (Rouge)</span>
                           <span>{data.severitySplit.red} incidents ({redPct}%)</span>
                         </div>
                         <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-                          <div style={{ width: `${redPct}%` }} className="h-full bg-red-600" />
+                          <div style={{ width: `${redPct}%` }} className="h-full bg-danger-solid" />
                         </div>
                       </div>
 
                       <div>
                         <div className="flex justify-between text-xs font-medium mb-1">
-                          <span className="text-amber-600 dark:text-amber-400">Urgence relative (Jaune)</span>
+                          <span className="text-sev-yellow">Urgence relative (Jaune)</span>
                           <span>{data.severitySplit.yellow} incidents ({yellowPct}%)</span>
                         </div>
                         <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-                          <div style={{ width: `${yellowPct}%` }} className="h-full bg-amber-500" />
+                          <div style={{ width: `${yellowPct}%` }} className="h-full bg-warning-solid" />
                         </div>
                       </div>
 
                       <div>
                         <div className="flex justify-between text-xs font-medium mb-1">
-                          <span className="text-emerald-600 dark:text-emerald-400">Impliqué sans détresse (Vert)</span>
+                          <span className="text-sev-green">Impliqué sans détresse (Vert)</span>
                           <span>{data.severitySplit.green} incidents ({greenPct}%)</span>
                         </div>
                         <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-                          <div style={{ width: `${greenPct}%` }} className="h-full bg-emerald-500" />
+                          <div style={{ width: `${greenPct}%` }} className="h-full bg-success-solid" />
                         </div>
                       </div>
                     </>
