@@ -37,7 +37,7 @@ export function ScenarioPanel({
   const canToggleArm = state === "IDLE" || state === "ARMED";
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="@container flex min-w-0 flex-col gap-4">
       <section aria-labelledby="scenarios-title">
         <h2 id="scenarios-title" className="mb-2 text-sm font-bold">
           Scénarios
@@ -57,7 +57,8 @@ export function ScenarioPanel({
         </ul>
       </section>
 
-      <div className="grid grid-cols-2 gap-2">
+      {/* Side by side only when each button has room for its label. */}
+      <div className="grid grid-cols-1 gap-2 @[22rem]:grid-cols-2">
         <Button type="button" size="lg" variant={armed ? "default" : "outline"} disabled={!canToggleArm} onClick={() => onPress(armed ? "disarm" : "arm")}>
           {armed ? <ShieldCheckIcon aria-hidden="true" /> : <ShieldOffIcon aria-hidden="true" />}
           {armed ? "Désarmer" : "Armer"}
@@ -73,7 +74,7 @@ export function ScenarioPanel({
         <summary className="flex min-h-12 cursor-pointer items-center text-sm font-bold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           Impact personnalisé
         </summary>
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="mt-3 grid grid-cols-1 gap-3 @[26rem]:grid-cols-2">
           <NumberStepper label="Pic" unit="g" value={custom.peakG} onChange={(v) => setCustom({ ...custom, peakG: v ?? 0 })} min={0} max={THRESHOLDS.chipSim.saturationG * 2} step={5} fallback={40} />
           <NumberStepper label="Durée" unit="ms" value={custom.durationMs} onChange={(v) => setCustom({ ...custom, durationMs: v ?? 0 })} min={0} max={300} step={5} fallback={80} />
           <NumberStepper label="Tonneau" unit="°" value={custom.rollDeg} onChange={(v) => setCustom({ ...custom, rollDeg: v ?? 0 })} min={0} max={360} step={30} fallback={0} />

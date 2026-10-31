@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { BarChart3Icon, MapIcon, MousePointerClickIcon, RadioTowerIcon } from "lucide-react";
@@ -30,6 +30,7 @@ export default function DispatcherWorkspace() {
   const [highlight, setHighlight] = useState<Highlight>(null);
   const [focus, setFocus] = useState<MapFocus>(null);
   const [unseen, setUnseen] = useState<ReadonlySet<string>>(() => new Set());
+  const detailRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const incidents = useQuery(trpc.incidents.list.queryOptions());
   const layers = useQuery(
@@ -75,6 +76,12 @@ export default function DispatcherWorkspace() {
       return next;
     });
   };
+  // Below `lg` the details sit under the list: bring them into view when an alert is chosen.
+  useEffect(() => {
+    if (selectedId === null || !window.matchMedia?.("(max-width: 1023px)").matches) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    detailRef.current?.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [selectedId]);
   const highlightFromList = (id: string | null) => {
     setHighlight(id ? { id, from: "list" } : null);
     if (id) setFocus({ id, mode: "hover", nonce: Date.now() });
@@ -226,6 +233,7 @@ export default function DispatcherWorkspace() {
                   </Suspense>
                 </div>
               )}
+              <div ref={detailRef} className="scroll-mt-4">
               {!selectedId ? (
                 <div className="grid place-items-center gap-2 rounded-lg border border-dashed bg-card/60 px-6 py-14 text-center">
                   <span className="grid size-12 place-items-center rounded-full bg-brand-soft text-brand-soft-foreground">
@@ -266,6 +274,7 @@ export default function DispatcherWorkspace() {
                   }
                 />
               )}
+              </div>
             </div>
           </div>
         </>

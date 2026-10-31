@@ -12,6 +12,7 @@ import {
 import { Button } from "@solvex-dergana/ui/components/button";
 import { Input } from "@solvex-dergana/ui/components/input";
 import { Label } from "@solvex-dergana/ui/components/label";
+import { cn } from "@solvex-dergana/ui/lib/utils";
 import { LoaderCircleIcon, SaveIcon } from "lucide-react";
 import { useEffect, useId, useMemo } from "react";
 
@@ -41,9 +42,9 @@ const TREATMENTS = ["Oxygène", "Voie veineuse", "Remplissage", "Collier cervica
 
 const SEX_LABELS: Record<Sex, string> = { unknown: "Inconnu", male: "Homme", female: "Femme" };
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className="rounded-lg border bg-card p-4">
+    <section className={cn("@container min-w-0 rounded-lg border bg-card p-4 shadow-xs", className)}>
       <h2 className="mb-3 text-base font-bold">{title}</h2>
       {children}
     </section>
@@ -152,14 +153,20 @@ export function BilanForm({
     set({ medic: withAnswer(draft.medic, level, id, value) });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="@container flex min-w-0 flex-col gap-4">
       {/* Always in view while the medic types: the two results that change what they do next. */}
-      <div className="sticky top-0 z-10 -mx-1 flex flex-col gap-2 bg-background/95 px-1 py-2 backdrop-blur-sm">
+      <div className="sticky top-0 z-10 -mx-1 flex flex-col gap-2 bg-background/95 px-1 py-2 backdrop-blur-sm @3xl:flex-row @3xl:*:flex-1">
         <VittelBanner result={assessment.vittel} />
         <ShockIndexBadge result={assessment.shockIndex} />
       </div>
 
-      <Section title="Victime">
+      {/*
+        One column on a tablet held upright, in the order the medic works (the `order-*` values).
+        Two columns once the form itself is wide: the measures on the left, the decisions on the right.
+      */}
+      <div className="flex flex-col gap-4 @4xl:grid @4xl:grid-cols-2 @4xl:items-start">
+      <div className="contents @4xl:flex @4xl:min-w-0 @4xl:flex-col @4xl:gap-4">
+      <Section title="Victime" className="order-1">
         <div className="flex flex-col gap-4">
           <div role="group" aria-label="Profil de la victime" className="flex flex-wrap gap-2">
             <ToggleChip label="Inconnu" pressed={draft.profileId === null} onPressedChange={() => set({ profileId: null })} />
@@ -208,8 +215,8 @@ export function BilanForm({
         </div>
       </Section>
 
-      <Section title="Constantes">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Section title="Constantes" className="order-2">
+        <div className="grid gap-4 @md:grid-cols-2 @2xl:grid-cols-3">
           <NumberStepper label="FC" unit="bpm" value={draft.hr} onChange={(hr) => set({ hr })} min={0} max={300} fallback={80} />
           <NumberStepper label="PAS" unit="mmHg" value={draft.sbp} onChange={(sbp) => set({ sbp })} min={0} max={350} step={5} fallback={120} />
           <NumberStepper label="PAD" unit="mmHg" value={draft.dbp} onChange={(dbp) => set({ dbp })} min={0} max={250} step={5} fallback={80} />
@@ -240,11 +247,7 @@ export function BilanForm({
         <p className="mt-3 text-xs text-muted-foreground">Un champ vide veut dire « non mesuré » : il n'est jamais compté comme 0.</p>
       </Section>
 
-      <Section title="Critères de Vittel">
-        <VittelPanel state={assessment.state} onAnswer={answer} />
-      </Section>
-
-      <Section title="Lésions suspectées">
+      <Section title="Lésions suspectées" className="order-4">
         <div className="flex flex-wrap gap-2">
           {INJURIES.map((name) => (
             <ToggleChip key={name} label={name} pressed={draft.injuries.includes(name)} onPressedChange={(on) => set({ injuries: toggled(draft.injuries, name, on) })} />
@@ -252,15 +255,21 @@ export function BilanForm({
         </div>
       </Section>
 
-      <Section title="Gestes réalisés">
+      <Section title="Gestes réalisés" className="order-5">
         <div className="flex flex-wrap gap-2">
           {TREATMENTS.map((name) => (
             <ToggleChip key={name} label={name} pressed={draft.treatments.includes(name)} onPressedChange={(on) => set({ treatments: toggled(draft.treatments, name, on) })} />
           ))}
         </div>
       </Section>
+      </div>
 
-      <Section title="Orientation hospitalière">
+      <div className="contents @4xl:flex @4xl:min-w-0 @4xl:flex-col @4xl:gap-4">
+      <Section title="Critères de Vittel" className="order-3">
+        <VittelPanel state={assessment.state} onAnswer={answer} />
+      </Section>
+
+      <Section title="Orientation hospitalière" className="order-6">
         {!scene ? (
           <p className="text-sm text-muted-foreground">La position de l'incident n'est pas connue : le classement des hôpitaux n'est pas possible.</p>
         ) : orientation ? (
@@ -314,8 +323,10 @@ export function BilanForm({
           </p>
         )}
       </Section>
+      </div>
+      </div>
 
-      <div className="sticky bottom-0 -mx-1 bg-background/95 px-1 py-3 backdrop-blur-sm">
+      <div className="sticky bottom-0 -mx-1 border-t bg-background/95 px-1 py-3 backdrop-blur-sm">
         {missingReason && (
           <p role="alert" className="mb-2 text-sm font-semibold text-destructive">
             Indiquez le motif pour enregistrer un autre hôpital que le recommandé.
