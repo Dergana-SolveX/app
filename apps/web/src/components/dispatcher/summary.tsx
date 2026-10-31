@@ -28,7 +28,7 @@ export function DispatcherSummary({
         <ClockIcon className="size-4 text-muted-foreground" aria-hidden="true" />
         <span className="tabular text-base font-semibold">{waiting}</span> en attente
       </span>
-      <LiveStatus status={status} />
+      {status !== "pending" && <LiveStatus status={status} />}
     </div>
   );
 }

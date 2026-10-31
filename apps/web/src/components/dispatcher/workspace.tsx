@@ -220,6 +220,7 @@ export default function DispatcherWorkspace() {
                       layers={layers.data ?? { units: [], hospitals: [], zones: [] }}
                       selectedId={selectedId}
                       onSelect={select}
+                      onLocate={locate}
                       highlightedId={highlight?.id ?? null}
                       onHighlight={highlightFromMap}
                       focus={focus}

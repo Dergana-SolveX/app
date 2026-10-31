@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { divIcon } from "leaflet";
-import { Circle, GeoJSON, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { Circle, GeoJSON, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@solvex-dergana/ui/components/button";
 import { MapIcon, XIcon } from "lucide-react";
@@ -71,11 +71,22 @@ function FollowFocus({ focus, incidents }: { focus: MapFocus; incidents: MapInci
   return null;
 }
 
+/** A direct map click is an intentional inspection action, so center it at street-level detail. */
+function ClickToZoom() {
+  const map = useMapEvents({
+    click: ({ latlng }) => {
+      map.setView(latlng, Math.max(map.getZoom(), 15), { animate: !prefersReducedMotion() });
+    },
+  });
+  return null;
+}
+
 export function DispatcherMap({
   incidents,
   layers,
   selectedId,
   onSelect,
+  onLocate,
   highlightedId = null,
   onHighlight,
   focus = null,
@@ -85,6 +96,7 @@ export function DispatcherMap({
   layers: MapLayers;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onLocate?: (id: string) => void;
   highlightedId?: string | null;
   onHighlight?: (id: string | null) => void;
   focus?: MapFocus;
@@ -102,7 +114,7 @@ export function DispatcherMap({
             Carte opérationnelle
           </h2>
           <p className="text-sm text-muted-foreground">
-            Survolez une alerte pour la repérer. R / J / V / ? : gravité · U : unité · H : hôpital
+            Survolez une alerte pour la repérer, cliquez pour zoomer. R / J / V / ? : gravité · U : unité · H : hôpital
           </p>
         </div>
         {onClose && (
@@ -123,6 +135,7 @@ export function DispatcherMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           eventHandlers={{ tileerror: () => setTilesFailed(true) }}
         />
+        <ClickToZoom />
         <FollowFocus focus={effectiveFocus} incidents={placed} />
         {layers.zones.map((zone) => (
           <GeoJSON key={zone.id} data={zone.polygon} style={{ color: "var(--brand)", weight: 1, fillOpacity: 0.05 }}>
@@ -190,7 +203,10 @@ export function DispatcherMap({
               alt={incidentName(i)}
               title={incidentName(i)}
               eventHandlers={{
-                click: () => onSelect(i.id),
+                click: () => {
+                  onSelect(i.id);
+                  onLocate?.(i.id);
+                },
                 mouseover: () => onHighlight?.(i.id),
                 mouseout: () => onHighlight?.(null),
               }}

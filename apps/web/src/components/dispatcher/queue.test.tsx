@@ -53,7 +53,9 @@ it("selects, highlights on hover and locates an alert; filters by severity", asy
   expect(screen.getByRole("button", { name: "Incident #C : position inconnue" }).hasAttribute("disabled")).toBe(true);
 
   const filters = screen.getByRole("group", { name: "Filtrer par gravité" });
-  await userEvent.click(within(filters).getByRole("button", { name: /Rouge/ }));
+  const redFilter = within(filters).getByRole("button", { name: /Rouge/ });
+  expect(redFilter.textContent).toBe("1");
+  await userEvent.click(redFilter);
   const list = screen.getByRole("list", { name: /la plus récente en premier/ });
   expect(within(list).getAllByRole("listitem")).toHaveLength(1);
 });

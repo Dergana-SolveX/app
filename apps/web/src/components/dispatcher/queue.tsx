@@ -39,6 +39,13 @@ const STRIPE: Record<Severity, string> = {
   unknown: "before:bg-sev-unknown",
 };
 
+const FILTER_SWATCH: Record<Severity, string> = {
+  red: "bg-sev-red",
+  yellow: "bg-sev-yellow",
+  green: "bg-sev-green",
+  unknown: "bg-sev-unknown",
+};
+
 /** Latest signal first: the most recent arrival is always on top. */
 export const arrivalTime = (i: Pick<Incident, "firstAlertAt" | "lastAlertAt">) =>
   new Date(i.lastAlertAt ?? i.firstAlertAt).getTime();
@@ -99,23 +106,42 @@ export function DispatcherQueue({
           )}
         </div>
         <div role="group" aria-label="Filtrer par gravité" className="flex flex-wrap gap-1.5">
-          {FILTERS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={filter === value}
-              onClick={() => setFilter(value)}
-              className={cn(
-                "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors hover:bg-accent",
-                filter === value
-                  ? "border-primary bg-primary/10 text-primary font-semibold"
-                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {label}
-              <span className="tabular text-xs opacity-80">{count(value)}</span>
-            </button>
-          ))}
+          {FILTERS.map(({ value, label }) => {
+            const total = count(value);
+            const colorOnly = value !== "all";
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-label={colorOnly ? `${label} — ${total} alerte${total > 1 ? "s" : ""}` : undefined}
+                title={colorOnly ? label : undefined}
+                aria-pressed={filter === value}
+                onClick={() => setFilter(value)}
+                className={cn(
+                  "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full border text-sm font-medium transition-colors hover:bg-accent",
+                  colorOnly ? "min-w-12 px-2.5" : "px-3",
+                  filter === value
+                    ? "border-primary bg-primary/10 text-primary font-semibold ring-1 ring-primary/20"
+                    : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {colorOnly ? (
+                  <span
+                    className={cn(
+                      "size-3.5 rounded-full shadow-[inset_0_0_0_1px_rgb(255_255_255/0.35)]",
+                      FILTER_SWATCH[value],
+                    )}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  label
+                )}
+                <span className="tabular text-xs opacity-80" aria-hidden={colorOnly || undefined}>
+                  {total}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </header>
 
