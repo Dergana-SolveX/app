@@ -13,6 +13,13 @@ function getServerUrl(url: string) {
   return url.endsWith("/") ? url.slice(0, -1) : url;
 }
 
+let configuredServerUrl = "http://localhost:3000";
+try {
+  configuredServerUrl = ENV?.VITE_SERVER_URL || "http://localhost:3000";
+} catch {
+  configuredServerUrl = "http://localhost:3000";
+}
+
 export const authClient = createAuthClient({
-  baseURL: new URL("/api/auth", getServerUrl(ENV.VITE_SERVER_URL)).toString(),
+  baseURL: new URL("/api/auth", getServerUrl(configuredServerUrl)).toString(),
 });

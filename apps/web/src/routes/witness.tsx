@@ -76,7 +76,11 @@ function WitnessRoute() {
 
       {/* Main Presentation View */}
       <main className="flex-1 flex items-center justify-center py-6 px-4">
-        {activeTab === "witness" ? <WitnessPhoneFrame /> : <CellSurveyFrame />}
+        {activeTab === "witness" ? (
+          <WitnessPhoneFrame onNavigateToSurvey={() => setActiveTab("survey")} />
+        ) : (
+          <CellSurveyFrame />
+        )}
       </main>
 
       {/* Footer Info */}

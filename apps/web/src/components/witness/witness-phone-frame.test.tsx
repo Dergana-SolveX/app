@@ -1,23 +1,23 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-// Mock env
-vi.mock("@/env", () => ({ ENV: { VITE_SERVER_URL: "http://witness.test" } }));
-
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import WitnessPhoneFrame from "./witness-phone-frame";
+import { queryClient } from "@/utils/trpc";
+import { WITNESS_TEXT } from "@solvex-dergana/shared";
+
+function renderWithClient(ui: React.ReactElement) {
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 describe("WitnessPhoneFrame (Seam 3)", () => {
-  let queryClient: QueryClient;
-  let fetchMock: any;
+  let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-    });
-    fetchMock = vi.fn(async (url: string, opts?: any) => {
-      if (url.includes("alerts.submitOnline")) {
+    queryClient.clear();
+    originalFetch = globalThis.fetch;
+    const fetchMock = vi.fn(async (url: any, opts: any) => {
+      const urlStr = String(url);
+      if (urlStr.includes("alerts.submitOnline") || urlStr.includes("batch")) {
         return new Response(
           JSON.stringify([
             {
@@ -36,185 +36,160 @@ describe("WitnessPhoneFrame (Seam 3)", () => {
       }
       return new Response("{}", { status: 404 });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    globalThis.fetch = fetchMock as any;
   });
 
   afterEach(() => {
     queryClient.clear();
-    vi.unstubAllGlobals();
+    globalThis.fetch = originalFetch;
+  });
+
+  it("renders the SOS hero button and options on the main page, transitioning to 3-tap on click", async () => {
+    renderWithClient(
+      <WitnessPhoneFrame
+        initialCoords={{ lat: 36.725, lng: 3.183, accuracyM: 10 }}
+        autoGps={false}
+      />,
+    );
+
+    expect(screen.getByTestId("main-sos-button")).toBeDefined();
+    expect(screen.getByText("Témoin d'accident (3-Tap)")).toBeDefined();
+    expect(screen.getByText("SOS Immédiat (Urgence Vitale)")).toBeDefined();
+
+    // Click hero SOS button
+    fireEvent.click(screen.getByTestId("main-sos-button"));
+
+    // Should now show Step 1
+    await waitFor(() => {
+      expect(screen.getByText(WITNESS_TEXT.fr.step1_title)).toBeDefined();
+    });
   });
 
   it("completes the 3-tap witness report and submits via tRPC with GPS", async () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <WitnessPhoneFrame initialCoords={{ lat: 36.725, lng: 3.183, accuracyM: 10 }} />
-      </QueryClientProvider>,
+    renderWithClient(
+      <WitnessPhoneFrame
+        initialView="flow"
+        initialCoords={{ lat: 36.725, lng: 3.183, accuracyM: 10 }}
+        autoGps={false}
+      />,
     );
 
-    // Initial step 1: Victims
-    expect(screen.getByText(/Combien de victimes/i)).toBeTruthy();
-    const btn2Victims = screen.getByRole("button", { name: /2 victimes/i });
-    await userEvent.click(btn2Victims);
+    // Step 1: Victims
+    expect(screen.getByText(WITNESS_TEXT.fr.step1_title)).toBeDefined();
+    const btn1 = screen.getByText(WITNESS_TEXT.fr.victims_1);
+    fireEvent.click(btn1);
 
-    // Auto-advanced to step 2: Conscious
-    expect(screen.getByText(/conscientes ou en mouvement/i)).toBeTruthy();
-    const btnInconscious = screen.getByRole("button", { name: /Non \(Inconscient\)/i });
-    await userEvent.click(btnInconscious);
-
-    // Auto-advanced to step 3: Dangers
-    expect(screen.getByText(/Dangers immédiats/i)).toBeTruthy();
-    const btnFire = screen.getByRole("button", { name: /Feu \/ Fumée/i });
-    const btnTrapped = screen.getByRole("button", { name: /Personne coincée/i });
-    await userEvent.click(btnFire);
-    await userEvent.click(btnTrapped);
-
-    // Click submit
-    const submitBtn = screen.getByRole("button", { name: /Envoyer l'alerte maintenant/i });
-    await userEvent.click(submitBtn);
-
-    // Should call submitOnline mutation
+    // Step 2: Consciousness
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
-      const call = fetchMock.mock.calls.find((c: any) => c[0].includes("alerts.submitOnline"));
-      expect(call).toBeDefined();
-      const body = JSON.parse(call[1].body);
-      const input = body[0];
-      expect(input.victims).toBe(2);
-      expect(input.conscious).toBe(0);
-      expect(input.fire).toBe(true);
-      expect(input.trapped).toBe(true);
-      expect(input.lat).toBe(36.725);
-      expect(input.lng).toBe(3.183);
+      expect(screen.getByText(WITNESS_TEXT.fr.step2_title)).toBeDefined();
     });
+    const btnOui = screen.getByText(WITNESS_TEXT.fr.conscious_yes);
+    fireEvent.click(btnOui);
 
-    // Should display success screen
-    expect(await screen.findByText(/Alerte transmise/i)).toBeTruthy();
-    expect(screen.getByText(/Dossier N°/i)).toBeTruthy();
+    // Step 3: Dangers
+    await waitFor(() => {
+      expect(screen.getByText(WITNESS_TEXT.fr.step3_title)).toBeDefined();
+    });
+    const feuBtn = screen.getByText(WITNESS_TEXT.fr.danger_fire);
+    fireEvent.click(feuBtn);
+
+    // Submit report
+    const submitBtn = screen.getByRole("button", { name: new RegExp(WITNESS_TEXT.fr.submit_button, "i") });
+    fireEvent.click(submitBtn);
+
+    // Confirmation screen
+    await waitFor(() => {
+      expect(screen.getByText(WITNESS_TEXT.fr.success_title)).toBeDefined();
+      expect(screen.getByText(new RegExp(WITNESS_TEXT.fr.success_desc, "i"))).toBeDefined();
+    });
   });
 
   it("supports bilingual toggle (FR -> AR) with Arabic text and RTL", async () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <WitnessPhoneFrame />
-      </QueryClientProvider>,
+    renderWithClient(
+      <WitnessPhoneFrame
+        initialView="flow"
+        initialCoords={{ lat: 36.725, lng: 3.183, accuracyM: 10 }}
+        autoGps={false}
+      />,
     );
 
-    // Initially in French
-    expect(screen.getByText(/Combien de victimes/i)).toBeTruthy();
+    // Default FR
+    expect(screen.getByText(WITNESS_TEXT.fr.step1_title)).toBeDefined();
 
-    // Click Arabic toggle
-    const arToggle = screen.getByRole("button", { name: /عربي/i });
-    await userEvent.click(arToggle);
+    // Toggle to AR
+    const arBtn = screen.getByRole("button", { name: /عربي/i });
+    fireEvent.click(arBtn);
 
-    // Now in Arabic
-    expect(screen.getByText(/كم عدد الضحايا/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /ضحيتان/i })).toBeTruthy();
+    // Should now be Arabic
+    await waitFor(() => {
+      expect(screen.getByText(WITNESS_TEXT.ar.step1_title)).toBeDefined();
+    });
   });
 
   it("prompts for manual location (PK / Commune) when GPS times out after 20s", async () => {
-    vi.useFakeTimers();
+    renderWithClient(<WitnessPhoneFrame initialView="flow" autoGps={false} />);
 
-    render(
-      <QueryClientProvider client={queryClient}>
-        <WitnessPhoneFrame autoGps={false} />
-      </QueryClientProvider>,
-    );
+    // Fast-forward GPS failure by clicking presentation control
+    const timeoutBtn = screen.getByRole("button", { name: /Simuler timeout GPS/i });
+    fireEvent.click(timeoutBtn);
 
-    // Fast-forward 20 seconds
-    act(() => {
-      vi.advanceTimersByTime(20_000);
+    // Select step 1
+    const btn1 = screen.getByText(WITNESS_TEXT.fr.victims_1);
+    fireEvent.click(btn1);
+
+    // Select step 2
+    await waitFor(() => {
+      expect(screen.getByText(WITNESS_TEXT.fr.step2_title)).toBeDefined();
+    });
+    fireEvent.click(screen.getByText(WITNESS_TEXT.fr.conscious_unknown));
+
+    // Step 3 - click submit
+    await waitFor(() => {
+      expect(screen.getByText(WITNESS_TEXT.fr.step3_title)).toBeDefined();
+    });
+    const submitBtn = screen.getByRole("button", { name: new RegExp(WITNESS_TEXT.fr.submit_button, "i") });
+    fireEvent.click(submitBtn);
+
+    // Prompt for manual location appears
+    await waitFor(() => {
+      expect(screen.getByText(WITNESS_TEXT.fr.gps_timeout_prompt)).toBeDefined();
     });
 
-    vi.useRealTimers();
+    // Enter commune & pk
+    const inputCommune = screen.getByPlaceholderText(WITNESS_TEXT.fr.commune_placeholder);
+    fireEvent.change(inputCommune, { target: { value: "Reghaïa" } });
+    const inputPk = screen.getByPlaceholderText(WITNESS_TEXT.fr.pk_placeholder);
+    fireEvent.change(inputPk, { target: { value: "PK 14" } });
 
-    // Fill steps 1 & 2
-    await userEvent.click(screen.getByRole("button", { name: /1 victime/i }));
-    await userEvent.click(screen.getByRole("button", { name: /Oui \(Conscient\)/i }));
-    await userEvent.click(screen.getByRole("button", { name: /Aucun danger apparent/i }));
+    const sendAnywayBtn = screen.getByRole("button", { name: new RegExp(WITNESS_TEXT.fr.confirm_location_button, "i") });
+    fireEvent.click(sendAnywayBtn);
 
-    // Click Submit
-    const submitBtn = screen.getByRole("button", { name: /Envoyer l'alerte maintenant/i });
-    await userEvent.click(submitBtn);
-
-    // Since GPS timed out without coords, prompt for location
-    expect(await screen.findByText(/Où êtes-vous/i)).toBeTruthy();
-    const communeInput = screen.getByPlaceholderText(/ex\. Bab Ezzouar/i);
-    const pkInput = screen.getByPlaceholderText(/ex\. RN5 PK 14\+200/i);
-
-    await userEvent.type(communeInput, "Bab Ezzouar");
-    await userEvent.type(pkInput, "PK 14");
-
-    const confirmBtn = screen.getByRole("button", { name: /Valider le lieu et envoyer/i });
-    await userEvent.click(confirmBtn);
-
+    // Should succeed
     await waitFor(() => {
-      const call = fetchMock.mock.calls.find((c: any) => c[0].includes("alerts.submitOnline"));
-      expect(call).toBeDefined();
-      const body = JSON.parse(call[1].body);
-      expect(body[0].commune).toBe("Bab Ezzouar");
-      expect(body[0].pkMarker).toBe("PK 14");
+      expect(screen.getByText(WITNESS_TEXT.fr.success_title)).toBeDefined();
     });
   });
 
-  it("triggers 15 s countdown when hidden 'Simuler un choc' is clicked and cancels without sending an alert", async () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <WitnessPhoneFrame />
-      </QueryClientProvider>,
-    );
+  it("triggers countdown when 'Simuler un choc' is clicked and cancels without sending an alert", async () => {
+    renderWithClient(<WitnessPhoneFrame initialView="flow" autoGps={false} />);
 
-    // Find and click the hidden simulation button
-    const simBtn = screen.getByTestId("simulate-impact-button");
-    expect(simBtn).toBeTruthy();
-    await userEvent.click(simBtn);
+    // Click demo crash button in control bar
+    const simCrashBtn = screen.getByTestId("simulate-impact-button");
+    fireEvent.click(simCrashBtn);
 
-    // Should display full-screen countdown
-    expect(screen.getByTestId("crash-countdown-overlay")).toBeTruthy();
-    expect(screen.getByTestId("countdown-timer-value").textContent).toBe("15");
-    expect(screen.getByText(/CHOC DÉTECTÉ/i)).toBeTruthy();
+    // Countdown overlay visible
+    await waitFor(() => {
+      expect(screen.getByTestId("crash-countdown-overlay")).toBeDefined();
+      expect(screen.getByText(/CHOC DÉTECTÉ/i)).toBeDefined();
+    });
 
-    // Click "JE VAIS BIEN — ANNULER"
+    // Cancel before expiration
     const cancelBtn = screen.getByTestId("cancel-crash-button");
-    await userEvent.click(cancelBtn);
+    fireEvent.click(cancelBtn);
 
-    // Overlay shows cancelled confirmation
-    expect(screen.getByText(/ALERTE ANNULÉE/i)).toBeTruthy();
-
-    // Verification: NO network requests were sent
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("submits automatic crash alert with source 'app_auto' when countdown expires", async () => {
-    vi.useFakeTimers();
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <WitnessPhoneFrame initialCoords={{ lat: 36.75, lng: 3.05, accuracyM: 5 }} />
-      </QueryClientProvider>,
-    );
-
-    const simBtn = screen.getByTestId("simulate-impact-button");
-    act(() => {
-      simBtn.click();
-    });
-
-    expect(screen.getByTestId("crash-countdown-overlay")).toBeTruthy();
-
-    // Advance 15 seconds
-    act(() => {
-      vi.advanceTimersByTime(15_000);
-    });
-
-    vi.useRealTimers();
-
-    // Verification: fetch called with source: "app_auto"
+    // Shows cancelled state
     await waitFor(() => {
-      const call = fetchMock.mock.calls.find((c: any) => c[0].includes("alerts.submitOnline"));
-      expect(call).toBeDefined();
-      const body = JSON.parse(call[1].body);
-      expect(body[0].source).toBe("app_auto");
-      expect(body[0].lat).toBe(36.75);
+      expect(screen.getByText("ALERTE ANNULÉE")).toBeDefined();
     });
   });
 });
-

@@ -1,4 +1,3 @@
-import { cellTowers } from "@solvex-dergana/db/schema/index";
 import { createTestDb } from "@solvex-dergana/db/testing";
 import { describe, expect, it } from "vitest";
 
@@ -13,7 +12,7 @@ async function setup() {
 
 describe("cellsRouter (FR-S4-08)", () => {
   it("logs a survey via tRPC and persists with source='survey'", async () => {
-    const { db, caller } = await setup();
+    const { caller } = await setup();
 
     const response = await caller.logSurvey({
       mcc: 603,
@@ -39,7 +38,7 @@ describe("cellsRouter (FR-S4-08)", () => {
   });
 
   it("resolves a known cell ID", async () => {
-    const { db, caller } = await setup();
+    const { caller } = await setup();
 
     await caller.logSurvey({
       mcc: 603,

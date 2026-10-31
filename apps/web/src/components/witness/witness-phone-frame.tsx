@@ -12,6 +12,12 @@ import {
   Radio,
   Clock,
   Sparkles,
+  ArrowLeft,
+  ArrowRight,
+  Home,
+  PhoneCall,
+  Zap,
+  AlertCircle,
 } from "lucide-react";
 import {
   createWitnessFlowState,
@@ -28,12 +34,17 @@ import { trpc } from "@/utils/trpc";
 type Props = {
   initialCoords?: Coords;
   autoGps?: boolean;
+  initialView?: "home" | "flow";
+  onNavigateToSurvey?: () => void;
 };
 
 export default function WitnessPhoneFrame({
   initialCoords,
   autoGps = true,
+  initialView = "home",
+  onNavigateToSurvey,
 }: Props) {
+  const [isHome, setIsHome] = useState(initialView === "home");
   const [state, dispatch] = useReducer(
     flowReducer,
     undefined,
@@ -194,10 +205,31 @@ export default function WitnessPhoneFrame({
     dispatch({ type: "GPS_FAILED", status: "timeout" });
   };
 
+  const handleImmediateSos = () => {
+    setIsHome(false);
+    const payload = {
+      idempotencyKey: `sos-imm-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      source: "app_witness" as const,
+      victims: 1,
+      conscious: null,
+      fire: false,
+      trapped: false,
+      bleeding: false,
+      lat: state.coords?.lat ?? 36.7538,
+      lng: state.coords?.lng ?? 3.0588,
+      accuracyM: state.coords?.accuracyM ?? 5,
+      commune: state.manualCommune.trim() || null,
+      pkMarker: state.manualPkMarker.trim() || null,
+    };
+    dispatch({ type: "SUBMISSION_START" });
+    submitMutation.mutate(payload);
+  };
+
   const handleReset = () => {
     setCommuneInput("");
     setPkInput("");
     dispatch({ type: "RESET" });
+    setIsHome(true);
   };
 
   return (
@@ -240,6 +272,14 @@ export default function WitnessPhoneFrame({
           className="rounded-md bg-red-500/15 px-2.5 py-1 font-semibold text-red-400 hover:bg-red-500/25 border border-red-500/30 active:scale-95 transition flex items-center gap-1"
         >
           <span>💥</span> Simuler un choc
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsHome(true)}
+          className="rounded-md bg-sky-500/15 border border-sky-500/30 text-sky-400 px-2.5 py-1 font-semibold hover:bg-sky-500/25 active:scale-95 transition flex items-center gap-1"
+        >
+          <Home className="size-3.5" />
+          <span>Page SOS</span>
         </button>
         <button
           type="button"
@@ -352,7 +392,7 @@ export default function WitnessPhoneFrame({
           </div>
 
           {/* Progress Indicator (3 Steps) */}
-          {typeof state.step === "number" && (
+          {!isHome && typeof state.step === "number" && (
             <div className="px-4 pt-3 pb-1">
               <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 mb-1.5">
                 <span>
@@ -388,6 +428,166 @@ export default function WitnessPhoneFrame({
 
           {/* Main Interactive Screen Content */}
           <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col justify-between">
+            {/* SOS Landing Screen (PRD FR-S4-02 / FR-S4-09 Hero) */}
+            {isHome ? (
+              <div className="flex-1 flex flex-col justify-between py-1">
+                {/* Hero SOS Emergency Button */}
+                <div className="flex flex-col items-center justify-center py-4">
+                  <div className="relative flex items-center justify-center">
+                    {/* Pulsing Aura Rings */}
+                    <span className="absolute size-44 rounded-full bg-red-600/20 animate-ping pointer-events-none" />
+                    <span className="absolute size-40 rounded-full bg-red-600/30 animate-pulse pointer-events-none" />
+
+                    {/* Central Hero SOS Button */}
+                    <button
+                      type="button"
+                      data-testid="main-sos-button"
+                      onClick={() => setIsHome(false)}
+                      className="relative z-10 size-36 rounded-full bg-gradient-to-br from-red-600 via-red-500 to-rose-700 p-1 shadow-[0_0_50px_rgba(239,68,68,0.7)] active:scale-95 transition-all flex flex-col items-center justify-center border-4 border-red-300/40 text-white cursor-pointer group"
+                    >
+                      <span className="text-3xl font-black tracking-widest drop-shadow-md group-hover:scale-105 transition-transform">
+                        SOS
+                      </span>
+                      <span className="text-xs font-bold text-red-100" dir="rtl">
+                        استغاثة
+                      </span>
+                      <span className="mt-1 text-[9px] font-bold tracking-wider text-red-200 uppercase">
+                        {isRtl ? "انقر للإبلاغ" : "Appuyez"}
+                      </span>
+                    </button>
+                  </div>
+                  <p className="mt-3 text-xs font-bold text-slate-200">
+                    {isRtl ? "خدمة الإغاثة والاستجابة العاجلة" : "Centrale d'Urgence SVX Rescue"}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    {isRtl ? "اختر طريقة التبليغ المناسبة أدناه" : "Choisissez votre mode d'alerte ci-dessous"}
+                  </p>
+                </div>
+
+                {/* Grid of SOS Options */}
+                <div className="space-y-2">
+                  {/* Option 1: Witness 3-Tap */}
+                  <button
+                    type="button"
+                    data-testid="sos-option-witness"
+                    onClick={() => setIsHome(false)}
+                    className="w-full flex items-center justify-between rounded-2xl border-2 border-red-500/50 bg-red-950/40 p-3 hover:bg-red-900/50 active:scale-[0.99] transition text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-11 items-center justify-center rounded-xl bg-red-600 text-white shadow-md">
+                        <ShieldAlert className="size-6" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span>{isRtl ? "شاهد على حادث (3 نقرات)" : "Témoin d'accident (3-Tap)"}</span>
+                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 border border-red-500/30">RAPIDE</span>
+                        </div>
+                        <div className="text-[10px] text-slate-300">
+                          {isRtl ? "الضحايا • الوعي • الأخطار في 3 حركات" : "Victimes • Conscience • Dangers en 3 gestes"}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="size-4 text-slate-400" />
+                  </button>
+
+                  {/* Option 2: Immediate Vital SOS */}
+                  <button
+                    type="button"
+                    data-testid="sos-option-vital"
+                    onClick={handleImmediateSos}
+                    className="w-full flex items-center justify-between rounded-2xl border border-rose-500/40 bg-slate-900/90 p-3 hover:bg-slate-800/90 active:scale-[0.99] transition text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-11 items-center justify-center rounded-xl bg-rose-600/20 text-rose-400 border border-rose-500/40 shadow-sm">
+                        <Radio className="size-6 animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-rose-200">
+                          {isRtl ? "استغاثة فورية (نداء عاجل)" : "SOS Immédiat (Urgence Vitale)"}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          {isRtl ? "إرسال نداء فوري ومباشر مع إحداثيات GPS" : "Envoi direct avec géolocalisation GPS"}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="size-4 text-slate-400" />
+                  </button>
+
+                  {/* Option 3: Crash Simulation Demo */}
+                  <button
+                    type="button"
+                    data-testid="sos-option-crash"
+                    onClick={() => {
+                      crashDispatch({
+                        type: "TRIGGER_CRASH",
+                        payload: {
+                          peakG: 6.2,
+                          speedBeforeKmh: 65,
+                          simulated: true,
+                          timestamp: Date.now(),
+                        },
+                      });
+                    }}
+                    className="w-full flex items-center justify-between rounded-2xl border border-amber-500/30 bg-slate-900/90 p-3 hover:bg-slate-800/90 active:scale-[0.99] transition text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-11 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-sm">
+                        <span className="text-xl">💥</span>
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-amber-200">
+                          {isRtl ? "محاكاة اصطدام مركبة (عرض 10 ثوانٍ)" : "Simuler un choc (Démo 10s)"}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          {isRtl ? "اختبار التنبيه التلقائي للمركبة" : "Déclencheur automatique de choc (FR-S4-01)"}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="size-4 text-slate-400" />
+                  </button>
+
+                  {/* Option 4: Direct Emergency Numbers & Survey Link */}
+                  <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs">
+                    <div className="flex items-center gap-2">
+                      <PhoneCall className="size-4 text-emerald-400" />
+                      <span className="text-[11px] font-semibold text-slate-300">
+                        {isRtl ? "أرقام النجدة :" : "Numéros d'urgence :"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 font-mono font-bold text-xs text-white">
+                      <span className="rounded bg-red-600/30 px-2 py-0.5 text-red-300 border border-red-500/30">14 Protection</span>
+                      <span className="rounded bg-blue-600/30 px-2 py-0.5 text-blue-300 border border-blue-500/30">154 Police</span>
+                    </div>
+                  </div>
+
+                  {onNavigateToSurvey && (
+                    <button
+                      type="button"
+                      onClick={onNavigateToSurvey}
+                      className="w-full py-1 text-center text-[10px] font-semibold text-sky-400 hover:text-sky-300 hover:underline flex items-center justify-center gap-1.5"
+                    >
+                      <Radio className="size-3" />
+                      <span>{isRtl ? "الانتقال إلى مسح أبراج التغطية (Survey)" : "Aller au relevé des antennes relais (Survey)"}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+            {/* Step Navigation Back Button (when in flow) */}
+            {!isHome && typeof state.step === "number" && (
+              <div className="mb-2">
+                <button
+                  type="button"
+                  onClick={() => setIsHome(true)}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-white transition px-2 py-1 rounded-lg hover:bg-slate-800"
+                >
+                  <ArrowLeft className="size-3.5" />
+                  <span>{isRtl ? "العودة للرئيسية (SOS)" : "Accueil SOS"}</span>
+                </button>
+              </div>
+            )}
+
             {/* Step 1: Victims */}
             {state.step === 1 && (
               <div className="flex-1 flex flex-col justify-between">
@@ -792,6 +992,8 @@ export default function WitnessPhoneFrame({
                   {t.retry_button}
                 </button>
               </div>
+            )}
+            </>
             )}
 
             {/* Crash Countdown Overlay (FR-S4-01 / Issue #21) */}
