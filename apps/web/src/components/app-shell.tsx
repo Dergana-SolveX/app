@@ -71,6 +71,7 @@ export default function AppShell({ user, appUser, children }: Props) {
               </>
             )}
           </div>
+          <div id="header-center" className="flex items-center justify-center min-w-0 flex-1 mx-2" />
           {headerActions}
         </header>
 
@@ -133,7 +134,7 @@ export default function AppShell({ user, appUser, children }: Props) {
             </span>
           </span>
         </div>
-        <div className="hidden md:block" />
+        <div id="header-center" className="flex items-center justify-center min-w-0 flex-1 mx-2" />
         {headerActions}
       </header>
 
