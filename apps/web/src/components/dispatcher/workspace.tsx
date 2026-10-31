@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { BarChart3Icon, MapIcon, MousePointerClickIcon, RadioTowerIcon } from "lucide-react";
@@ -30,6 +31,17 @@ export default function DispatcherWorkspace() {
   const [highlight, setHighlight] = useState<Highlight>(null);
   const [focus, setFocus] = useState<MapFocus>(null);
   const [unseen, setUnseen] = useState<ReadonlySet<string>>(() => new Set());
+  const [headerEl, setHeaderEl] = useState<HTMLElement | null>(() =>
+    typeof document !== "undefined" ? document.getElementById("header-center") : null,
+  );
+
+  useEffect(() => {
+    if (!headerEl && typeof document !== "undefined") {
+      setHeaderEl(document.getElementById("header-center"));
+    }
+  }, [headerEl]);
+
+  const detailRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const incidents = useQuery(trpc.incidents.list.queryOptions());
   const layers = useQuery(
@@ -75,6 +87,12 @@ export default function DispatcherWorkspace() {
       return next;
     });
   };
+  // Below `lg` the details sit under the list: bring them into view when an alert is chosen.
+  useEffect(() => {
+    if (selectedId === null || !window.matchMedia?.("(max-width: 1023px)").matches) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    detailRef.current?.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [selectedId]);
   const highlightFromList = (id: string | null) => {
     setHighlight(id ? { id, from: "list" } : null);
     if (id) setFocus({ id, mode: "hover", nonce: Date.now() });
@@ -133,33 +151,55 @@ export default function DispatcherWorkspace() {
     }
   }
 
-  const tab = (value: "live" | "stats", label: string, Icon: typeof RadioTowerIcon) => (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={activeTab === value}
-      onClick={() => setActiveTab(value)}
-      className={cn(
-        "inline-flex min-h-10 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors",
-        activeTab === value
-          ? "bg-card text-foreground shadow-xs border border-border"
-          : "text-muted-foreground hover:text-foreground",
-      )}
+  const filterTabs = (
+    <div
+      className="inline-flex items-center rounded-xl border border-border bg-muted/60 p-1"
+      role="tablist"
+      aria-label="Vue du poste"
     >
-      <Icon className="size-4" aria-hidden="true" />
-      {label}
-    </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === "live"}
+        onClick={() => setActiveTab("live")}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer",
+          activeTab === "live"
+            ? "bg-emerald-600 text-white shadow-xs font-bold"
+            : "text-muted-foreground hover:text-foreground",
+        )}
+      >
+        <RadioTowerIcon className="size-4 shrink-0" aria-hidden="true" />
+        <span className="hidden sm:inline">Opérations directes</span>
+        <span className="sm:hidden">Direct</span>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === "stats"}
+        onClick={() => setActiveTab("stats")}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer",
+          activeTab === "stats"
+            ? "bg-emerald-600 text-white shadow-xs font-bold"
+            : "text-muted-foreground hover:text-foreground",
+        )}
+      >
+        <BarChart3Icon className="size-4 shrink-0" aria-hidden="true" />
+        <span className="hidden sm:inline">Statistiques</span>
+        <span className="sm:hidden">Stats</span>
+      </button>
+    </div>
   );
 
   return (
     <div className="space-y-4 p-4 md:p-6">
+      {headerEl && createPortal(filterTabs, headerEl)}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-lg border border-border bg-muted/60 p-1" role="tablist" aria-label="Vue du poste">
-          {tab("live", "Opérations directes", RadioTowerIcon)}
-          {tab("stats", "Statistiques", BarChart3Icon)}
-        </div>
+        {!headerEl && filterTabs}
         {activeTab === "live" && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 ml-auto">
             <AlertSoundControl />
             <Button
               variant={mapOpen ? "default" : "outline"}
@@ -229,6 +269,7 @@ export default function DispatcherWorkspace() {
                   </Suspense>
                 </div>
               )}
+              <div ref={detailRef} className="scroll-mt-4">
               {!selectedId ? (
                 <div className="grid place-items-center gap-2 rounded-lg border border-dashed bg-card/60 px-6 py-14 text-center">
                   <span className="grid size-12 place-items-center rounded-full bg-brand-soft text-brand-soft-foreground">
@@ -269,6 +310,7 @@ export default function DispatcherWorkspace() {
                   }
                 />
               )}
+              </div>
             </div>
           </div>
         </>

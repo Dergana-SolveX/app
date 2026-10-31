@@ -126,14 +126,14 @@ export default function IotShowcase() {
   return (
     <div
       ref={root}
-      className={`dark min-h-[calc(100dvh-4rem)] bg-background p-4 text-foreground md:p-6 transition-all ${
+      className={`dark min-h-[calc(100dvh-4rem)] overflow-x-hidden bg-background p-3 text-foreground transition-all sm:p-4 md:p-6 ${
         isFullscreen && cursorHidden ? "cursor-none" : ""
       }`}
     >
       {/* Header */}
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-3">
-        <div>
-          <div className="flex items-center gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight md:text-2xl">IoT Showcase</h1>
             <span className="flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
               <TvIcon className="h-3 w-3" />
@@ -162,9 +162,10 @@ export default function IotShowcase() {
       </header>
 
       {/* Main Grid: 16:9 Presentation Layout */}
-      <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1.2fr)_minmax(0,1fr)]">
+      {/* One column on phones; controls beside a stacked pair on tablets; three columns only once each has room. */}
+      <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1.2fr)_minmax(0,1fr)]">
         {/* Left Column: Scenarios & Chip Log */}
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4 lg:row-span-2 xl:row-span-1">
           <ScenarioPanel state={snapshot.state} busy={snapshot.busy} onStart={actions.start} onPress={actions.press} />
 
           <section aria-labelledby="journal-title" className="rounded-lg border bg-card p-3 shadow-sm">
@@ -189,7 +190,8 @@ export default function IotShowcase() {
             )}
           </section>
 
-          <div className="rounded-md border border-border/40 bg-muted/20 p-2.5 text-xs text-muted-foreground">
+          {/* Keyboard shortcuts mean nothing on a touch screen. */}
+          <div className="hidden rounded-md border border-border/40 bg-muted/20 p-2.5 text-xs text-muted-foreground [@media(hover:hover)]:block">
             <div className="font-semibold text-foreground mb-1">Raccourcis Présentation :</div>
             <div><kbd className="font-mono bg-muted px-1 rounded">1</kbd>–<kbd className="font-mono bg-muted px-1 rounded">5</kbd> Scénarios</div>
             <div><kbd className="font-mono bg-muted px-1 rounded">Espace</kbd> Annuler alerte (CONFIRM)</div>

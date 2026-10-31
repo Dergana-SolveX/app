@@ -30,13 +30,13 @@ export function NumberStepper({
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
   const nudge = (direction: 1 | -1) => onChange(clamp((value ?? fallback) + direction * step));
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <Label htmlFor={id} className="text-sm font-semibold">
         {label}
         {unit && <span className="ms-1 font-normal text-muted-foreground">({unit})</span>}
       </Label>
       <div className="flex items-center gap-2">
-        <Button type="button" variant="outline" size="icon-lg" aria-label={`Diminuer ${label}`} onClick={() => nudge(-1)}>
+        <Button type="button" variant="outline" size="icon-lg" className="shrink-0" aria-label={`Diminuer ${label}`} onClick={() => nudge(-1)}>
           <MinusIcon aria-hidden="true" />
         </Button>
         <Input
@@ -46,7 +46,7 @@ export function NumberStepper({
           value={value ?? ""}
           placeholder="—"
           aria-describedby={`${id}-range`}
-          className="tabular h-12 text-center font-mono text-lg font-bold md:text-lg"
+          className="tabular h-12 min-w-14 flex-1 px-1 text-center font-mono text-lg font-bold md:text-lg"
           onChange={(event) => {
             const text = event.target.value.trim();
             if (text === "") return onChange(null);
@@ -54,7 +54,7 @@ export function NumberStepper({
             if (Number.isFinite(n)) onChange(clamp(Math.round(n)));
           }}
         />
-        <Button type="button" variant="outline" size="icon-lg" aria-label={`Augmenter ${label}`} onClick={() => nudge(1)}>
+        <Button type="button" variant="outline" size="icon-lg" className="shrink-0" aria-label={`Augmenter ${label}`} onClick={() => nudge(1)}>
           <PlusIcon aria-hidden="true" />
         </Button>
       </div>

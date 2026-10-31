@@ -151,8 +151,8 @@ export function JourneyTimeline({
   const isCompleted = finalHop.status === "completed";
 
   return (
-    <section aria-labelledby="journey-timeline-title" className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
-      <div className="mb-3 flex items-center justify-between border-b pb-2">
+    <section aria-labelledby="journey-timeline-title" className="min-w-0 rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b pb-2">
         <div>
           <h2 id="journey-timeline-title" className="text-sm font-bold tracking-tight">
             Parcours de l'Alerte
@@ -169,7 +169,7 @@ export function JourneyTimeline({
         )}
       </div>
 
-      <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-4">
+      <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {hops.map((hop, index) => {
           const Icon = HOP_ICONS[hop.id];
           const isFailed = hop.status === "failed";
@@ -201,7 +201,7 @@ export function JourneyTimeline({
           return (
             <div
               key={hop.id}
-              className={`relative flex flex-col justify-between rounded-lg border p-3 transition-colors ${borderClass}`}
+              className={`relative flex min-w-0 flex-col justify-between rounded-lg border p-3 transition-colors ${borderClass}`}
             >
               <div>
                 <div className="flex items-center justify-between">

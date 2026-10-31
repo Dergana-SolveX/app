@@ -193,7 +193,7 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
         </Button>
       </div>
 
-      <div className="max-w-4xl">
+      <div className="max-w-7xl">
         <BilanForm
           key={active}
           assessmentId={assessmentId}

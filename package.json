@@ -52,6 +52,7 @@
     "auth:generate": "cd apps/server && bun run auth:generate"
   },
   "dependencies": {
+    "solvex-dergana": ".",
     "zod": "catalog:"
   },
   "devDependencies": {
