@@ -54,12 +54,14 @@ export function Logo({
   className,
   inverted,
   markClassName,
+  nameClassName,
   subtitle,
   subtitleClassName,
 }: {
   className?: string;
   inverted?: boolean;
   markClassName?: string;
+  nameClassName?: string;
   subtitle?: string;
   subtitleClassName?: string;
 }) {
@@ -74,6 +76,7 @@ export function Logo({
           className={cn(
             "flex items-baseline gap-2 text-lg font-bold",
             inverted ? "text-sidebar-accent-foreground" : "text-foreground",
+            nameClassName,
           )}
         >
           AWN

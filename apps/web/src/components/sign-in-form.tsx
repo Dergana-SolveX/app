@@ -20,6 +20,7 @@ import { useState } from "react";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
+import ThemeToggle from "@/components/theme-toggle";
 import { BRAND_TAGLINE } from "@/lib/brand";
 import { DEMO_PASSWORD, QUICK_LOGINS } from "@/lib/demo-accounts";
 
@@ -71,12 +72,22 @@ export default function SignInForm() {
   const busy = signingIn !== null;
 
   return (
-    <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+    <div className="relative grid min-h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+      {/* Top corner of the form side, on every screen size. */}
+      <div className="absolute end-3 top-3 z-10 sm:end-5 sm:top-5">
+        <ThemeToggle />
+      </div>
+
       {/* Brand panel */}
       <aside
         className="awn-grid-bg relative hidden overflow-hidden bg-[#042e2a] p-12 text-[#eaf5f2] lg:flex lg:flex-col lg:justify-between"
       >
-        <Logo inverted subtitle="Assistance d'urgence" />
+        <Logo
+          inverted
+          nameClassName="text-white"
+          subtitle="Assistance d'urgence"
+          subtitleClassName="text-white/75"
+        />
         <div className="max-w-lg">
           <h2 className="text-4xl leading-tight font-bold text-white">
             Du choc à l'hôpital,
