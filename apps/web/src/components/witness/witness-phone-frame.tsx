@@ -40,19 +40,31 @@ import { trpc } from "@/utils/trpc";
 type Props = {
   initialCoords?: Coords;
   autoGps?: boolean;
+  initialLocale?: "fr" | "ar";
   onLocaleChange?: (locale: "fr" | "ar") => void;
 };
 
 export default function WitnessPhoneFrame({
   initialCoords,
   autoGps = true,
+  initialLocale,
   onLocaleChange,
 }: Props) {
   const [state, dispatch] = useReducer(
     flowReducer,
     undefined,
-    () => createWitnessFlowState(),
+    () =>
+      flowReducer(createWitnessFlowState(), {
+        type: "SET_LANG",
+        lang: initialLocale ?? "fr",
+      }),
   );
+
+  useEffect(() => {
+    if (initialLocale && state.lang !== initialLocale) {
+      dispatch({ type: "SET_LANG", lang: initialLocale });
+    }
+  }, [initialLocale]);
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileCode, setProfileCode] = useState<string | null>(() => {

@@ -22,7 +22,10 @@ app.use(
       if (!origin) return ENV.CORS_ORIGIN;
       if (
         origin === ENV.CORS_ORIGIN ||
-        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+        /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin) ||
+        origin.startsWith("exp://") ||
+        origin.startsWith("solvex-dergana://") ||
+        process.env.NODE_ENV !== "production"
       ) {
         return origin;
       }
@@ -34,6 +37,8 @@ app.use(
       "Authorization",
       "X-SVX-Signature",
       "X-SVX-Timestamp",
+      "x-trpc-source",
+      "Cookie",
     ],
     credentials: true,
   }),
