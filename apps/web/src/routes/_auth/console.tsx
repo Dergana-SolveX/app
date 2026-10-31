@@ -1,3 +1,4 @@
+import { getLabels } from "@solvex-dergana/shared";
 import { EmulationBadge } from "@solvex-dergana/ui/components/emulation-badge";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -17,7 +18,7 @@ function ConsoleScreen() {
   return (
     <>
       <PageHeader
-        title="Console de démonstration"
+        title={getLabels("fr", "console").title}
         description="Envoyez un SMS depuis un téléphone émulé et suivez-le de bout en bout: journal du fil, incident, accusé de réception."
         badges={<EmulationBadge />}
       />

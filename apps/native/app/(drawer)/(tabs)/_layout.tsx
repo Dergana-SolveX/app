@@ -1,14 +1,17 @@
+import { useLocale } from "@/contexts/locale-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { useThemeColor } from "heroui-native";
 
 export default function TabLayout() {
+  const { navigation, direction } = useLocale();
   const themeColorForeground = useThemeColor("foreground");
   const themeColorBackground = useThemeColor("background");
 
   return (
     <Tabs
       screenOptions={{
+        
         headerShown: false,
         headerStyle: {
           backgroundColor: themeColorBackground,
@@ -26,7 +29,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: navigation.home,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} style={{ color: color ?? themeColorForeground }} />
           ),
@@ -35,7 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="two"
         options={{
-          title: "Explore",
+          title: navigation.explore,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="compass" size={size} style={{ color: color ?? themeColorForeground }} />
           ),

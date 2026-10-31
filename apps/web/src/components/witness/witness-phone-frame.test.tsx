@@ -290,3 +290,35 @@ describe("WitnessPhoneFrame (Seam 3)", () => {
 });
 
 
+
+it("keeps SMS and crash safety controls Arabic and RTL after switching language", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  render(<QueryClientProvider client={client}><WitnessPhoneFrame autoGps={false} /></QueryClientProvider>);
+  await userEvent.click(screen.getByRole("button", { name: /عربي/ }));
+  await userEvent.click(screen.getByRole("button", { name: "فرض قناة SMS (عرض تجريبي)" }));
+  const raw = screen.getByTestId("raw-sms-preview");
+  expect(raw.textContent).toContain("قناة SMS مفروضة (عرض تجريبي)");
+  expect(screen.getByText(/^SVX1#/).getAttribute("dir")).toBe("ltr");
+  await userEvent.click(screen.getByRole("button", { name: "محاكاة اصطدام" }));
+  const overlay = screen.getByTestId("crash-countdown-overlay");
+  expect(overlay.closest('[lang="ar"]')?.getAttribute("dir")).toBe("rtl");
+  await userEvent.click(screen.getByRole("button", { name: /أنا بخير — إلغاء/ }));
+  expect(screen.getByText("تم إلغاء الإنذار")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "العودة إلى الرئيسية" })).toBeTruthy();
+  client.clear();
+});
+
+it("explains a failed automatic alert in Arabic", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network unavailable")));
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  render(<QueryClientProvider client={client}><WitnessPhoneFrame autoGps={false} /></QueryClientProvider>);
+  await userEvent.click(screen.getByRole("button", { name: "عربي" }));
+  vi.useFakeTimers();
+  act(() => { screen.getByTestId("simulate-impact-button").click(); });
+  act(() => { vi.advanceTimersByTime(15000); });
+  vi.useRealTimers();
+  expect((await screen.findAllByText("فشل الإرسال")).length).toBeGreaterThan(0);
+  await userEvent.click(screen.getByRole("button", { name: "العودة إلى الرئيسية" }));
+  expect(screen.queryByTestId("crash-countdown-overlay")).toBeNull();
+  vi.unstubAllGlobals();
+});

@@ -15,6 +15,7 @@ type Props = AnimatedProps<ViewProps> & {
 export function Container({
   children,
   className,
+  style,
   isScrollable = true,
   scrollViewProps,
   ...props
@@ -24,9 +25,7 @@ export function Container({
   return (
     <AnimatedView
       className={cn("flex-1 bg-background", className)}
-      style={{
-        paddingBottom: insets.bottom,
-      }}
+      style={[{ paddingBottom: insets.bottom }, style]}
       {...props}
     >
       {isScrollable ? (

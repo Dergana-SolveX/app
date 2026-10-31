@@ -7,11 +7,23 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "skipLibCheck": true,
-    "types": ["vite/client"],
-    "rootDirs": ["."],
+    "types": [
+      "vite/client"
+    ],
+    "rootDirs": [
+      "."
+    ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@solvex-dergana/ui/*": ["../../packages/ui/src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@solvex-dergana/ui/*": [
+        "../../packages/ui/src/*"
+      ]
     }
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "src/native-tests"
+  ]
 }

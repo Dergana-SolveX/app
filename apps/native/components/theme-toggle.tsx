@@ -1,3 +1,4 @@
+import { useLocale } from "@/contexts/locale-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Platform, Pressable } from "react-native";
@@ -9,10 +10,11 @@ import { useAppTheme } from "@/contexts/app-theme-context";
 const StyledIonicons = withUniwind(Ionicons);
 
 export function ThemeToggle() {
+  const { navigation } = useLocale();
   const { toggleTheme, isLight } = useAppTheme();
 
   return (
-    <Pressable
+    <Pressable accessibilityRole="button" accessibilityLabel={isLight ? navigation.dark : navigation.light}
       onPress={() => {
         if (Platform.OS === "ios") {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

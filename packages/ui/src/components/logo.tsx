@@ -28,7 +28,7 @@ export function LogoMark({ className }: { className?: string }) {
   );
 }
 
-export function Logo({ className, inverted }: { className?: string; inverted?: boolean }) {
+export function Logo({ className, inverted, subtitle = "Urgences routières" }: { className?: string; inverted?: boolean; subtitle?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <LogoMark />
@@ -47,7 +47,7 @@ export function Logo({ className, inverted }: { className?: string; inverted?: b
             inverted ? "text-sidebar-muted" : "text-muted-foreground",
           )}
         >
-          Urgences routières
+          {subtitle}
         </span>
       </span>
     </span>

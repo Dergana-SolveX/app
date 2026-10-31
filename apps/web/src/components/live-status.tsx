@@ -1,3 +1,4 @@
+import { getLabels, type Locale } from "@solvex-dergana/shared";
 import { cn } from "@solvex-dergana/ui/lib/utils";
 
 export type StreamStatus = "idle" | "connecting" | "pending" | "error";
@@ -26,8 +27,9 @@ const COPY: Record<StreamStatus, { label: string; tone: string; dot: string }> =
 };
 
 /** State of the live (SSE) stream. A word as well as a color. */
-export default function LiveStatus({ status }: { status: StreamStatus }) {
-  const { label, tone, dot } = COPY[status];
+export default function LiveStatus({ status, locale = "fr" }: { status: StreamStatus; locale?: Locale }) {
+  const { tone, dot } = COPY[status];
+  const label = getLabels(locale, "live")[status];
   return (
     <span
       className={cn(
