@@ -115,28 +115,61 @@ function GcsLine({
   const displayed = value ?? Math.ceil(max / 2);
   const description = value === null ? "Non mesuré" : labels[value - 1];
   return (
-    <div role="group" aria-label={legend} className="flex min-w-0 flex-col gap-1.5">
-      <span className="text-sm font-semibold">{legend}</span>
-      {/* Two equal columns while the card is narrow, free-flowing chips once there is room. */}
-      <div className="grid grid-cols-2 gap-2 @md:flex @md:flex-wrap">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={value === option.value}
-            onClick={() => onChange(option.value)}
-            className={cn(
-              "inline-flex min-h-12 min-w-0 cursor-pointer items-center justify-start gap-1.5 rounded-md border px-3 text-sm font-semibold transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring @md:justify-center",
-              value === option.value
-                ? "border-primary bg-accent text-accent-foreground"
-                : "border-input bg-card hover:border-primary/60",
-            )}
-          >
-            {value === option.value && <CheckIcon className="size-4 shrink-0" aria-hidden="true" />}
-            <span className="tabular shrink-0 font-mono">{option.value}</span>
-            <span className="truncate text-xs font-normal text-muted-foreground">{option.label}</span>
-          </button>
-        ))}
+    <div className="rounded-md border bg-card p-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <Label htmlFor={id} className="text-sm font-semibold">
+          {label} ({shortLabel})
+        </Label>
+        <span className="tabular min-w-28 text-end font-mono text-sm font-bold" aria-live="polite">
+          {value ?? "—"} / {max} · <span className="font-sans text-xs font-semibold text-muted-foreground">{description}</span>
+        </span>
+      </div>
+      <input
+        id={id}
+        type="range"
+        min={1}
+        max={max}
+        step={1}
+        value={displayed}
+        onChange={(event) => onChange(Number(event.target.value))}
+        aria-valuetext={value === null ? `${label} non mesuré` : `${value} sur ${max}, ${description}`}
+        className={cn(
+          "h-3 w-full cursor-pointer appearance-none rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+          "[&::-moz-range-thumb]:size-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-card [&::-moz-range-thumb]:bg-foreground [&::-moz-range-thumb]:shadow-md",
+          "[&::-webkit-slider-thumb]:size-6 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-card [&::-webkit-slider-thumb]:bg-foreground [&::-webkit-slider-thumb]:shadow-md",
+          value === null && "opacity-60",
+        )}
+        style={{ background: "linear-gradient(to right, var(--sev-red), var(--sev-yellow) 50%, var(--sev-green))" }}
+      />
+      {/* Three per row in a narrow card (labels stay readable), all on one row once there is room. */}
+      <div
+        className="mt-2 grid grid-cols-3 gap-1 @md:grid-cols-[repeat(var(--gcs-cols),minmax(0,1fr))]"
+        style={{ "--gcs-cols": max } as React.CSSProperties}
+        aria-label={`États ${label.toLowerCase()}`}
+      >
+        {labels.map((stateLabel, index) => {
+          const score = index + 1;
+          return (
+            <button
+              key={stateLabel}
+              type="button"
+              aria-label={`${label} ${score} : ${stateLabel}`}
+              aria-pressed={value === score}
+              onClick={() => onChange(score)}
+              className={cn(
+                "min-h-14 min-w-0 rounded-sm border px-1 py-1.5 text-xs font-semibold leading-tight hyphens-auto outline-none transition-colors [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                value === score
+                  ? "border-primary bg-accent text-accent-foreground"
+                  : "border-input bg-raised text-muted-foreground hover:border-primary/60 hover:text-foreground",
+                score === 1 && value !== score && "text-sev-red",
+                score === max && value !== score && "text-sev-green",
+              )}
+            >
+              <span className="tabular block font-mono text-xs font-bold">{score}</span>
+              {stateLabel}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -165,20 +198,23 @@ export function GcsPicker({
           : { label: "Rassurant", tone: "border-sev-green/40 bg-sev-green-soft text-sev-green", Icon: CircleCheckIcon };
   const StateIcon = state.Icon;
   return (
-    // A plain group, not a <fieldset>: a fieldset cannot shrink below its content and pushed out of its card.
-    <div role="group" aria-labelledby="gcs-title" className="@container flex min-w-0 flex-col gap-3 rounded-lg border bg-raised p-3">
-      <div className="flex items-center justify-between gap-2">
-        <span id="gcs-title" className="text-sm font-semibold">
-          Glasgow
-        </span>
-        <span className="tabular rounded-full border bg-card px-2.5 py-0.5 font-mono text-sm font-bold" aria-live="polite">
-          {total === null ? "— / 15" : `${total} / 15`}
+    // min-w-0: a fieldset otherwise refuses to shrink below its content and overflows its card.
+    <fieldset className="@container flex min-w-0 flex-col gap-3 rounded-lg border bg-raised p-3">
+      <legend className="sr-only">Échelle de Glasgow</legend>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-semibold">Glasgow détaillé</span>
+        <span
+          className={cn("inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-bold", state.tone)}
+          aria-live="polite"
+        >
+          {StateIcon && <StateIcon className="size-3.5" aria-hidden="true" />}
+          {total === null ? "— / 15" : `${total} / 15`} · {state.label}
         </span>
       </div>
-      <ChoiceRow legend="Yeux (E)" options={options(EYES)} value={eye} onChange={(v) => onChange({ eye: v, verbal, motor })} />
-      <ChoiceRow legend="Verbal (V)" options={options(VERBAL)} value={verbal} onChange={(v) => onChange({ eye, verbal: v, motor })} />
-      <ChoiceRow legend="Moteur (M)" options={options(MOTOR)} value={motor} onChange={(v) => onChange({ eye, verbal, motor: v })} />
-    </div>
+      <GcsLine label="Yeux" shortLabel="E" value={eye} labels={EYES} onChange={(value) => onChange({ eye: value, verbal, motor })} />
+      <GcsLine label="Verbal" shortLabel="V" value={verbal} labels={VERBAL} onChange={(value) => onChange({ eye, verbal: value, motor })} />
+      <GcsLine label="Moteur" shortLabel="M" value={motor} labels={MOTOR} onChange={(value) => onChange({ eye, verbal, motor: value })} />
+    </fieldset>
   );
 }
 

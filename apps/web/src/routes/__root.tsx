@@ -1,7 +1,7 @@
 import { Toaster } from "@solvex-dergana/ui/components/sonner";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
+import { HeadContent, Outlet, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import { ThemeProvider } from "@/components/theme-provider";
@@ -38,6 +38,9 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 });
 
 function RootComponent() {
+  // When its panel is open, the router devtools reserve 500px of empty space under the page:
+  // keep them off the login (landing) page.
+  const onLogin = useLocation({ select: (location) => location.pathname === "/login" });
   return (
     <>
       <HeadContent />
@@ -56,8 +59,8 @@ function RootComponent() {
         <Outlet />
         <Toaster />
       </ThemeProvider>
-      <TanStackRouterDevtools position="bottom-right" />
-      <ReactQueryDevtools position="bottom" buttonPosition="bottom-left" />
+      {!onLogin && <TanStackRouterDevtools position="bottom-right" />}
+      {!onLogin && <ReactQueryDevtools position="bottom" buttonPosition="bottom-left" />}
     </>
   );
 }
