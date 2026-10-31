@@ -19,3 +19,13 @@ it("counts active incidents and shows a lost live connection", () => {
   expect(summary).toContain("1 en attente");
   expect(screen.getByText(/Flux interrompu/)).toBeTruthy();
 });
+
+it("does not render 'Flux en direct' on the dispatcher page when connection is healthy", () => {
+  render(
+    <DispatcherSummary
+      incidents={[]}
+      status="pending"
+    />,
+  );
+  expect(screen.queryByText(/Flux en direct/)).toBeNull();
+});

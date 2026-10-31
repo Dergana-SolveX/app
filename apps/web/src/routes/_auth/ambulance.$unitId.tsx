@@ -3,7 +3,6 @@ import { useState } from "react";
 
 import BilanWorkspace from "@/components/bilan/bilan-workspace";
 import MissionCard from "@/components/mission-card";
-import { PageHeader } from "@/components/screen-shell";
 import { requireAccess } from "@/lib/guard";
 
 export const Route = createFileRoute("/_auth/ambulance/$unitId")({
@@ -20,10 +19,6 @@ function AmbulanceScreen() {
   const [bilan, setBilan] = useState<{ incidentId: string; tap: number } | null>(null);
   return (
     <>
-      <PageHeader
-        title="Tablette ambulance"
-        description="Mission reçue du dispatch, puis bilan secouriste : critères de Vittel et indice de choc calculés en direct, sans réseau."
-      />
       <MissionCard
         unitId={unitId}
         onOpenBilan={(incidentId) => setBilan((last) => ({ incidentId, tap: (last?.tap ?? 0) + 1 }))}

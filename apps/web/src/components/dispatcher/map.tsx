@@ -1,24 +1,55 @@
 import { useEffect, useState } from "react";
 import { divIcon } from "leaflet";
-import { Circle, GeoJSON, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
+import {
+  Circle,
+  GeoJSON,
+  MapContainer,
+  Marker,
+  Popup,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { Button } from "@solvex-dergana/ui/components/button";
-import { MapIcon, XIcon } from "lucide-react";
+import { MapIcon } from "lucide-react";
 import { incidentRef } from "@/lib/time";
 import type { Incident, MapLayers } from "./types";
 
-type MapIncident = Pick<Incident, "id" | "lat" | "lng" | "locationUncertaintyM" | "recSeverity" | "commune">;
+type MapIncident = Pick<
+  Incident,
+  "id" | "lat" | "lng" | "locationUncertaintyM" | "recSeverity" | "commune"
+>;
 
-export const SEVERITY_WORD = { red: "Rouge", yellow: "Jaune", green: "Vert", unknown: "Inconnue" } as const;
-const SEVERITY_LETTER = { red: "R", yellow: "J", green: "V", unknown: "?" } as const;
+export const SEVERITY_WORD = {
+  red: "Rouge",
+  yellow: "Jaune",
+  green: "Vert",
+  unknown: "Inconnue",
+} as const;
+const SEVERITY_LETTER = {
+  red: "R",
+  yellow: "J",
+  green: "V",
+  unknown: "?",
+} as const;
 
 /** Where the map should look, and why: hovering only pans when the alert is off-screen, locating zooms in. */
-export type MapFocus = { id: string; mode: "hover" | "locate"; nonce: number } | null;
+export type MapFocus = {
+  id: string;
+  mode: "hover" | "locate";
+  nonce: number;
+} | null;
 
 const prefersReducedMotion = () =>
-  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-const icon = (label: string, color: string, accessibleName: string, highlighted = false) => {
+const icon = (
+  label: string,
+  color: string,
+  accessibleName: string,
+  highlighted = false,
+) => {
   const element = document.createElement("span");
   element.textContent = label;
   element.setAttribute("aria-label", accessibleName);
@@ -50,7 +81,13 @@ const icon = (label: string, color: string, accessibleName: string, highlighted 
 const incidentName = (i: MapIncident) =>
   `Incident ${i.commune ?? incidentRef(i.id)} — ${SEVERITY_WORD[i.recSeverity]}`;
 
-function FollowFocus({ focus, incidents }: { focus: MapFocus; incidents: MapIncident[] }) {
+function FollowFocus({
+  focus,
+  incidents,
+}: {
+  focus: MapFocus;
+  incidents: MapIncident[];
+}) {
   const map = useMap();
   const target = focus ? incidents.find((i) => i.id === focus.id) : undefined;
   useEffect(() => {
@@ -79,7 +116,6 @@ export function DispatcherMap({
   highlightedId = null,
   onHighlight,
   focus = null,
-  onClose,
 }: {
   incidents: MapIncident[];
   layers: MapLayers;
@@ -88,28 +124,27 @@ export function DispatcherMap({
   highlightedId?: string | null;
   onHighlight?: (id: string | null) => void;
   focus?: MapFocus;
-  onClose?: () => void;
 }) {
   const [tilesFailed, setTilesFailed] = useState(false);
   const placed = incidents.filter((i) => i.lat !== null && i.lng !== null);
-  const effectiveFocus: MapFocus = focus ?? (selectedId ? { id: selectedId, mode: "hover", nonce: 0 } : null);
+  const effectiveFocus: MapFocus =
+    focus ?? (selectedId ? { id: selectedId, mode: "hover", nonce: 0 } : null);
   return (
-    <section aria-label="Carte opérationnelle" className="min-w-0 overflow-hidden rounded-lg border bg-card shadow-sm">
-      <div className="flex items-start justify-between gap-3 border-b p-4">
+    <section
+      aria-label="Carte opérationnelle"
+      className="min-w-0 overflow-hidden rounded-lg border bg-card shadow-sm"
+    >
+      <div className="border-b p-4">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <MapIcon className="size-5 text-primary" aria-hidden="true" />
             Carte opérationnelle
           </h2>
           <p className="text-sm text-muted-foreground">
-            Survolez une alerte pour la repérer. R / J / V / ? : gravité · U : unité · H : hôpital
+            Survolez une alerte pour la repérer, cliquez sur un accident pour
+            zoomer. R / J / V / ? : gravité · U : unité · H : hôpital
           </p>
         </div>
-        {onClose && (
-          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Masquer la carte">
-            <XIcon />
-          </Button>
-        )}
       </div>
       <MapContainer
         center={[36.73, 3.12]}
@@ -125,7 +160,11 @@ export function DispatcherMap({
         />
         <FollowFocus focus={effectiveFocus} incidents={placed} />
         {layers.zones.map((zone) => (
-          <GeoJSON key={zone.id} data={zone.polygon} style={{ color: "var(--brand)", weight: 1, fillOpacity: 0.05 }}>
+          <GeoJSON
+            key={zone.id}
+            data={zone.polygon}
+            style={{ color: "var(--brand)", weight: 1, fillOpacity: 0.05 }}
+          >
             <Tooltip>{zone.name}</Tooltip>
           </GeoJSON>
         ))}
@@ -149,7 +188,11 @@ export function DispatcherMap({
           <Marker
             key={unit.id}
             position={[unit.lat, unit.lng]}
-            icon={icon("U", unit.available ? "primary" : "muted-foreground", `Unité ${unit.callSign}`)}
+            icon={icon(
+              "U",
+              unit.available ? "primary" : "muted-foreground",
+              `Unité ${unit.callSign}`,
+            )}
             title={`Unité ${unit.callSign}`}
             alt={`Unité ${unit.callSign}`}
           >
@@ -185,7 +228,12 @@ export function DispatcherMap({
             <Marker
               key={i.id}
               position={[i.lat!, i.lng!]}
-              icon={icon(SEVERITY_LETTER[i.recSeverity], `sev-${i.recSeverity}`, incidentName(i), highlighted)}
+              icon={icon(
+                SEVERITY_LETTER[i.recSeverity],
+                `sev-${i.recSeverity}`,
+                incidentName(i),
+                highlighted,
+              )}
               zIndexOffset={highlighted ? 1000 : 500}
               alt={incidentName(i)}
               title={incidentName(i)}
@@ -201,7 +249,8 @@ export function DispatcherMap({
                 direction="top"
                 offset={[0, -18]}
               >
-                {i.commune ?? `#${incidentRef(i.id)}`} · {SEVERITY_WORD[i.recSeverity]}
+                {i.commune ?? `#${incidentRef(i.id)}`} ·{" "}
+                {SEVERITY_WORD[i.recSeverity]}
                 <br />
                 <span className="tabular">
                   {i.lat!.toFixed(5)}, {i.lng!.toFixed(5)}
@@ -211,7 +260,10 @@ export function DispatcherMap({
           );
         })}
       </MapContainer>
-      <p role={tilesFailed ? "status" : undefined} className="border-t px-4 py-3 text-xs text-muted-foreground">
+      <p
+        role={tilesFailed ? "status" : undefined}
+        className="border-t px-4 py-3 text-xs text-muted-foreground"
+      >
         {tilesFailed
           ? "Fond de carte indisponible. Les alertes et leurs coordonnées restent accessibles dans la file."
           : `${placed.length} alerte${placed.length > 1 ? "s" : ""} localisée${placed.length > 1 ? "s" : ""} · fond OpenStreetMap (connexion Internet requise).`}

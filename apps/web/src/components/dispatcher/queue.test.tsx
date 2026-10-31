@@ -11,16 +11,61 @@ const base = {
   tentative: false,
 };
 const incidents = [
-  { ...base, id: "a", recSeverity: "red" as const, lat: 36.7, lng: 3.1, commune: "Rouiba", firstAlertAt: "2026-10-30T09:00:00Z", lastAlertAt: "2026-10-30T09:00:00Z" },
-  { ...base, id: "b", recSeverity: "green" as const, lat: 36.8, lng: 3.1, commune: "Alger", firstAlertAt: "2026-10-30T08:00:00Z", lastAlertAt: "2026-10-30T11:30:00Z" },
-  { ...base, id: "c", recSeverity: "unknown" as const, lat: null, lng: null, commune: null, firstAlertAt: "2026-10-30T10:00:00Z", lastAlertAt: "2026-10-30T10:00:00Z" },
-  { ...base, id: "d", recSeverity: "yellow" as const, status: "closed" as const, lat: 36.7, lng: 3.2, commune: "Closed", firstAlertAt: "2026-10-30T12:00:00Z", lastAlertAt: "2026-10-30T12:00:00Z" },
+  {
+    ...base,
+    id: "a",
+    recSeverity: "red" as const,
+    lat: 36.7,
+    lng: 3.1,
+    commune: "Rouiba",
+    firstAlertAt: "2026-10-30T09:00:00Z",
+    lastAlertAt: "2026-10-30T09:00:00Z",
+  },
+  {
+    ...base,
+    id: "b",
+    recSeverity: "green" as const,
+    lat: 36.8,
+    lng: 3.1,
+    commune: "Alger",
+    firstAlertAt: "2026-10-30T08:00:00Z",
+    lastAlertAt: "2026-10-30T11:30:00Z",
+  },
+  {
+    ...base,
+    id: "c",
+    recSeverity: "unknown" as const,
+    lat: null,
+    lng: null,
+    commune: null,
+    firstAlertAt: "2026-10-30T10:00:00Z",
+    lastAlertAt: "2026-10-30T10:00:00Z",
+  },
+  {
+    ...base,
+    id: "d",
+    recSeverity: "yellow" as const,
+    status: "closed" as const,
+    lat: 36.7,
+    lng: 3.2,
+    commune: "Closed",
+    firstAlertAt: "2026-10-30T12:00:00Z",
+    lastAlertAt: "2026-10-30T12:00:00Z",
+  },
 ];
 
 it("lists active alerts by arrival, latest signal first, whatever their severity", () => {
-  render(<DispatcherQueue incidents={incidents} selectedId={null} onSelect={vi.fn()} />);
+  render(
+    <DispatcherQueue
+      incidents={incidents}
+      selectedId={null}
+      onSelect={vi.fn()}
+    />,
+  );
   const list = screen.getByRole("list", { name: /la plus récente en premier/ });
-  const names = within(list).getAllByRole("listitem").map((li) => li.textContent);
+  const names = within(list)
+    .getAllByRole("listitem")
+    .map((li) => li.textContent);
   expect(names[0]).toContain("Alger");
   expect(names[1]).toContain("Incident #C");
   expect(names[2]).toContain("Rouiba");
@@ -48,12 +93,20 @@ it("selects, highlights on hover and locates an alert; filters by severity", asy
   expect(highlight).toHaveBeenCalledWith("a");
   await userEvent.click(rouiba);
   expect(select).toHaveBeenCalledWith("a");
-  await userEvent.click(screen.getByRole("button", { name: "Voir Rouiba sur la carte" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Voir Rouiba sur la carte" }),
+  );
   expect(locate).toHaveBeenCalledWith("a");
-  expect(screen.getByRole("button", { name: "Incident #C : position inconnue" }).hasAttribute("disabled")).toBe(true);
+  expect(
+    screen
+      .getByRole("button", { name: "Incident #C : position inconnue" })
+      .hasAttribute("disabled"),
+  ).toBe(true);
 
   const filters = screen.getByRole("group", { name: "Filtrer par gravité" });
-  await userEvent.click(within(filters).getByRole("button", { name: /Rouge/ }));
+  const redFilter = within(filters).getByRole("button", { name: /Rouge/ });
+  expect(redFilter.textContent).toBe("1");
+  await userEvent.click(redFilter);
   const list = screen.getByRole("list", { name: /la plus récente en premier/ });
   expect(within(list).getAllByRole("listitem")).toHaveLength(1);
 });

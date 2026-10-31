@@ -10,14 +10,17 @@ import {
 } from "@solvex-dergana/shared";
 import { Button } from "@solvex-dergana/ui/components/button";
 import { Label } from "@solvex-dergana/ui/components/label";
+import { Skeleton } from "@solvex-dergana/ui/components/skeleton";
 import { Textarea } from "@solvex-dergana/ui/components/textarea";
 import { cn } from "@solvex-dergana/ui/lib/utils";
 import { CheckIcon, CircleAlertIcon, TriangleAlertIcon, XIcon } from "lucide-react";
-import { useId, useMemo } from "react";
+import { lazy, Suspense, useId, useMemo } from "react";
 
 import { timeAgo } from "@/lib/time";
 
-import { RouteMap } from "./route-map";
+const HospitalRouteMap = lazy(() =>
+  import("./route-map").then((module) => ({ default: module.HospitalRouteMap })),
+);
 
 const TIER_LABELS: Record<MatchHospital["tier"], string> = {
   chu: "CHU",
@@ -190,6 +193,14 @@ export function OrientationPanel({
   const focusId = chosenId ?? recommendedId;
   const focus = focusId ? byId.get(focusId) : undefined;
   const overriding = chosenId !== null && chosenId !== recommendedId;
+  const suggestions = useMemo(
+    () =>
+      result.ranking.slice(0, 3).flatMap((match, index) => {
+        const hospital = hospitals.find((candidate) => candidate.id === match.hospitalId);
+        return hospital ? [{ rank: index + 1, hospital, match }] : [];
+      }),
+    [hospitals, result.ranking],
+  );
 
   const road = useMemo(
     () => (graph && graph !== "error" && focus ? route(graph, scene, [focus.lat, focus.lng]) : null),
@@ -239,6 +250,19 @@ export function OrientationPanel({
           Structure de stabilisation la plus proche : <strong>{byId.get(result.stabilisation.hospitalId)?.name}</strong> à{" "}
           {minutes(result.stabilisation.etaMin)}.
         </p>
+      )}
+
+      {suggestions.length > 0 && graph && graph !== "error" && (
+        <Suspense fallback={<Skeleton className="h-[360px] w-full sm:h-[440px]" />}>
+          <HospitalRouteMap
+            scene={scene}
+            graph={graph}
+            suggestions={suggestions}
+            recommendedId={recommendedId}
+            chosenId={chosenId}
+            onChoose={(hospitalId) => onChoose(hospitalId)}
+          />
+        </Suspense>
       )}
 
       {result.ranking.length === 0 ? (
@@ -298,7 +322,7 @@ export function OrientationPanel({
 
       {focus && (
         <div>
-          <h3 className="mb-2 text-sm font-bold">Itinéraire vers {focus.name}</h3>
+          <h3 className="mb-2 text-sm font-bold">Détail de l'itinéraire vers {focus.name}</h3>
           {graph === null && <p className="text-sm text-muted-foreground">Chargement du réseau routier…</p>}
           {graph === "error" && <p role="alert" className="text-sm text-destructive">Le réseau routier n'a pas pu être chargé.</p>}
           {graph && graph !== "error" && !road && (
@@ -308,15 +332,7 @@ export function OrientationPanel({
           )}
           {road && (
             <>
-              <RouteMap
-                polyline={road.polyline}
-                from={scene}
-                to={[focus.lat, focus.lng]}
-                fromLabel="Scène"
-                toLabel={focus.shortName}
-                description={`Itinéraire de la scène à ${focus.name} : ${km(road.distanceM)}, environ ${minutes(road.durationS / 60)}`}
-              />
-              <p className="mt-2 text-sm font-semibold">
+              <p className="text-sm font-semibold">
                 {km(road.distanceM)} · environ {minutes(road.durationS / 60)}
               </p>
               <ol className="mt-1 flex flex-col gap-0.5 text-sm">

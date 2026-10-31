@@ -20,7 +20,13 @@ type Props = {
 export default function AppShell({ user, appUser, children }: Props) {
   const { locale } = useLocale();
   const t = getLabels(locale, "shell");
-  const items = navFor(appUser).map(item => ({ ...item, label: appUser.role === "hospital" ? getLabels(locale, "hospital").title : item.label }));
+  const items = navFor(appUser).map((item) => ({
+    ...item,
+    label:
+      appUser.role === "hospital"
+        ? getLabels(locale, "hospital").title
+        : item.label,
+  }));
   const hasSidebar = appUser.role === "admin";
 
   const headerActions = (
@@ -39,15 +45,15 @@ export default function AppShell({ user, appUser, children }: Props) {
         className="flex h-dvh flex-col bg-background text-foreground"
       >
         {/* Top bar with logo and navigation next to it */}
-        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <Logo
-              subtitle={getLabels(locale, "victim").emergency}
-              subtitleClassName="hidden sm:block"
-            />
+        <header className="grid h-16 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border-b border-border bg-card px-4 md:px-6">
+          <div className="flex min-w-0 items-center gap-3 justify-self-start sm:gap-4">
+            <Logo markClassName="rounded-full border-2 border-emerald-600 p-0.5" />
             {items.length > 0 && (
               <>
-                <div className="h-6 w-px bg-border shrink-0 hidden sm:block" aria-hidden="true" />
+                <div
+                  className="h-6 w-px bg-border shrink-0 hidden sm:block"
+                  aria-hidden="true"
+                />
                 <nav aria-label={t.nav} className="flex items-center gap-2">
                   {items.map(({ label, icon: Icon, link }) => (
                     <Link
@@ -60,22 +66,34 @@ export default function AppShell({ user, appUser, children }: Props) {
                         "[&.active]:bg-emerald-600 [&.active]:text-white [&.active]:shadow-sm",
                       )}
                       activeProps={{
-                        className: "!bg-emerald-600 !text-white !shadow-sm hover:!bg-emerald-600",
+                        className:
+                          "!bg-emerald-600 !text-white !shadow-sm hover:!bg-emerald-600",
                       }}
                     >
-                      <Icon className="size-4.5 shrink-0 transition-colors" aria-hidden="true" />
-                      <span className="truncate max-w-[140px] sm:max-w-none">{label}</span>
+                      <Icon
+                        className="size-4.5 shrink-0 transition-colors"
+                        aria-hidden="true"
+                      />
+                      <span className="truncate max-w-[140px] sm:max-w-none">
+                        {label}
+                      </span>
                     </Link>
                   ))}
                 </nav>
               </>
             )}
           </div>
-          <div id="header-center" className="flex items-center justify-center min-w-0 flex-1 mx-2" />
-          {headerActions}
+          <div
+            id="header-center"
+            className="flex min-w-0 items-center justify-center"
+          />
+          <div className="justify-self-end">{headerActions}</div>
         </header>
 
-        <main id="main" className="min-h-0 flex-1 overflow-y-auto bg-background">
+        <main
+          id="main"
+          className="min-h-0 flex-1 overflow-y-auto bg-background"
+        >
           {children}
         </main>
       </div>
@@ -108,10 +126,14 @@ export default function AppShell({ user, appUser, children }: Props) {
                 "[&.active]:bg-emerald-600 [&.active]:text-white [&.active]:shadow-sm",
               )}
               activeProps={{
-                className: "!bg-emerald-600 !text-white !shadow-sm hover:!bg-emerald-600",
+                className:
+                  "!bg-emerald-600 !text-white !shadow-sm hover:!bg-emerald-600",
               }}
             >
-              <Icon className="size-5 shrink-0 transition-colors" aria-hidden="true" />
+              <Icon
+                className="size-5 shrink-0 transition-colors"
+                aria-hidden="true"
+              />
               <span>{label}</span>
             </Link>
           ))}
@@ -129,12 +151,19 @@ export default function AppShell({ user, appUser, children }: Props) {
           <LogoMark className="size-9" />
           <span className="text-base font-bold">
             AWN{" "}
-            <span lang="ar" dir="rtl" className="font-semibold text-muted-foreground">
+            <span
+              lang="ar"
+              dir="rtl"
+              className="font-semibold text-muted-foreground"
+            >
               عون
             </span>
           </span>
         </div>
-        <div id="header-center" className="flex items-center justify-center min-w-0 flex-1 mx-2" />
+        <div
+          id="header-center"
+          className="flex items-center justify-center min-w-0 flex-1 mx-2"
+        />
         {headerActions}
       </header>
 
@@ -147,7 +176,9 @@ export default function AppShell({ user, appUser, children }: Props) {
         <nav
           aria-label={t.nav}
           className="grid border-t border-sidebar-border bg-sidebar md:hidden"
-          style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+          style={{
+            gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
+          }}
         >
           {items.map(({ label, icon: Icon, link }) => (
             <Link

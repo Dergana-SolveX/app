@@ -1,7 +1,18 @@
 import { EmulationBadge } from "@solvex-dergana/ui/components/emulation-badge";
-import { SeverityBadge, type Severity } from "@solvex-dergana/ui/components/severity-badge";
+import {
+  SeverityBadge,
+  type Severity,
+} from "@solvex-dergana/ui/components/severity-badge";
 import { cn } from "@solvex-dergana/ui/lib/utils";
-import { ArrowUpIcon, BellRingIcon, GitMergeIcon, InboxIcon, MapPinIcon, MapPinOffIcon, UsersIcon } from "lucide-react";
+import {
+  ArrowUpIcon,
+  BellRingIcon,
+  GitMergeIcon,
+  InboxIcon,
+  MapPinIcon,
+  MapPinOffIcon,
+  UsersIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { incidentRef, timeAgo } from "@/lib/time";
@@ -39,11 +50,20 @@ const STRIPE: Record<Severity, string> = {
   unknown: "before:bg-sev-unknown",
 };
 
-/** Latest signal first: the most recent arrival is always on top. */
-export const arrivalTime = (i: Pick<Incident, "firstAlertAt" | "lastAlertAt">) =>
-  new Date(i.lastAlertAt ?? i.firstAlertAt).getTime();
+const FILTER_SWATCH: Record<Severity, string> = {
+  red: "bg-sev-red",
+  yellow: "bg-sev-yellow",
+  green: "bg-sev-green",
+  unknown: "bg-sev-unknown",
+};
 
-const located = (i: Pick<Incident, "lat" | "lng">) => i.lat !== null && i.lng !== null;
+/** Latest signal first: the most recent arrival is always on top. */
+export const arrivalTime = (
+  i: Pick<Incident, "firstAlertAt" | "lastAlertAt">,
+) => new Date(i.lastAlertAt ?? i.firstAlertAt).getTime();
+
+const located = (i: Pick<Incident, "lat" | "lng">) =>
+  i.lat !== null && i.lng !== null;
 
 function useNow(intervalMs: number) {
   const [now, setNow] = useState(() => new Date());
@@ -76,10 +96,15 @@ export function DispatcherQueue({
 }) {
   const now = useNow(15_000);
   const [filter, setFilter] = useState<Severity | "all">("all");
-  const active = incidents.filter(isActive).toSorted((a, b) => arrivalTime(b) - arrivalTime(a));
-  const rows = filter === "all" ? active : active.filter((i) => i.recSeverity === filter);
+  const active = incidents
+    .filter(isActive)
+    .toSorted((a, b) => arrivalTime(b) - arrivalTime(a));
+  const rows =
+    filter === "all" ? active : active.filter((i) => i.recSeverity === filter);
   const count = (value: Severity | "all") =>
-    value === "all" ? active.length : active.filter((i) => i.recSeverity === value).length;
+    value === "all"
+      ? active.length
+      : active.filter((i) => i.recSeverity === value).length;
 
   return (
     <aside
@@ -98,24 +123,54 @@ export function DispatcherQueue({
             </span>
           )}
         </div>
-        <div role="group" aria-label="Filtrer par gravité" className="flex flex-wrap gap-1.5">
-          {FILTERS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={filter === value}
-              onClick={() => setFilter(value)}
-              className={cn(
-                "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors hover:bg-accent",
-                filter === value
-                  ? "border-primary bg-primary/10 text-primary font-semibold"
-                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {label}
-              <span className="tabular text-xs opacity-80">{count(value)}</span>
-            </button>
-          ))}
+        <div
+          role="group"
+          aria-label="Filtrer par gravité"
+          className="flex flex-wrap gap-1.5"
+        >
+          {FILTERS.map(({ value, label }) => {
+            const total = count(value);
+            const colorOnly = value !== "all";
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-label={
+                  colorOnly
+                    ? `${label} — ${total} alerte${total > 1 ? "s" : ""}`
+                    : undefined
+                }
+                title={colorOnly ? label : undefined}
+                aria-pressed={filter === value}
+                onClick={() => setFilter(value)}
+                className={cn(
+                  "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full border text-sm font-medium transition-colors hover:bg-accent",
+                  colorOnly ? "min-w-12 px-2.5" : "px-3",
+                  filter === value
+                    ? "border-primary bg-primary/10 text-primary font-semibold ring-1 ring-primary/20"
+                    : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {colorOnly ? (
+                  <span
+                    className={cn(
+                      "size-3.5 rounded-full shadow-[inset_0_0_0_1px_rgb(255_255_255/0.35)]",
+                      FILTER_SWATCH[value],
+                    )}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  label
+                )}
+                <span
+                  className="tabular text-xs opacity-80"
+                  aria-hidden={colorOnly || undefined}
+                >
+                  {total}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </header>
 
@@ -124,13 +179,21 @@ export function DispatcherQueue({
           <span className="grid size-12 place-items-center rounded-full bg-muted text-muted-foreground">
             <InboxIcon className="size-6" aria-hidden="true" />
           </span>
-          <p className="font-semibold">{active.length ? "Aucune alerte pour ce filtre." : "Aucune alerte en cours."}</p>
+          <p className="font-semibold">
+            {active.length
+              ? "Aucune alerte pour ce filtre."
+              : "Aucune alerte en cours."}
+          </p>
           <p className="max-w-xs text-sm text-muted-foreground">
-            Les alertes reçues par SMS, application ou puce s'affichent ici dès leur arrivée.
+            Les alertes reçues par SMS, application ou puce s'affichent ici dès
+            leur arrivée.
           </p>
         </div>
       ) : (
-        <ol className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3" aria-label="Alertes en cours, la plus récente en premier">
+        <ol
+          className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3"
+          aria-label="Alertes en cours, la plus récente en premier"
+        >
           {rows.map((i) => {
             const name = i.commune ?? `Incident #${incidentRef(i.id)}`;
             const unseen = unseenIds?.has(i.id) ?? false;
@@ -144,7 +207,8 @@ export function DispatcherQueue({
                   "relative flex overflow-hidden rounded-md border bg-card transition-colors before:absolute before:inset-y-0 before:start-0 before:w-1",
                   STRIPE[i.recSeverity],
                   highlightedId === i.id && "border-border-strong bg-accent",
-                  selectedId === i.id && "border-primary ring-1 ring-primary/40 bg-muted/40",
+                  selectedId === i.id &&
+                    "border-primary ring-1 ring-primary/40 bg-muted/40",
                   unseen && selectedId !== i.id && "border-sev-red/50",
                 )}
               >
@@ -164,41 +228,62 @@ export function DispatcherQueue({
                       </span>
                     )}
                     <span className="ms-auto text-xs text-muted-foreground">
-                      <time dateTime={new Date(arrivalTime(i)).toISOString()} className="tabular font-medium text-foreground">
-                        {new Date(arrivalTime(i)).toLocaleTimeString("fr-DZ", { hour: "2-digit", minute: "2-digit" })}
+                      <time
+                        dateTime={new Date(arrivalTime(i)).toISOString()}
+                        className="tabular font-medium text-foreground"
+                      >
+                        {new Date(arrivalTime(i)).toLocaleTimeString("fr-DZ", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </time>{" "}
                       · {timeAgo(new Date(arrivalTime(i)), now)}
                     </span>
                   </span>
-                  <span className="block truncate text-base font-semibold">{name}</span>
+                  <span className="block truncate text-base font-semibold">
+                    {name}
+                  </span>
                   <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                     <span>
                       {i.alertCount} alerte{i.alertCount > 1 ? "s" : ""}
                     </span>
                     <span className="inline-flex items-center gap-1">
                       <UsersIcon className="size-3.5" aria-hidden="true" />
-                      {i.estimatedVictims ?? "?"} victime{(i.estimatedVictims ?? 0) > 1 ? "s" : ""}
+                      {i.estimatedVictims ?? "?"} victime
+                      {(i.estimatedVictims ?? 0) > 1 ? "s" : ""}
                     </span>
                     <span>{statusLabels[i.status]}</span>
                   </span>
-                  {(i.emulated || i.tentative || i.hasEscalation || !hasPosition) && (
+                  {(i.emulated ||
+                    i.tentative ||
+                    i.hasEscalation ||
+                    !hasPosition) && (
                     <span className="flex flex-wrap gap-1.5 pt-0.5">
                       {i.hasEscalation && (
                         <span className="inline-flex items-center gap-1 rounded-full border border-sev-red/40 bg-sev-red-soft px-2 py-0.5 text-xs font-semibold text-sev-red">
-                          <ArrowUpIcon className="size-3.5" aria-hidden="true" />
+                          <ArrowUpIcon
+                            className="size-3.5"
+                            aria-hidden="true"
+                          />
                           Nouvelles informations
                         </span>
                       )}
                       {i.tentative && (
                         <span className="inline-flex items-center gap-1 rounded-full border border-sev-yellow/40 bg-sev-yellow-soft px-2 py-0.5 text-xs font-semibold text-sev-yellow">
-                          <GitMergeIcon className="size-3.5" aria-hidden="true" />
+                          <GitMergeIcon
+                            className="size-3.5"
+                            aria-hidden="true"
+                          />
                           Fusion à confirmer
                         </span>
                       )}
                       {i.emulated && <EmulationBadge />}
                       {!hasPosition && (
                         <span className="inline-flex items-center gap-1 rounded-full border border-sev-yellow/40 bg-sev-yellow-soft px-2 py-0.5 text-xs font-semibold text-sev-yellow">
-                          <MapPinOffIcon className="size-3.5" aria-hidden="true" />
+                          <MapPinOffIcon
+                            className="size-3.5"
+                            aria-hidden="true"
+                          />
                           Sans position : rappeler pour préciser
                         </span>
                       )}
@@ -212,8 +297,14 @@ export function DispatcherQueue({
                     onClick={() => onLocate(i.id)}
                     onFocus={() => onHighlight?.(i.id)}
                     onBlur={() => onHighlight?.(null)}
-                    aria-label={hasPosition ? `Voir ${name} sur la carte` : `${name} : position inconnue`}
-                    title={hasPosition ? "Voir sur la carte" : "Position inconnue"}
+                    aria-label={
+                      hasPosition
+                        ? `Voir ${name} sur la carte`
+                        : `${name} : position inconnue`
+                    }
+                    title={
+                      hasPosition ? "Voir sur la carte" : "Position inconnue"
+                    }
                     className="grid w-12 shrink-0 place-items-center border-s text-muted-foreground transition-colors hover:bg-accent hover:text-primary focus-visible:outline-offset-[-2px] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                   >
                     <MapPinIcon className="size-5" aria-hidden="true" />
