@@ -65,7 +65,14 @@ async function seedDemoLogins(db: Database, demoPassword: string) {
         updatedAt: now,
       })),
     )
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: user.id,
+      set: {
+        name: sql`excluded.name`,
+        email: sql`excluded.email`,
+        updatedAt: now,
+      },
+    });
   await db
     .insert(account)
     .values(
@@ -79,7 +86,13 @@ async function seedDemoLogins(db: Database, demoPassword: string) {
         updatedAt: now,
       })),
     )
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: account.id,
+      set: {
+        password: sql`excluded.password`,
+        updatedAt: now,
+      },
+    });
   await db
     .insert(appUsers)
     .values(
