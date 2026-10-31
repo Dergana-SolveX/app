@@ -44,7 +44,10 @@ export type Snapshot = {
   /** The last seconds of |a| in g, for the chart. `nowMs` is the right edge. */
   chart: { t: number; g: number }[];
   nowMs: number;
-  playing: { label: string; seed: number; forceSms: boolean } | null;
+  /** The recording being replayed, and when (engine clock) its first sample plays. */
+  playing: { label: string; seed: number; forceSms: boolean; trace: Trace; startedAtMs: number } | null;
+  /** `performance.now()` at the engine's clock zero: `performance.now() - clockOriginMs` is the engine clock. */
+  clockOriginMs: number;
   records: ChipRecord[];
   transmissions: Transmission[];
   /** Why the last pulse was filtered out (a pothole), until the next impact. */
@@ -61,7 +64,8 @@ const CHART_WINDOW_MS = 6000;
 const TICK_MS = 20;
 const EMIT_MS = 50;
 const HEARTBEAT_MS = 15_000;
-const LEAD_IN_MS = 300;
+/** Time between a scenario's start and its first sample: long enough for the 3D twin's obstacle to drive into view. */
+const LEAD_IN_MS = 1500;
 
 type Button = "arm" | "disarm" | "cancel" | "reset";
 
@@ -211,7 +215,7 @@ function createEngine() {
       trace = traceFor(pending, seed);
       traceStartMs = clock + LEAD_IN_MS;
       index = 0;
-      playing = { label: pending.label, seed, forceSms };
+      playing = { label: pending.label, seed, forceSms, trace, startedAtMs: traceStartMs };
       pending = null;
     }
   }
@@ -238,7 +242,8 @@ function createEngine() {
     }
     tryStart(clock, out);
 
-    if (trace) {
+    // During the lead-in the car is still cruising: the chip keeps receiving steady samples.
+    if (trace && clock >= traceStartMs) {
       while (index < trace.samples.length && traceStartMs + trace.samples[index]!.tMs <= clock) {
         const sample = { ...trace.samples[index]!, tMs: traceStartMs + trace.samples[index]!.tMs };
         out.push(...chip.sample(sample));
@@ -252,7 +257,7 @@ function createEngine() {
         playing = null;
       }
     } else {
-      // Between scenarios the car sits still, as it was left: gravity only.
+      // Between scenarios (cruising, or stopped as it was left): no acceleration, gravity only.
       const rest: SensorSample = { tMs: clock, ax: 0, ay: last?.ay ?? 0, az: last?.az ?? 1, gx: 0, gy: 0, gz: 0, smoke: 0, flame: false };
       out.push(...chip.sample(rest));
       pushChart(clock, Math.hypot(rest.ax, rest.ay, rest.az));
@@ -287,6 +292,7 @@ function createEngine() {
       orientation: { ...angles },
       lastImpactMs,
       isImpacting,
+      clockOriginMs: startedAt,
     };
   }
 

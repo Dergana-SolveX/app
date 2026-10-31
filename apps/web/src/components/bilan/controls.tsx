@@ -141,9 +141,10 @@ function GcsLine({
         )}
         style={{ background: "linear-gradient(to right, var(--sev-red), var(--sev-yellow) 50%, var(--sev-green))" }}
       />
+      {/* Three per row in a narrow card (labels stay readable), all on one row once there is room. */}
       <div
-        className="mt-2 grid gap-1"
-        style={{ gridTemplateColumns: `repeat(${max}, minmax(0, 1fr))` }}
+        className="mt-2 grid grid-cols-3 gap-1 @md:grid-cols-[repeat(var(--gcs-cols),minmax(0,1fr))]"
+        style={{ "--gcs-cols": max } as React.CSSProperties}
         aria-label={`États ${label.toLowerCase()}`}
       >
         {labels.map((stateLabel, index) => {
@@ -156,7 +157,7 @@ function GcsLine({
               aria-pressed={value === score}
               onClick={() => onChange(score)}
               className={cn(
-                "min-h-14 rounded-sm border px-1 py-1.5 text-[10px] font-semibold leading-tight outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                "min-h-14 min-w-0 rounded-sm border px-1 py-1.5 text-xs font-semibold leading-tight hyphens-auto outline-none transition-colors [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                 value === score
                   ? "border-primary bg-accent text-accent-foreground"
                   : "border-input bg-raised text-muted-foreground hover:border-primary/60 hover:text-foreground",
@@ -197,29 +198,23 @@ export function GcsPicker({
           : { label: "Rassurant", tone: "border-sev-green/40 bg-sev-green-soft text-sev-green", Icon: CircleCheckIcon };
   const StateIcon = state.Icon;
   return (
-    // A plain group, not a <fieldset>: a fieldset cannot shrink below its content and pushed out of its card.
-    <div role="group" aria-labelledby="gcs-title" className="@container flex min-w-0 flex-col gap-3 rounded-lg border bg-raised p-3">
-      <div className="flex items-center justify-between gap-2">
-        <span id="gcs-title" className="text-sm font-semibold">
-          Glasgow
-        </span>
-        <span className="tabular rounded-full border bg-card px-2.5 py-0.5 font-mono text-sm font-bold" aria-live="polite">
-          {total === null ? "— / 15" : `${total} / 15`}
-        </span>
-      </div>
-      <GcsLine label="Yeux" shortLabel="E" labels={EYES} value={eye} onChange={(value) => onChange({ eye: value, verbal, motor })} />
-      <GcsLine label="Verbal" shortLabel="V" labels={VERBAL} value={verbal} onChange={(value) => onChange({ eye, verbal: value, motor })} />
-      <GcsLine label="Moteur" shortLabel="M" labels={MOTOR} value={motor} onChange={(value) => onChange({ eye, verbal, motor: value })} />
-      <div className={cn("flex min-h-11 items-center justify-between gap-3 rounded-md border px-3", state.tone)}>
-        <span className="inline-flex items-center gap-2 text-sm font-bold">
-          {StateIcon && <StateIcon className="size-4" aria-hidden="true" />}
-          État Glasgow
-        </span>
-        <span className="tabular font-mono text-sm font-bold">
-          {total === null ? `— / 15 · ${state.label}` : `${total} / 15 · ${state.label}`}
+    // min-w-0: a fieldset otherwise refuses to shrink below its content and overflows its card.
+    <fieldset className="@container flex min-w-0 flex-col gap-3 rounded-lg border bg-raised p-3">
+      <legend className="sr-only">Échelle de Glasgow</legend>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-semibold">Glasgow détaillé</span>
+        <span
+          className={cn("inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-bold", state.tone)}
+          aria-live="polite"
+        >
+          {StateIcon && <StateIcon className="size-3.5" aria-hidden="true" />}
+          {total === null ? "— / 15" : `${total} / 15`} · {state.label}
         </span>
       </div>
-    </div>
+      <GcsLine label="Yeux" shortLabel="E" value={eye} labels={EYES} onChange={(value) => onChange({ eye: value, verbal, motor })} />
+      <GcsLine label="Verbal" shortLabel="V" value={verbal} labels={VERBAL} onChange={(value) => onChange({ eye, verbal: value, motor })} />
+      <GcsLine label="Moteur" shortLabel="M" value={motor} labels={MOTOR} onChange={(value) => onChange({ eye, verbal, motor: value })} />
+    </fieldset>
   );
 }
 
