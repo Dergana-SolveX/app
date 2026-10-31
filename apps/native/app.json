@@ -22,7 +22,10 @@
       "package": "com.anonymous.solvexdergana",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "SEND_SMS",
+        "RECEIVE_SMS",
+        "READ_PHONE_STATE"
       ]
     },
     "web": {

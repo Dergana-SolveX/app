@@ -28,6 +28,13 @@ import {
 import { trpc } from "@/utils/trpc";
 import { CrashCountdownOverlay } from "@/components/crash-countdown-overlay";
 import { useThemeColor } from "heroui-native";
+import {
+  addSvxAckListener,
+  getCellIdAsync,
+  requestPermissionsAsync,
+  sendSmsAsync,
+  type SvxCellId,
+} from "@/modules/svx-sms";
 
 export function WitnessReport() {
   const { locale, setLocale } = useLocale();
@@ -70,7 +77,44 @@ export function WitnessReport() {
   );
 
   const [forcedSms, setForcedSms] = useState(false);
+  const [smsMode, setSmsMode] = useState<"native" | "emulated">(
+    Platform.OS === "web" ? "emulated" : "native",
+  );
   const [smsAck, setSmsAck] = useState<string | null>(null);
+  const [cellId, setCellId] = useState<SvxCellId | null>(null);
+  const [isSendingNativeSms, setIsSendingNativeSms] = useState(false);
+
+  // Poll serving cell ID on Android
+  useEffect(() => {
+    let isMounted = true;
+    async function loadCell() {
+      try {
+        const cell = await getCellIdAsync();
+        if (isMounted && cell) {
+          setCellId(cell);
+        }
+      } catch {}
+    }
+    loadCell();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Listen for incoming SVXACK broadcasts
+  useEffect(() => {
+    const sub = addSvxAckListener((event) => {
+      if (event.ackRef) {
+        setSmsAck(`SVXACK#${event.ackRef}`);
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
+      }
+    });
+    return () => {
+      sub.remove();
+    };
+  }, []);
 
   const submitSmsMutation = useMutation(
     trpc.alerts.submitSms.mutationOptions({
@@ -108,7 +152,7 @@ export function WitnessReport() {
     }),
   );
 
-  const isSubmitting = submitMutation.isPending || submitSmsMutation.isPending;
+  const isSubmitting = submitMutation.isPending || submitSmsMutation.isPending || isSendingNativeSms;
 
   const svxResult = useMemo(() => {
     return buildWitnessSvxString({
@@ -119,8 +163,9 @@ export function WitnessReport() {
       bleeding: state.dangers.includes("bleeding"),
       lat: state.coords?.lat ?? null,
       lng: state.coords?.lng ?? null,
+      cell: cellId,
     });
-  }, [state.victims, state.conscious, state.dangers, state.coords]);
+  }, [state.victims, state.conscious, state.dangers, state.coords, cellId]);
 
   // Accelerometer at ~50 Hz (20ms interval) feeding phone_trigger filter (FR-S4-01)
   useEffect(() => {
@@ -307,6 +352,49 @@ export function WitnessReport() {
     dispatch({ type: "TOGGLE_DANGER", danger });
   };
 
+  const dispatchNativeSms = async () => {
+    setIsSendingNativeSms(true);
+    try {
+      const perm = await requestPermissionsAsync();
+      if (!perm.granted && Platform.OS === "android") {
+        Alert.alert(t.sms_permission_title, t.sms_permission_desc);
+        dispatch({
+          type: "SUBMISSION_ERROR",
+          error: "Permission SMS non accordée",
+        });
+        return;
+      }
+
+      const res = await sendSmsAsync("+213550000000", svxResult.svx);
+      if (res.sent) {
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
+        dispatch({
+          type: "SUBMISSION_SUCCESS",
+          result: {
+            alertId: `sms-native-${Date.now()}`,
+            incidentId: `gsm-${Date.now().toString(36).toUpperCase()}`,
+            duplicate: false,
+            merged: false,
+          },
+        });
+      } else {
+        dispatch({
+          type: "SUBMISSION_ERROR",
+          error: res.error || "Échec de l'envoi SMS",
+        });
+      }
+    } catch (e: any) {
+      dispatch({
+        type: "SUBMISSION_ERROR",
+        error: e.message || "Erreur de transmission GSM",
+      });
+    } finally {
+      setIsSendingNativeSms(false);
+    }
+  };
+
   const handleSubmit = () => {
     triggerHaptic();
     if (
@@ -320,11 +408,15 @@ export function WitnessReport() {
 
     dispatch({ type: "SUBMISSION_START" });
     if (forcedSms) {
-      submitSmsMutation.mutate({
-        from: "+213550000000",
-        body: svxResult.svx,
-        emulated: true,
-      });
+      if (smsMode === "native") {
+        dispatchNativeSms();
+      } else {
+        submitSmsMutation.mutate({
+          from: "+213550000000",
+          body: svxResult.svx,
+          emulated: true,
+        });
+      }
     } else {
       const payload = state.toSubmissionPayload();
       submitMutation.mutate(payload);
@@ -342,11 +434,15 @@ export function WitnessReport() {
 
     dispatch({ type: "SUBMISSION_START" });
     if (forcedSms) {
-      submitSmsMutation.mutate({
-        from: "+213550000000",
-        body: svxResult.svx,
-        emulated: true,
-      });
+      if (smsMode === "native") {
+        dispatchNativeSms();
+      } else {
+        submitSmsMutation.mutate({
+          from: "+213550000000",
+          body: svxResult.svx,
+          emulated: true,
+        });
+      }
     } else {
       const payload = {
         ...state.toSubmissionPayload(),
@@ -498,7 +594,7 @@ export function WitnessReport() {
         </View>
       </View>
 
-      {/* Forced SMS Toggle & Preview (FR-S4-06) */}
+      {/* Forced SMS Toggle, Mode Selector & Preview (FR-S4-05, FR-S4-06) */}
       <View className="mb-3">
         <Pressable
                 accessibilityRole="button"
@@ -540,6 +636,57 @@ export function WitnessReport() {
             testID="raw-sms-preview"
             className="mt-2 p-3 bg-info-soft border border-info/80 rounded-xl"
           >
+            {/* SMS Mode Selector: GSM Réel vs GSM Émulé */}
+            <View className="flex-row gap-2 mb-3">
+              <Pressable
+                testID="sms-mode-native"
+                onPress={() => setSmsMode("native")}
+                className={`flex-1 py-1.5 px-2 rounded-lg border items-center justify-center ${
+                  smsMode === "native"
+                    ? "bg-info-solid border-info"
+                    : "bg-surface border-border"
+                }`}
+              >
+                <Text
+                  className={`text-xs font-bold ${
+                    smsMode === "native" ? "text-foreground" : "text-muted"
+                  }`}
+                >
+                  {t.sms_mode_native}
+                </Text>
+              </Pressable>
+              <Pressable
+                testID="sms-mode-emulated"
+                onPress={() => setSmsMode("emulated")}
+                className={`flex-1 py-1.5 px-2 rounded-lg border items-center justify-center ${
+                  smsMode === "emulated"
+                    ? "bg-info-solid border-info"
+                    : "bg-surface border-border"
+                }`}
+              >
+                <Text
+                  className={`text-xs font-bold ${
+                    smsMode === "emulated" ? "text-foreground" : "text-muted"
+                  }`}
+                >
+                  {t.sms_mode_emulated}
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* Serving Cell-ID Badge (FR-S4-05) */}
+            {cellId && (
+              <View className="flex-row items-center gap-1.5 bg-surface/90 border border-info/40 px-2.5 py-1.5 rounded-lg mb-2">
+                <Ionicons name="radio" size={14} color={cAccent} />
+                <Text className="text-xs text-info font-medium">
+                  {t.cell_id_label}{" "}
+                  <Text className="font-mono font-bold">
+                    {cellId.formatted ?? `${cellId.mcc}-${cellId.mnc}-${cellId.lac}-${cellId.cid}`}
+                  </Text>
+                </Text>
+              </View>
+            )}
+
             <View className="flex-row justify-between items-center mb-1.5">
               <Text className="text-xs font-bold text-info">
                 {t.rawSms}
@@ -915,7 +1062,7 @@ export function WitnessReport() {
             </Text>
           </View>
 
-          {/* SMS Ack Card (FR-S4-06) */}
+          {/* SMS Ack Card (FR-S4-05, FR-S4-06) */}
           {smsAck && (
             <View className="w-full bg-info-soft border border-info/40 rounded-2xl p-4 mb-4">
               <View className="flex-row justify-between items-center mb-1">
