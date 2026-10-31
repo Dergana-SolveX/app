@@ -18,52 +18,52 @@
  * Primary Teal (#0D9488) stays available as --brand for non-text accents.
  */
 :root {
-  --brand: #0d9488;
-  --brand-soft: #ccfbf1;
-  --brand-soft-foreground: #115e59;
+  --brand: #16a34a;
+  --brand-soft: #f0fdf4;
+  --brand-soft-foreground: #15803d;
 
   --background: #ffffff;
-  --foreground: #0f172a;
+  --foreground: #09090b;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #09090b;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --raised: #f8fafc;
-  --primary: #15803d;
+  --popover-foreground: #09090b;
+  --raised: #f4f4f5;
+  --primary: #16a34a;
   --primary-foreground: #ffffff;
   --primary-action: #16a34a;
   --primary-action-foreground: #ffffff;
   --primary-hover: #15803d;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --subtle-foreground: #94a3b8;
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
-  --destructive: #b91c1c;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #09090b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --subtle-foreground: #a1a1aa;
+  --accent: #f4f4f5;
+  --accent-foreground: #09090b;
+  --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --input: #cbd5e1;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --input: #e4e4e7;
   --ring: #16a34a;
 
   /* Severity / status: always paired with an icon and a word, never color alone. */
-  --sev-red: #b91c1c;
+  --sev-red: #dc2626;
   --sev-red-soft: #fee2e2;
-  --sev-yellow: #b45309;
+  --sev-yellow: #d97706;
   --sev-yellow-soft: #fef3c7;
-  --sev-green: #15803d;
+  --sev-green: #16a34a;
   --sev-green-soft: #dcfce7;
-  --sev-unknown: #64748b;
-  --sev-unknown-soft: #f1f5f9;
-  --info: #1d4ed8;
+  --sev-unknown: #71717a;
+  --sev-unknown-soft: #f4f4f5;
+  --info: #2563eb;
   --info-soft: #dbeafe;
   /* Filled semantic surfaces carry white text in both themes, so they keep the light-theme values. */
-  --danger-solid: #b91c1c;
-  --warning-solid: #b45309;
-  --success-solid: #15803d;
-  --info-solid: #1d4ed8;
+  --danger-solid: #dc2626;
+  --warning-solid: #d97706;
+  --success-solid: #16a34a;
+  --info-solid: #2563eb;
   --solid-foreground: #ffffff;
   /* AI suggestions and emulated data are neutral information. */
   --sev-ai: var(--info);
@@ -72,81 +72,81 @@
   --emulation-soft: var(--info-soft);
 
   --chart-1: #16a34a;
-  --chart-2: #b91c1c;
-  --chart-3: #b45309;
+  --chart-2: #dc2626;
+  --chart-3: #d97706;
   --chart-4: #15803d;
-  --chart-5: #1d4ed8;
+  --chart-5: #2563eb;
 
   /* The sidebar: white and clean in light mode, only active buttons on green */
   --sidebar: #ffffff;
-  --sidebar-foreground: #0f172a;
-  --sidebar-muted: #64748b;
+  --sidebar-foreground: #09090b;
+  --sidebar-muted: #71717a;
   --sidebar-primary: #16a34a;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1f5f9;
-  --sidebar-accent-foreground: #0f172a;
-  --sidebar-border: #e2e8f0;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #09090b;
+  --sidebar-border: #e4e4e7;
   --sidebar-ring: #16a34a;
 
-  --shadow-color: 15 23 42;
+  --shadow-color: 0 0 0;
 }
 
 .dark {
-  --brand: #2dd4bf;
-  --brand-soft: #164039;
-  --brand-soft-foreground: #99f6e4;
+  --brand: #22c55e;
+  --brand-soft: #14532d;
+  --brand-soft-foreground: #86efac;
 
-  --background: #090d0c;
-  --foreground: #eaf5f2;
-  --card: #0e1e1c;
-  --card-foreground: #eaf5f2;
-  --popover: #10312d;
-  --popover-foreground: #eaf5f2;
-  --raised: #10312d;
+  --background: #000000;
+  --foreground: #f4f4f5;
+  --card: #09090b;
+  --card-foreground: #f4f4f5;
+  --popover: #09090b;
+  --popover-foreground: #f4f4f5;
+  --raised: #121214;
   --primary: #22c55e;
-  --primary-foreground: #021c19;
+  --primary-foreground: #000000;
   --primary-action: #16a34a;
   --primary-action-foreground: #ffffff;
   --primary-hover: #22c55e;
-  --secondary: #10312d;
-  --secondary-foreground: #eaf5f2;
-  --muted: #10312d;
-  --muted-foreground: #a7c2bb;
-  --subtle-foreground: #789b92;
-  --accent: #164039;
-  --accent-foreground: #eaf5f2;
-  --destructive: #f87171;
-  --destructive-foreground: #021c19;
-  --border: #1e4841;
-  --border-strong: #32645b;
-  --input: #32645b;
+  --secondary: #18181b;
+  --secondary-foreground: #f4f4f5;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --subtle-foreground: #71717a;
+  --accent: #18181b;
+  --accent-foreground: #f4f4f5;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #27272a;
+  --border-strong: #3f3f46;
+  --input: #27272a;
   --ring: #22c55e;
 
-  --sev-red: #f87171;
-  --sev-red-soft: #3b191b;
-  --sev-yellow: #fbbf24;
-  --sev-yellow-soft: #3b2b12;
-  --sev-green: #4ade80;
-  --sev-green-soft: #123522;
-  --sev-unknown: #a7c2bb;
-  --sev-unknown-soft: #10312d;
-  --info: #60a5fa;
-  --info-soft: #172c49;
+  --sev-red: #ef4444;
+  --sev-red-soft: #450a0a;
+  --sev-yellow: #f59e0b;
+  --sev-yellow-soft: #451a03;
+  --sev-green: #22c55e;
+  --sev-green-soft: #052e16;
+  --sev-unknown: #a1a1aa;
+  --sev-unknown-soft: #18181b;
+  --info: #3b82f6;
+  --info-soft: #172554;
 
   --chart-1: #22c55e;
-  --chart-2: #f87171;
-  --chart-3: #fbbf24;
+  --chart-2: #ef4444;
+  --chart-3: #f59e0b;
   --chart-4: #4ade80;
-  --chart-5: #60a5fa;
+  --chart-5: #3b82f6;
 
-  --sidebar: #0b2522;
-  --sidebar-foreground: #eaf5f2;
-  --sidebar-muted: #a7c2bb;
+  --sidebar: #09090b;
+  --sidebar-foreground: #f4f4f5;
+  --sidebar-muted: #a1a1aa;
   --sidebar-primary: #16a34a;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #164039;
+  --sidebar-accent: #18181b;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1e4841;
+  --sidebar-border: #27272a;
   --sidebar-ring: #22c55e;
 
   --shadow-color: 0 0 0;

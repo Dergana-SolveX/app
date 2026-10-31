@@ -21,6 +21,65 @@ export default function AppShell({ user, appUser, children }: Props) {
   const { locale } = useLocale();
   const t = getLabels(locale, "shell");
   const items = navFor(appUser).map(item => ({ ...item, label: appUser.role === "hospital" ? getLabels(locale, "hospital").title : item.label }));
+  const hasSidebar = appUser.role === "admin";
+
+  const headerActions = (
+    <div className="flex items-center gap-2 shrink-0">
+      <ConnectionStatus className="hidden sm:inline-flex" />
+      <ThemeToggle />
+      <AccountMenu name={user.name} email={user.email} role={appUser.role} />
+    </div>
+  );
+
+  if (!hasSidebar) {
+    return (
+      <div
+        lang={locale}
+        dir={locale === "ar" ? "rtl" : "ltr"}
+        className="flex h-dvh flex-col bg-background text-foreground"
+      >
+        {/* Top bar with logo and navigation next to it */}
+        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-6">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <Logo
+              subtitle={getLabels(locale, "victim").emergency}
+              subtitleClassName="hidden sm:block"
+            />
+            {items.length > 0 && (
+              <>
+                <div className="h-6 w-px bg-border shrink-0 hidden sm:block" aria-hidden="true" />
+                <nav aria-label={t.nav} className="flex items-center gap-2">
+                  {items.map(({ label, icon: Icon, link }) => (
+                    <Link
+                      key={label}
+                      {...link}
+                      className={cn(
+                        "group flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all whitespace-nowrap",
+                        "text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600",
+                        "data-[status=active]:bg-emerald-600 data-[status=active]:text-white data-[status=active]:shadow-sm data-[status=active]:hover:bg-emerald-600 data-[status=active]:hover:text-white",
+                        "[&.active]:bg-emerald-600 [&.active]:text-white [&.active]:shadow-sm",
+                      )}
+                      activeProps={{
+                        className: "!bg-emerald-600 !text-white !shadow-sm hover:!bg-emerald-600",
+                      }}
+                    >
+                      <Icon className="size-4.5 shrink-0 transition-colors" aria-hidden="true" />
+                      <span className="truncate max-w-[140px] sm:max-w-none">{label}</span>
+                    </Link>
+                  ))}
+                </nav>
+              </>
+            )}
+          </div>
+          {headerActions}
+        </header>
+
+        <main id="main" className="min-h-0 flex-1 overflow-y-auto bg-background">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -75,11 +134,7 @@ export default function AppShell({ user, appUser, children }: Props) {
           </span>
         </div>
         <div className="hidden md:block" />
-        <div className="flex items-center gap-2">
-          <ConnectionStatus className="hidden sm:inline-flex" />
-          <ThemeToggle />
-          <AccountMenu name={user.name} email={user.email} role={appUser.role} />
-        </div>
+        {headerActions}
       </header>
 
       <main id="main" className="min-h-0 overflow-y-auto bg-background">

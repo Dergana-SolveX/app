@@ -136,7 +136,8 @@ export function renderAtMistSms(atmist: AtMist): string {
     signs.shockIndex && signs.shockIndex.value === null && "PAS imprenable CRITIQUE",
   ].filter(Boolean) as string[];
 
-  const list = (items: string[]) => items.join(", ");
+  const list = (items: unknown) =>
+    Array.isArray(items) ? items.filter(Boolean).join(", ") : typeof items === "string" ? items : "";
   const part = (label: string, value: string | false | null | undefined) => (value ? `${label}:${value}` : null);
 
   // Parts in reading order; `optional` ones are dropped from the last of this list upwards.

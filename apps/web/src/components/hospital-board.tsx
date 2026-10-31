@@ -62,10 +62,21 @@ type Incoming = {
   smsFallbackSentAt?: string | null;
 };
 
+function formatList(items: unknown, fallback: string): string {
+  if (Array.isArray(items)) {
+    const filtered = items.map((i) => (typeof i === "string" ? i.trim() : String(i))).filter(Boolean);
+    return filtered.length > 0 ? filtered.join(", ") : fallback;
+  }
+  if (typeof items === "string" && items.trim().length > 0) {
+    return items.trim();
+  }
+  return fallback;
+}
+
 function HandoverCard({ handover, now, hospitalId, locale }: { handover: Incoming; now: Date; hospitalId: string; locale: Locale }) {
   const t = getLabels(locale, "hospital");
   const needs = getLabels(locale, "needs");
-  const atmist = handover.atmist as unknown as AtMist;
+  const rawAtmist = (handover.atmist ?? {}) as Record<string, unknown>;
   const queryClient = useQueryClient();
   const [diverting, setDiverting] = useState(false);
   const [specialty, setSpecialty] = useState<Need | null>(null);
@@ -82,15 +93,51 @@ function HandoverCard({ handover, now, hospitalId, locale }: { handover: Incomin
   );
 
   const countdown = arrivalCountdown(handover.createdAt, handover.etaMin, now);
-  const { signs } = atmist;
+  const signs = (rawAtmist.signs ?? {}) as {
+    hr?: number | null;
+    sbp?: number | null;
+    dbp?: number | null;
+    spo2?: number | null;
+    rr?: number | null;
+    gcs?: number | null;
+    shockIndex?: AtMist["signs"]["shockIndex"];
+  };
   const pending = handover.status === "pending";
   const vitals = [
-    signs.hr !== null && `FC ${signs.hr}`,
-    signs.sbp !== null && `PAS ${signs.sbp}${signs.dbp !== null ? `/${signs.dbp}` : ""}`,
-    signs.spo2 !== null && `SpO2 ${signs.spo2} %`,
-    signs.rr !== null && `FR ${signs.rr}`,
-    signs.gcs !== null && `Glasgow ${signs.gcs}`,
+    signs.hr != null && `FC ${signs.hr}`,
+    signs.sbp != null && `PAS ${signs.sbp}${signs.dbp != null ? `/${signs.dbp}` : ""}`,
+    signs.spo2 != null && `SpO2 ${signs.spo2} %`,
+    signs.rr != null && `FR ${signs.rr}`,
+    signs.gcs != null && `Glasgow ${signs.gcs}`,
   ].filter(Boolean);
+
+  const unit = (typeof rawAtmist.unit === "string" && rawAtmist.unit) || "AMB";
+  const victimIndex =
+    typeof rawAtmist.victimIndex === "number" || typeof rawAtmist.victimIndex === "string"
+      ? rawAtmist.victimIndex
+      : 1;
+  const severe = Boolean(rawAtmist.severe);
+  const age = rawAtmist.age != null ? `${rawAtmist.age} ${t.years}` : t.unknownAge;
+  const sex =
+    rawAtmist.sex === "male" || rawAtmist.sex === "M"
+      ? t.male
+      : rawAtmist.sex === "female" || rawAtmist.sex === "F"
+        ? t.female
+        : "";
+  const time = typeof rawAtmist.time === "string" ? rawAtmist.time : "";
+  const mechanismText = formatList(rawAtmist.mechanism, t.unspecified);
+  const injuriesText = formatList(rawAtmist.injuries, t.unspecified);
+  const treatments = rawAtmist.treatments ?? rawAtmist.treatment;
+  const treatmentsText = formatList(treatments, t.none);
+  const prep = Array.isArray(rawAtmist.prep)
+    ? rawAtmist.prep.map((p) => (typeof p === "string" ? p.trim() : String(p))).filter(Boolean)
+    : [];
+  const bloodType = typeof rawAtmist.bloodType === "string" ? rawAtmist.bloodType : null;
+  const allergies = Array.isArray(rawAtmist.allergies)
+    ? rawAtmist.allergies.map((a) => (typeof a === "string" ? a.trim() : String(a))).filter(Boolean)
+    : typeof rawAtmist.allergies === "string" && rawAtmist.allergies.trim().length > 0
+      ? [rawAtmist.allergies.trim()]
+      : [];
 
   return (
     <li className={cn("rounded-lg border bg-card p-4", pending && "border-primary/60 ring-2 ring-primary/20")}>
@@ -98,8 +145,8 @@ function HandoverCard({ handover, now, hospitalId, locale }: { handover: Incomin
         <div>
           <p className="flex flex-wrap items-center gap-2 text-base font-bold">
             <AmbulanceIcon className="size-5 text-primary" aria-hidden="true" />
-            <bdi dir="ltr">{atmist.unit}</bdi> · {t.victim} <bdi dir="ltr">{atmist.victimIndex}</bdi>
-            {atmist.severe && (
+            <bdi dir="ltr">{unit}</bdi> · {t.victim} <bdi dir="ltr">{victimIndex}</bdi>
+            {severe && (
               <span className="inline-flex items-center gap-1 rounded-md border border-sev-red/40 bg-sev-red-soft px-2 py-0.5 text-xs font-bold text-sev-red">
                 <CircleAlertIcon className="size-3.5" aria-hidden="true" />
                 {t.severe}
@@ -128,16 +175,16 @@ function HandoverCard({ handover, now, hospitalId, locale }: { handover: Incomin
       <div className="mt-3 grid gap-4 md:grid-cols-2">
         <dl>
           <Line letter="A" label={t.ageSex}>
-            {atmist.age !== null ? `${atmist.age} ${t.years}` : t.unknownAge} {atmist.sex === "male" ? t.male : atmist.sex === "female" ? t.female : ""}
+            {age} {sex}
           </Line>
           <Line letter="T" label={t.time}>
-            <bdi dir="ltr">{atmist.time}</bdi>
+            <bdi dir="ltr">{time}</bdi>
           </Line>
           <Line letter="M" label={t.mechanism}>
-            <bdi dir="auto">{atmist.mechanism.length ? atmist.mechanism.join(", ") : t.unspecified}</bdi>
+            <bdi dir="auto">{mechanismText}</bdi>
           </Line>
           <Line letter="I" label={t.injuries}>
-            <bdi dir="auto">{atmist.injuries.length ? atmist.injuries.join(", ") : t.unspecified}</bdi>
+            <bdi dir="auto">{injuriesText}</bdi>
           </Line>
         </dl>
         <dl>
@@ -148,23 +195,23 @@ function HandoverCard({ handover, now, hospitalId, locale }: { handover: Incomin
             </span>
           </Line>
           <Line letter="T" label={t.treatments}>
-            <bdi dir="auto">{atmist.treatments.length ? atmist.treatments.join(", ") : t.none}</bdi>
+            <bdi dir="auto">{treatmentsText}</bdi>
           </Line>
-          {(atmist.bloodType || (atmist.allergies && atmist.allergies.length > 0)) && (
+          {(bloodType || allergies.length > 0) && (
             <Line letter="P" label={t.profile}>
               {[
-                atmist.bloodType && `${t.blood} ${atmist.bloodType}`,
-                atmist.allergies && atmist.allergies.length > 0 && `${t.allergies} : ${atmist.allergies.join(", ")}`,
+                bloodType && `${t.blood} ${bloodType}`,
+                allergies.length > 0 && `${t.allergies} : ${allergies.join(", ")}`,
               ]
                 .filter(Boolean)
                 .join(" · ")}
             </Line>
           )}
-          {atmist.prep.length > 0 && (
+          {prep.length > 0 && (
             <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
               <p className="font-bold text-primary">{t.prepare}</p>
               <ul className="mt-1 list-disc list-inside space-y-0.5">
-                {atmist.prep.map((p) => (
+                {prep.map((p) => (
                   <li key={p}><bdi dir="auto">{p}</bdi></li>
                 ))}
               </ul>

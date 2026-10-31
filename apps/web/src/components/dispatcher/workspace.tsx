@@ -142,7 +142,7 @@ export default function DispatcherWorkspace() {
       className={cn(
         "inline-flex min-h-10 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors",
         activeTab === value
-          ? "bg-emerald-600 text-white shadow-xs"
+          ? "bg-card text-foreground shadow-xs border border-border"
           : "text-muted-foreground hover:text-foreground",
       )}
     >
@@ -165,9 +165,6 @@ export default function DispatcherWorkspace() {
               variant={mapOpen ? "default" : "outline"}
               aria-pressed={mapOpen}
               onClick={() => setMapOpen((open) => !open)}
-              className={cn(
-                mapOpen && "!bg-emerald-600 !text-white hover:!bg-emerald-700",
-              )}
             >
               <MapIcon aria-hidden="true" />
               {mapOpen ? "Masquer la carte" : "Afficher la carte"}

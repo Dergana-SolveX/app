@@ -62,7 +62,7 @@ export function DispatcherStats() {
               variant={range === "7d" ? "default" : "ghost"}
               size="sm"
               onClick={() => setRange("7d")}
-              className={cn("h-8 text-xs font-semibold", range === "7d" && "!bg-emerald-600 !text-white hover:!bg-emerald-700")}
+              className="h-8 text-xs font-semibold"
             >
               7 jours
             </Button>
@@ -70,7 +70,7 @@ export function DispatcherStats() {
               variant={range === "30d" ? "default" : "ghost"}
               size="sm"
               onClick={() => setRange("30d")}
-              className={cn("h-8 text-xs font-semibold", range === "30d" && "!bg-emerald-600 !text-white hover:!bg-emerald-700")}
+              className="h-8 text-xs font-semibold"
             >
               30 jours
             </Button>
@@ -78,7 +78,7 @@ export function DispatcherStats() {
               variant={range === "all" ? "default" : "ghost"}
               size="sm"
               onClick={() => setRange("all")}
-              className={cn("h-8 text-xs font-semibold", range === "all" && "!bg-emerald-600 !text-white hover:!bg-emerald-700")}
+              className="h-8 text-xs font-semibold"
             >
               Tout
             </Button>

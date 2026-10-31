@@ -34,10 +34,12 @@ export function Logo({
   className,
   inverted,
   subtitle,
+  subtitleClassName,
 }: {
   className?: string;
   inverted?: boolean;
   subtitle?: string;
+  subtitleClassName?: string;
 }) {
   return (
     <span className={cn("inline-flex items-center gap-3", className)}>
@@ -59,6 +61,7 @@ export function Logo({
             className={cn(
               "mt-1 block text-xs font-medium",
               inverted ? "text-sidebar-muted" : "text-muted-foreground",
+              subtitleClassName,
             )}
           >
             {subtitle}

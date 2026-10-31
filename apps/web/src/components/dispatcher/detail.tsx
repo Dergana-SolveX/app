@@ -291,7 +291,7 @@ export function IncidentDetailPanel({
             }}
             className={cn(
               "-mb-px min-h-11 shrink-0 border-b-2 border-transparent px-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
-              tab === name && "border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400 hover:text-emerald-600",
+              tab === name && "border-primary text-primary hover:text-primary",
             )}
           >
             {name}
