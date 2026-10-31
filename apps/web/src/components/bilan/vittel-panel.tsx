@@ -65,6 +65,12 @@ export function VittelPanel({
     <div className="flex flex-col gap-2">
       {LEVELS.map(({ level, title, hint }) => {
         const items = VITTEL_ITEMS.filter((item) => item.level === level);
+        const displayedItems =
+          level === "l4"
+            ? [...items].sort((a, b) =>
+                a.id === "fluidsMl" ? -1 : b.id === "fluidsMl" ? 1 : 0,
+              )
+            : items;
         const positives = items.filter((item) => item.positive(state[level][item.id]?.value ?? false)).length;
         const isOpen = open.has(level);
         return (
@@ -91,7 +97,7 @@ export function VittelPanel({
             <div id={`vittel-${level}`} hidden={!isOpen} className="flex flex-col gap-3 border-t px-3 py-3">
               {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
               <div className="flex flex-wrap gap-2">
-                {items.map((definition) => {
+                {displayedItems.map((definition) => {
                   const item = state[level][definition.id];
                   const tag = sourceTag(level, item);
                   const isNumber = definition.id === "fallHeightM" || definition.id === "fluidsMl";

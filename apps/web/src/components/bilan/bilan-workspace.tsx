@@ -5,7 +5,7 @@ import { Skeleton } from "@solvex-dergana/ui/components/skeleton";
 import { cn } from "@solvex-dergana/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { ArrowLeftIcon, InboxIcon, MinusIcon, PlusIcon, UserRoundIcon } from "lucide-react";
+import { ArrowLeftIcon, InboxIcon, PlusIcon, Trash2Icon, UserRoundIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -205,7 +205,7 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
         <SeverityBadge severity={mission.data.incident.recSeverity} />
       </div>
 
-      <div className="grid max-w-7xl grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
+      <div className="grid w-full grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
         <aside
           role="group"
           aria-label="Victimes"
@@ -221,6 +221,36 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
             >
               {victims.length}
             </span>
+          </div>
+
+          <div className="mb-3 grid grid-cols-2 gap-2 border-b pb-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={removeVictim}
+              disabled={victims.length === 1}
+              aria-label={`Supprimer la victime ${active}`}
+              title={
+                victims.length === 1
+                  ? "Une victime au minimum"
+                  : `Supprimer la victime ${active}`
+              }
+            >
+              <Trash2Icon aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="w-full"
+              onClick={addVictim}
+              aria-label="Ajouter une victime"
+              title="Ajouter une victime"
+            >
+              <PlusIcon aria-hidden="true" />
+            </Button>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -250,35 +280,6 @@ function VictimWorkspace({ incidentId, unitId, onBack }: { incidentId: string; u
             })}
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2 border-t pt-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="w-full"
-              onClick={removeVictim}
-              disabled={victims.length === 1}
-              aria-label={`Supprimer la victime ${active}`}
-              title={
-                victims.length === 1
-                  ? "Une victime au minimum"
-                  : `Supprimer la victime ${active}`
-              }
-            >
-              <MinusIcon aria-hidden="true" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="w-full"
-              onClick={addVictim}
-              aria-label="Ajouter une victime"
-              title="Ajouter une victime"
-            >
-              <PlusIcon aria-hidden="true" />
-            </Button>
-          </div>
         </aside>
 
         <div className="min-w-0">

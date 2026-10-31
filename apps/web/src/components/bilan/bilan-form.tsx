@@ -239,7 +239,7 @@ export function BilanForm({
       </Section>
 
       <Section title="Constantes" className="order-2">
-        <div className="grid gap-4 @md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4">
           <NumberStepper label="FC" unit="bpm" value={draft.hr} onChange={(hr) => set({ hr })} min={0} max={300} fallback={80} quickStep={10} />
           <NumberStepper label="PAS" unit="mmHg" value={draft.sbp} onChange={(sbp) => set({ sbp })} min={0} max={350} step={5} fallback={120} quickStep={10} />
           <NumberStepper label="PAD" unit="mmHg" value={draft.dbp} onChange={(dbp) => set({ dbp })} min={0} max={250} step={5} fallback={80} quickStep={10} />
@@ -355,10 +355,12 @@ export function BilanForm({
             Indiquez le motif pour enregistrer un autre hôpital que le recommandé.
           </p>
         )}
-        <Button type="button" size="lg" className="w-full sm:w-auto" onClick={onSave} disabled={saving || missingReason}>
-          {saving ? <LoaderCircleIcon className="animate-spin" aria-hidden="true" /> : <SaveIcon aria-hidden="true" />}
-          {saving ? "Enregistrement…" : "Enregistrer le bilan"}
-        </Button>
+        <div className="flex justify-end">
+          <Button type="button" size="lg" onClick={onSave} disabled={saving || missingReason}>
+            {saving ? <LoaderCircleIcon className="animate-spin" aria-hidden="true" /> : <SaveIcon aria-hidden="true" />}
+            {saving ? "Enregistrement…" : "Enregistrer le bilan"}
+          </Button>
+        </div>
       </div>
     </div>
   );
