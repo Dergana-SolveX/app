@@ -8,7 +8,7 @@ export type Draft = {
   estAge: number | null;
   sex: Sex;
   gcs: number | null;
-  /** Glasgow answers, kept apart so the picker can show them; the total above is what is saved. */
+  /** The three Glasgow components used by the detailed sliders. */
   gcsParts: { eye: number | null; verbal: number | null; motor: number | null };
   hr: number | null;
   sbp: number | null;
@@ -24,7 +24,7 @@ export type Draft = {
   overrideReason: string;
 };
 
-/** The Glasgow total once the three answers are in; nothing while one is missing. */
+/** The Glasgow total once all three detailed sliders have been measured. */
 export const gcsTotal = (parts: Draft["gcsParts"]): number | null =>
   parts.eye !== null && parts.verbal !== null && parts.motor !== null ? parts.eye + parts.verbal + parts.motor : null;
 

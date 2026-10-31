@@ -31,7 +31,6 @@ const TIER_LABELS: Record<MatchHospital["tier"], string> = {
 
 const minutes = (value: number) => `${Math.max(1, Math.round(value))} min`;
 const km = (metres: number) => `${(metres / 1000).toFixed(1).replace(".", ",")} km`;
-const decimal = (value: number) => (Math.round(value * 10) / 10).toString().replace(".", ",");
 
 /** Consecutive pieces of the same road become one line of the step list. */
 function mergeSteps(steps: { name: string | null; distanceM: number; durationS: number }[]) {
@@ -89,7 +88,7 @@ function HospitalCard({
   chosen: boolean;
   onChoose: () => void;
 }) {
-  const { etaMin, missingPenaltyMin, divertPenaltyMin } = match.scoreBreakdown;
+  const { etaMin } = match.scoreBreakdown;
   return (
     <li className={cn("rounded-lg border bg-card p-3", chosen ? "border-primary ring-2 ring-primary/30" : "")}>
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -154,11 +153,6 @@ function HospitalCard({
         ))}
       </ul>
 
-      <p className="tabular mt-2 font-mono text-xs text-muted-foreground">
-        Score {decimal(match.score)} = {decimal(etaMin)} (trajet) + {decimal(missingPenaltyMin)} ({match.missing.length} manquant
-        {match.missing.length > 1 ? "s" : ""}) + {decimal(divertPenaltyMin)} ({match.diverting.length} détournement
-        {match.diverting.length > 1 ? "s" : ""})
-      </p>
     </li>
   );
 }

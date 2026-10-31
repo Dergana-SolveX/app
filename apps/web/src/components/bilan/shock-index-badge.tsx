@@ -8,6 +8,11 @@ const FLAGS = {
   critical: { word: "Critique", tone: "border-sev-red/40 bg-sev-red-soft text-sev-red", Icon: CircleAlertIcon },
 } as const;
 
+const UNKNOWN_FLAG = {
+  tone: "border-sev-unknown/40 bg-sev-unknown-soft text-sev-unknown",
+  Icon: CircleHelpIcon,
+} as const;
+
 /** Live Shock Index (heart rate / systolic pressure). The announcing region stays mounted; only its content changes. */
 export function ShockIndexBadge({ result, locale = "fr" }: { result: ShockIndex | null; locale?: Locale }) {
   return <div role="status">{result ? <Reading result={result} locale={locale} /> : <Missing locale={locale} />}</div>;
@@ -26,20 +31,30 @@ function Missing({ locale }: { locale: Locale }) {
 function Reading({ result, locale }: { result: ShockIndex; locale: Locale }) {
   const t = getLabels(locale, "shock");
   const fr = getLabels("fr", "shock");
-  const { tone, Icon } = FLAGS[result.flag];
-  const shown = result.value === null ? "—" : result.value.toFixed(2).replace(".", ",");
+  // AT-MIST is persisted JSON and can outlive the enum version that created it.
+  const knownFlag = Object.hasOwn(FLAGS, result.flag)
+    ? (result.flag as keyof typeof FLAGS)
+    : null;
+  const { tone, Icon } = knownFlag ? FLAGS[knownFlag] : UNKNOWN_FLAG;
+  const value = typeof result.value === "number" && Number.isFinite(result.value)
+    ? result.value
+    : null;
+  const caveats = Array.isArray(result.caveats)
+    ? result.caveats.filter((caveat): caveat is string => typeof caveat === "string")
+    : [];
+  const shown = value === null ? "—" : value.toFixed(2).replace(".", ",");
   return (
     <div className={cn("rounded-lg border px-3 py-2", tone)}>
       <div className="flex items-center gap-2">
         <Icon className="size-5 shrink-0" aria-hidden="true" />
         <p className="text-sm font-semibold">
           {t.title} <span dir="ltr" className="tabular font-mono text-xl font-bold">{shown}</span>{" "}
-          <span className="font-bold">{t[result.flag]}</span>
+          <span className="font-bold">{knownFlag ? t[knownFlag] : t.unknown}</span>
         </p>
       </div>
-      {result.caveats.length > 0 && (
+      {caveats.length > 0 && (
         <ul className="mt-1.5 flex flex-col gap-1 text-sm text-foreground">
-          {result.caveats.map((caveat) => (
+          {caveats.map((caveat) => (
             <li key={t[(Object.keys(fr) as (keyof typeof fr)[]).find((key) => fr[key] === caveat)!] ?? caveat} className="flex items-start gap-1.5">
               <InfoIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               {t[(Object.keys(fr) as (keyof typeof fr)[]).find((key) => fr[key] === caveat)!] ?? caveat}
